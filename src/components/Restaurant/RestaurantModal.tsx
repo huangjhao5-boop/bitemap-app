@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Restaurant, Friend, RestaurantRatingTag, ShortVideoSource } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
@@ -14,7 +14,10 @@ import {
   HelpCircle,
   Sparkles,
   Wand2,
-  Check
+  Check,
+  Camera,
+  Upload,
+  Link as LinkIcon
 } from 'lucide-react';
 
 interface RestaurantModalProps {
