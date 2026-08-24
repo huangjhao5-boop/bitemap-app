@@ -17,6 +17,7 @@ import {
 interface FriendIdModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'my_id' | 'add_by_id' | 'restore';
   userProfile: UserProfile;
   friends: Friend[];
   lang: Language;
@@ -28,9 +29,17 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   onClose,
   userProfile,
   lang,
+  initialTab = 'add_by_id',
   onSendFriendRequest,
 }) => {
-  const [activeTab, setActiveTab] = useState<'my_id' | 'add_by_id' | 'restore'>('my_id');
+  const [activeTab, setActiveTab] = useState<'my_id' | 'add_by_id' | 'restore'>(initialTab);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      setStatusMessage(null);
+    }
+  }, [isOpen, initialTab]);
   const [inputCode, setInputCode] = useState('');
   const [copiedId, setCopiedId] = useState(false);
 

@@ -61,6 +61,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
   onSendFriendRequest,
 }) => {
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
+  const [idModalTab, setIdModalTab] = useState<'my_id' | 'add_by_id' | 'restore'>('add_by_id');
   const t = translations[lang];
   const [subTab, setSubTab] = useState<'bulletin' | 'friends'>('bulletin');
   const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
@@ -100,13 +101,21 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
               ? '即時發布聚餐邀請、自訂公開或閨蜜限定範圍、自動比對全員忌口避雷！'
               : '食事会イベントの募集・参加登録・苦手な食材の自動回避'}
           </p>
-        {/* Foodie ID Quick Trigger */}
+                {/* Foodie ID & Add Friend Quick Triggers */}
         <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10 w-full sm:w-auto">
           <button
-            onClick={() => setIsIdModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 transition-all"
+            onClick={() => { setIdModalTab('my_id'); setIsIdModalOpen(true); }}
+            className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <span>🪪 我的吃貨 ID：{userProfile.foodieId || 'FOODIE-9527'}</span>
+            <span>🪪 我的吃貨 ID：{userProfile.foodieId || 'kaw_foodie'}</span>
+          </button>
+
+          <button
+            onClick={() => { setIdModalTab('add_by_id'); setIsIdModalOpen(true); }}
+            className="px-3 py-1.5 rounded-xl bg-purple-500 hover:bg-purple-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-purple-500/25 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>➕ 輸入 ID 加吃貨好友</span>
           </button>
         </div>
         </div>
@@ -194,8 +203,8 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
       {/* 👥 Sub-Tab 2: Friends Taste & Dislikes Manager */}
       {subTab === 'friends' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
+                    <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -206,13 +215,23 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
               />
             </div>
 
-            <button
-              onClick={handleAddNewFriend}
-              className="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>{t.btnAddNewFriend}</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => { setIdModalTab('add_by_id'); setIsIdModalOpen(true); }}
+                className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>➕ 輸入 ID 加好友</span>
+              </button>
+
+              <button
+                onClick={handleAddNewFriend}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                title="手動建立朋友口味備忘"
+              >
+                <span>📝 手動自建</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -315,6 +334,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
       />
       <FriendIdModal
         isOpen={isIdModalOpen}
+        initialTab={idModalTab}
         onClose={() => setIsIdModalOpen(false)}
         userProfile={userProfile}
         friends={friends}
