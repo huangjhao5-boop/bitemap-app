@@ -34,6 +34,7 @@ import { ReelsFeedModal } from './components/Reels/ReelsFeedModal';
 import { MysteryBoxModal } from './components/Tools/MysteryBoxModal';
 import { BillSplitterModal } from './components/Tools/BillSplitterModal';
 import { AuthModal } from './components/Layout/AuthModal';
+import { DisclaimerModal } from './components/Layout/DisclaimerModal';
 import type { AccountRecord } from './utils/storage';
 import { findFoodieProfileById } from './utils/storage';
 import { UtensilsCrossed } from 'lucide-react';
@@ -79,6 +80,7 @@ export function App() {
   const [isMysteryBoxModalOpen, setIsMysteryBoxModalOpen] = useState(false);
   const [isBillSplitterModalOpen, setIsBillSplitterModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDisclaimerModalOpen, setIsDisclaimerModalOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [sharingRestaurant, setSharingRestaurant] = useState<Restaurant | null>(null);
   const [targetMapRestaurant, setTargetMapRestaurant] = useState<Restaurant | null>(null);
@@ -693,20 +695,28 @@ export function App() {
         )}
       </main>
 
-      {/* 🏷️ App Footer with Producer & Version */}
-      <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 text-center text-xs text-slate-500 space-y-1 mt-8">
+            {/* 🏷️ App Footer with Producer & Disclaimer */}
+      <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 text-center text-xs text-slate-500 space-y-1.5 mt-8">
         <div className="flex items-center justify-center gap-2 flex-wrap font-bold">
           <span className="text-slate-900 font-black">BiteMap 短影音美食地圖</span>
           <span className="px-2 py-0.2 rounded-md bg-amber-100 text-amber-900 text-[10px] font-mono font-black border border-amber-300">
             v2.4.0 (Pro Foodie Edition)
           </span>
           <span>·</span>
-          <span className="text-slate-800">製作人: <strong className="text-rose-600">k-kaw</strong></span>
+          <span className="text-slate-800">製作人: <strong className="text-rose-600 font-black">M.K(TW)</strong></span>
+          <span>·</span>
+          <button
+            onClick={() => setIsDisclaimerModalOpen(true)}
+            className="text-amber-800 hover:text-amber-950 underline font-bold transition-colors cursor-pointer"
+          >
+            ⚖️ 免責聲明
+          </button>
         </div>
         <p className="text-[11px] text-slate-400">
-          Powered by Google Deepmind AI Pair-Programming · 吃貨專屬避雷手冊與朋友圈系統
+          Made with ❤️ by M.K(TW) · Powered by Google Deepmind AI Pair-Programming · 吃貨專屬避雷手冊與朋友圈系統
         </p>
       </footer>
+
 
 
       <RestaurantModal
@@ -769,6 +779,12 @@ export function App() {
         isOpen={isBillSplitterModalOpen}
         onClose={() => setIsBillSplitterModalOpen(false)}
         friends={friends}
+        lang={lang}
+      />
+
+      <DisclaimerModal
+        isOpen={isDisclaimerModalOpen}
+        onClose={() => setIsDisclaimerModalOpen(false)}
         lang={lang}
       />
 
