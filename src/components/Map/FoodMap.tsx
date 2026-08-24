@@ -178,16 +178,16 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-210px)] min-h-[520px] sm:min-h-[600px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex">
+    <div className="relative w-full h-[calc(100vh-180px)] min-h-[460px] sm:min-h-[560px] landscape:h-[calc(100vh-130px)] landscape:min-h-[380px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex">
       
       {/* 🖥️ Desktop Collapsible Floating Sidebar (Left Side) */}
       <div
-        className={`hidden lg:flex flex-col z-30 transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? 'w-96' : 'w-0'
+        className={`hidden sm:flex md:flex lg:flex landscape:flex flex-col z-30 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'w-80 md:w-88 lg:w-96 landscape:w-80' : 'w-0'
         } h-full bg-white border-r border-slate-200 shadow-lg overflow-hidden relative`}
       >
         {isSidebarOpen && (
-          <div className="w-96 h-full flex flex-col">
+          <div className="w-80 md:w-88 lg:w-96 landscape:w-80 h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-3.5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="hidden lg:flex absolute top-4 left-4 z-30 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 items-center gap-1.5 text-xs font-bold transition-transform active:scale-95 animate-fadeIn"
+          className="hidden sm:flex md:flex lg:flex landscape:flex absolute top-4 left-4 z-30 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 items-center gap-1.5 text-xs font-bold transition-transform active:scale-95 animate-fadeIn"
         >
           <List className="w-4 h-4 text-amber-400" />
           <span>{lang === 'zh-TW' ? `展開店家清單 (${restaurants.length})` : `店舗一覧を表示 (${restaurants.length})`}</span>
