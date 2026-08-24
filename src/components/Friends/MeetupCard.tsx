@@ -1,12 +1,8 @@
 import React, { useState, useRef } from 'react';
 import type { DiningMeetup, Friend, UserProfile } from '../../types';
-import type { Language } from '../../utils/i18n';
 import { 
   Calendar, 
   MapPin, 
-  Users, 
-  Globe, 
-  Lock, 
   Send, 
   MessageSquare, 
   UserCheck, 
@@ -22,7 +18,7 @@ interface MeetupCardProps {
   meetup: DiningMeetup;
   friends: Friend[];
   userProfile: UserProfile;
-  lang: Language;
+  lang?: string;
   onJoinMeetup: (meetupId: string) => void;
   onInterestedMeetup: (meetupId: string) => void;
   onAddComment: (meetupId: string, content: string, image?: string) => void;
@@ -31,9 +27,7 @@ interface MeetupCardProps {
 
 export const MeetupCard: React.FC<MeetupCardProps> = ({
   meetup,
-  friends,
   userProfile,
-  lang,
   onJoinMeetup,
   onInterestedMeetup,
   onAddComment,
@@ -47,8 +41,6 @@ export const MeetupCard: React.FC<MeetupCardProps> = ({
 
   const isJoined = meetup.joinedFriendIds.includes('me') || meetup.joinedFriendIds.includes(userProfile.name);
   const isInterested = meetup.interestedFriendIds.includes('me') || meetup.interestedFriendIds.includes(userProfile.name);
-
-  const joinedFriends = friends.filter((f) => meetup.joinedFriendIds.includes(f.id));
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,11 +73,11 @@ export const MeetupCard: React.FC<MeetupCardProps> = ({
       msg += `🏪 餐廳：${meetup.restaurantName}\n`;
     }
     msg += `⏰ 時間：${meetup.plannedDate}\n`;
-    if (meetup.notes) {
-      msg += `💬 說明：${meetup.notes}\n`;
+    if (meetup.description) {
+      msg += `💬 說明：${meetup.description}\n`;
     }
-    if (meetup.restaurantMapUrl) {
-      msg += `\n📍 Google Maps 導航：\n${meetup.restaurantMapUrl}\n\n`;
+    if (meetup.googleMapsUrl) {
+      msg += `\n📍 Google Maps 導航：\n${meetup.googleMapsUrl}\n\n`;
     }
     msg += `👥 目前 +1 報名：${meetup.joinedFriendIds.length} 人\n`;
     msg += `— 快來 BiteMap 一起開飯！`;
@@ -136,9 +128,9 @@ export const MeetupCard: React.FC<MeetupCardProps> = ({
           <div className="flex items-center gap-1.5 font-black text-slate-800">
             <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
             <span>{meetup.restaurantName}</span>
-            {meetup.restaurantMapUrl && (
+            {meetup.googleMapsUrl && (
               <a
-                href={meetup.restaurantMapUrl}
+                href={meetup.googleMapsUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-[11px] text-rose-600 underline font-bold ml-auto"
@@ -154,9 +146,9 @@ export const MeetupCard: React.FC<MeetupCardProps> = ({
           <span>{meetup.plannedDate}</span>
         </div>
 
-        {meetup.notes && (
+        {meetup.description && (
           <p className="text-[11px] text-slate-600 italic bg-white p-2 rounded-xl border border-slate-200/60">
-            "{meetup.notes}"
+            "{meetup.description}"
           </p>
         )}
       </div>
