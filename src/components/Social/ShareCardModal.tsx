@@ -12,12 +12,13 @@ import {
   Video,
   Download,
   Camera,
-  Sparkles,
   Flame,
   Share2,
   Send,
-  ExternalLink
+  ExternalLink,
+  Play
 } from 'lucide-react';
+
 
 import { toPng } from 'html-to-image';
 
@@ -29,6 +30,15 @@ interface ShareCardModalProps {
   userProfile?: UserProfile;
 }
 
+function normalizeUrl(url?: string): string {
+  if (!url) return '';
+  let clean = url.trim();
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = 'https://' + clean;
+  }
+  return clean;
+}
+
 export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   isOpen,
   onClose,
@@ -38,6 +48,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 }) => {
   const t = translations[lang];
   const [copiedText, setCopiedText] = useState(false);
+  const [copiedMapUrl, setCopiedMapUrl] = useState(false);
+  const [copiedVideoUrl, setCopiedVideoUrl] = useState(false);
   const [isGeneratingImg, setIsGeneratingImg] = useState(false);
   const [isSharingNative, setIsSharingNative] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
@@ -45,46 +57,64 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
   if (!isOpen || !restaurant) return null;
 
-  const googleMapsSearchUrl =
-    restaurant.googleMapsUrl ||
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      restaurant.name + ' ' + restaurant.address
-    )}`;
+  const rawMapUrl =
+    restaurant.googleMapsUrl && restaurant.googleMapsUrl.startsWith('http')
+      ? restaurant.googleMapsUrl.trim()
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          restaurant.name + ' ' + (restaurant.address || restaurant.city)
+        )}`;
+  const googleMapsSearchUrl = normalizeUrl(rawMapUrl);
 
   const videoSource = restaurant.videos && restaurant.videos.length > 0 ? restaurant.videos[0] : null;
+  const normalizedVideoUrl = videoSource ? normalizeUrl(videoSource.url) : '';
 
+  // 📝 Generate Clean Clickable Format for LINE / WhatsApp / Messages (URLs MUST be on their own line with whitespace)
   const generateShareText = () => {
-    let text = `🥢 【${lang === 'zh-TW' ? '美食推薦' : 'おすすめグルメ'}】${restaurant.name} (${restaurant.category})
+    let text = `🥢 【${lang === 'zh-TW' ? '美食好店推薦' : 'おすすめグルメ'}】${restaurant.name} (${restaurant.category})
+
 `;
-    text += `📍 ${lang === 'zh-TW' ? '地址' : '住所'}：${restaurant.address}
+    
+    text += `📍 ${lang === 'zh-TW' ? '店家地址' : '住所'}：${restaurant.address}
+
 `;
-    text += `🗺️ Google Maps：${googleMapsSearchUrl}
+    
+    // Google Maps Link (Isolated on its own line for 100% LINE clickability!)
+    text += `🗺️ ${lang === 'zh-TW' ? 'Google Maps 導航連結（點擊直接開地圖）：' : 'Google Maps ナビ（タップで開く）：'}
+`;
+    text += `${googleMapsSearchUrl}
+
 `;
     
     if (restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0) {
-      text += `🌟 ${lang === 'zh-TW' ? '必吃推薦' : '必食名物'}：${restaurant.mustEatDishes.join('、')}
+      text += `🌟 ${lang === 'zh-TW' ? '必吃招牌推薦' : '必食名物'}：${restaurant.mustEatDishes.join('、')}
+
 `;
     }
     
     if (restaurant.avoidDishes && restaurant.avoidDishes.length > 0) {
-      text += `⚠️ ${lang === 'zh-TW' ? '避雷勿點' : 'リピなし注意'}：${restaurant.avoidDishes.join('、')}
+      text += `⚠️ ${lang === 'zh-TW' ? '避雷提醒勿點' : 'リピなし注意'}：${restaurant.avoidDishes.join('、')}
+
 `;
     }
 
     if (restaurant.personalNotes) {
-      text += `💬 ${lang === 'zh-TW' ? '私房筆記' : '個人メモ'}：${restaurant.personalNotes}
+      text += `💬 ${lang === 'zh-TW' ? '私房真實評價' : '個人メモ'}：${restaurant.personalNotes}
+
 `;
     }
 
-    if (videoSource) {
-      text += `🎬 ${lang === 'zh-TW' ? '短影音介紹' : 'SNS動画'}：${videoSource.url}
+    // Video Link (Isolated on its own line for LINE rich preview & clickability!)
+    if (normalizedVideoUrl) {
+      text += `🎬 ${lang === 'zh-TW' ? '短影音介紹（點擊直接看影片）：' : '紹介動画（タップで再生）：'}
+`;
+      text += `${normalizedVideoUrl}
+
 `;
     }
 
-    const signature = userProfile ? `
-✨ 由 @${userProfile.name} 推薦` : '';
-    text += `${signature}
-— ${lang === 'zh-TW' ? '來自 BiteMap 短影音美食地圖' : 'BiteMap ショート動画マップより'}`;
+    const signature = userProfile ? `✨ 由 @${userProfile.name} 推薦
+` : '';
+    text += `${signature}— ${lang === 'zh-TW' ? '來自 BiteMap 短影音美食地圖' : 'BiteMap ショート動画マップより'}`;
     return text;
   };
 
@@ -95,6 +125,27 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
       setTimeout(() => setCopiedText(false), 2500);
     } catch (err) {
       console.error('Failed to copy', err);
+    }
+  };
+
+  const handleCopyMapUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(googleMapsSearchUrl);
+      setCopiedMapUrl(true);
+      setTimeout(() => setCopiedMapUrl(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy map url', err);
+    }
+  };
+
+  const handleCopyVideoUrl = async () => {
+    if (!normalizedVideoUrl) return;
+    try {
+      await navigator.clipboard.writeText(normalizedVideoUrl);
+      setCopiedVideoUrl(true);
+      setTimeout(() => setCopiedVideoUrl(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy video url', err);
     }
   };
 
@@ -121,7 +172,6 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           url: googleMapsSearchUrl,
         });
       } else {
-        // Fallback: Copy text and download card
         await handleCopyText();
         handleDownloadCardImage();
       }
@@ -141,10 +191,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   // 📸 Direct Jump to Instagram App
   const handleOpenInstagram = async () => {
     await handleCopyText();
-    // Try opening Instagram Camera / Stories URL Scheme
     window.location.href = 'instagram://story-camera';
     setTimeout(() => {
-      // If native scheme didn't fire, fallback to web IG
       window.open('https://www.instagram.com', '_blank');
     }, 1500);
   };
@@ -230,17 +278,49 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             </button>
           </div>
 
-          {/* Explanation Banner */}
-          <div className="p-2.5 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
-            <p className="font-bold flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>{lang === 'zh-TW' ? '💡 分享小撇步：' : '💡 シェアのヒント：'}</span>
-            </p>
-            <p className="text-slate-600 leading-relaxed">
-              {lang === 'zh-TW'
-                ? '點擊「🚀 一鍵直傳」會直接呼叫手機原生分享選單，可直接點選 Instagram 限時動態、貼文或好友！若使用電腦，可點選「LINE 一鍵傳送」或下載小卡圖片。'
-                : '「🚀 IGストーリー共有」を押すとスマホの共有メニューが開き、そのままInstagramやLINEに送れます。'}
-            </p>
+          {/* Quick Direct Link Tappers (For fast copy or direct open) */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a
+              href={googleMapsSearchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 p-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Navigation className="w-3.5 h-3.5 text-blue-600" />
+              <span>{lang === 'zh-TW' ? '🗺️ 開啟 Google Maps' : '🗺️ Google Maps を開く'}</span>
+              <ExternalLink className="w-3 h-3 text-blue-500" />
+            </a>
+
+            <button
+              onClick={handleCopyMapUrl}
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition-colors"
+            >
+              {copiedMapUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedMapUrl ? '已複製地圖網址' : '複製地圖網址'}</span>
+            </button>
+
+            {normalizedVideoUrl && (
+              <a
+                href={normalizedVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 p-2 rounded-xl bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 text-pink-600 fill-current" />
+                <span>{lang === 'zh-TW' ? '🎬 直接觀看短影音' : '🎬 動画を再生'}</span>
+                <ExternalLink className="w-3 h-3 text-pink-500" />
+              </a>
+            )}
+
+            {normalizedVideoUrl && (
+              <button
+                onClick={handleCopyVideoUrl}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 transition-colors"
+              >
+                {copiedVideoUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedVideoUrl ? '已複製影片網址' : '複製影片網址'}</span>
+              </button>
+            )}
           </div>
 
           {/* Visual Aesthetic Card Preview */}
@@ -352,7 +432,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 <span>{copiedText ? t.copiedSuccess : t.btnCopyText}</span>
               </button>
             </div>
-            <pre className="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-28 overflow-y-auto">
+            <pre className="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-36 overflow-y-auto">
               {generateShareText()}
             </pre>
           </div>
@@ -369,15 +449,22 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             <ExternalLink className="w-3 h-3" />
           </button>
 
-          <a
-            href={googleMapsSearchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+          <button
+            onClick={handleCopyText}
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all active:scale-95 flex items-center gap-1.5"
           >
-            <Navigation className="w-3.5 h-3.5" />
-            <span>{t.testGoogleMaps}</span>
-          </a>
+            {copiedText ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-300" />
+                <span>{t.copiedSuccess}</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>{t.btnCopyText}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
