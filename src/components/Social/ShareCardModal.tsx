@@ -13,7 +13,10 @@ import {
   Download,
   Camera,
   Sparkles,
-  Flame
+  Flame,
+  Share2,
+  Send,
+  ExternalLink
 } from 'lucide-react';
 
 import { toPng } from 'html-to-image';
@@ -36,6 +39,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   const t = translations[lang];
   const [copiedText, setCopiedText] = useState(false);
   const [isGeneratingImg, setIsGeneratingImg] = useState(false);
+  const [isSharingNative, setIsSharingNative] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +98,57 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }
   };
 
+  // 📲 Native Mobile Web Share (Direct to Instagram Stories, Instagram App, LINE, Messages)
+  const handleNativeShare = async () => {
+    if (!cardRef.current) return;
+    try {
+      setIsSharingNative(true);
+      const dataUrl = await toPng(cardRef.current, { quality: 0.95, pixelRatio: 2 });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `BiteMap_${restaurant.name}.png`, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `BiteMap 美食推薦：${restaurant.name}`,
+          text: generateShareText(),
+        });
+      } else if (navigator.share) {
+        await navigator.share({
+          title: `BiteMap 美食推薦：${restaurant.name}`,
+          text: generateShareText(),
+          url: googleMapsSearchUrl,
+        });
+      } else {
+        // Fallback: Copy text and download card
+        await handleCopyText();
+        handleDownloadCardImage();
+      }
+    } catch (err) {
+      console.log('Share canceled or not supported', err);
+    } finally {
+      setIsSharingNative(false);
+    }
+  };
+
+  // 💬 LINE Direct One-Click Share Link
+  const handleLineShare = () => {
+    const text = encodeURIComponent(generateShareText());
+    window.open(`https://line.me/R/msg/text/?${text}`, '_blank');
+  };
+
+  // 📸 Direct Jump to Instagram App
+  const handleOpenInstagram = async () => {
+    await handleCopyText();
+    // Try opening Instagram Camera / Stories URL Scheme
+    window.location.href = 'instagram://story-camera';
+    setTimeout(() => {
+      // If native scheme didn't fire, fallback to web IG
+      window.open('https://www.instagram.com', '_blank');
+    }, 1500);
+  };
+
   const handleDownloadCardImage = async () => {
     if (!cardRef.current) return;
     try {
@@ -114,14 +169,14 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden my-auto border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden my-auto border border-slate-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white">
+        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
           <div className="flex items-center gap-2">
             <Camera className="w-5 h-5 text-pink-400" />
-            <h2 className="text-base font-bold text-white">
-              {lang === 'zh-TW' ? 'IG 美食分享小卡 & 文案生成' : 'IG シェアカード＆テキスト作成'}
+            <h2 className="text-sm sm:text-base font-black text-white">
+              {lang === 'zh-TW' ? '📸 美食小卡 & 社群一鍵直傳' : '📸 シェアカード＆SNS送信'}
             </h2>
           </div>
 
@@ -133,53 +188,86 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[80vh]">
-          {/* Visual IG Card for Download / Sharing */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>{lang === 'zh-TW' ? '📸 IG 限時動態精美小卡預覽：' : '📸 IG ストーリー用カードプレビュー：'}</span>
-              </span>
-              <button
-                onClick={handleDownloadCardImage}
-                disabled={isGeneratingImg}
-                className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-pink-500/20 active:scale-95 transition-all"
-              >
-                {downloadSuccess ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-white" />
-                    <span>{lang === 'zh-TW' ? '小卡已成功下載！' : 'ダウンロード完了！'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3.5 h-3.5" />
-                    <span>{isGeneratingImg ? (lang === 'zh-TW' ? '生成小卡中...' : '生成中...') : (lang === 'zh-TW' ? '📥 下載 IG 分享小卡圖片' : '📥 画像として保存')}</span>
-                  </>
-                )}
-              </button>
-            </div>
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[80vh]">
+          {/* Quick Action Share Buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {/* 🚀 Mobile Native Share (Insta / Stories / AirDrop) */}
+            <button
+              onClick={handleNativeShare}
+              disabled={isSharingNative}
+              className="p-2.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-pink-500/20 active:scale-95 transition-all"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>{isSharingNative ? '處理中...' : (lang === 'zh-TW' ? '🚀 一鍵直傳 IG/限動' : '🚀 IGストーリー共有')}</span>
+            </button>
+
+            {/* 💬 LINE One-Click Direct Message */}
+            <button
+              onClick={handleLineShare}
+              className="p-2.5 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+            >
+              <Send className="w-4 h-4" />
+              <span>{lang === 'zh-TW' ? '💬 LINE 一鍵傳送' : '💬 LINEで送る'}</span>
+            </button>
+
+            {/* 📥 Download PNG Card */}
+            <button
+              onClick={handleDownloadCardImage}
+              disabled={isGeneratingImg}
+              className="col-span-2 sm:col-span-1 p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs flex items-center justify-center gap-1.5 border border-slate-200 active:scale-95 transition-all"
+            >
+              {downloadSuccess ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>已存小卡！</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-slate-600" />
+                  <span>{isGeneratingImg ? '下載中...' : (lang === 'zh-TW' ? '📥 下載圖片' : '📥 画像保存')}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Explanation Banner */}
+          <div className="p-2.5 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
+            <p className="font-bold flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>{lang === 'zh-TW' ? '💡 分享小撇步：' : '💡 シェアのヒント：'}</span>
+            </p>
+            <p className="text-slate-600 leading-relaxed">
+              {lang === 'zh-TW'
+                ? '點擊「🚀 一鍵直傳」會直接呼叫手機原生分享選單，可直接點選 Instagram 限時動態、貼文或好友！若使用電腦，可點選「LINE 一鍵傳送」或下載小卡圖片。'
+                : '「🚀 IGストーリー共有」を押すとスマホの共有メニューが開き、そのままInstagramやLINEに送れます。'}
+            </p>
+          </div>
+
+          {/* Visual Aesthetic Card Preview */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-black text-slate-800 block">
+              {lang === 'zh-TW' ? '📸 小卡預覽效果：' : '📸 カードプレビュー：'}
+            </span>
 
             {/* Target DOM Element for HTML-to-Image */}
             <div
               ref={cardRef}
-              className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden border border-slate-700 space-y-4"
+              className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white p-5 sm:p-6 rounded-3xl shadow-xl relative overflow-hidden border border-slate-700 space-y-3.5"
             >
-              {/* Decorative Glow */}
               <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
               <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 
               {/* Top Banner with App Brand & User Signature */}
-              <div className="flex items-center justify-between relative z-10 border-b border-white/10 pb-3">
+              <div className="flex items-center justify-between relative z-10 border-b border-white/10 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-sm">
+                  <div className="w-6 h-6 rounded-xl bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-xs">
                     🥢
                   </div>
-                  <span className="font-black text-sm tracking-tight text-white">BiteMap</span>
+                  <span className="font-black text-xs tracking-tight text-white">BiteMap</span>
                 </div>
 
                 {userProfile && (
-                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-slate-200">
+                  <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[11px] font-bold text-slate-200">
                     <span>{userProfile.avatar}</span>
                     <span>@{userProfile.name}</span>
                   </div>
@@ -187,10 +275,10 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               </div>
 
               {/* Restaurant Picture & Title */}
-              <div className="relative z-10 space-y-2.5">
+              <div className="relative z-10 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full bg-rose-500 text-white shadow-xs flex items-center gap-1">
-                    <Flame className="w-3 h-3 fill-current" />
+                  <span className="text-[10px] font-black tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-xs flex items-center gap-1">
+                    <Flame className="w-3 h-3 fill-current text-slate-950" />
                     {t.tagMustEat}
                   </span>
                   <span className="text-xs font-bold text-amber-300">
@@ -199,7 +287,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 </div>
 
                 {restaurant.coverImage && (
-                  <div className="w-full h-40 rounded-2xl overflow-hidden shadow-md">
+                  <div className="w-full h-36 rounded-2xl overflow-hidden shadow-md">
                     <img
                       src={restaurant.coverImage}
                       alt={restaurant.name}
@@ -210,26 +298,26 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 )}
 
                 <div>
-                  <h3 className="text-2xl font-black text-white leading-tight">
+                  <h3 className="text-xl font-black text-white leading-tight">
                     {restaurant.name}
                   </h3>
-                  <p className="text-xs text-slate-300 flex items-center gap-1 mt-1">
+                  <p className="text-xs text-slate-300 flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                    <span>{restaurant.city} · {restaurant.address}</span>
+                    <span className="truncate">{restaurant.city} · {restaurant.address}</span>
                   </p>
                 </div>
               </div>
 
               {/* Must Eat Dishes in Card */}
               {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
-                <div className="relative z-10 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-xs space-y-1.5">
-                  <span className="font-bold text-amber-300 flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-300" />
+                <div className="relative z-10 bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 text-xs space-y-1">
+                  <span className="font-bold text-amber-300 flex items-center gap-1 text-[11px]">
+                    <Star className="w-3 h-3 fill-amber-300" />
                     <span>{t.mustEatDishesTitle}</span>
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1">
                     {restaurant.mustEatDishes.map((dish, i) => (
-                      <span key={i} className="bg-white/20 px-2.5 py-1 rounded-lg text-white font-semibold text-xs">
+                      <span key={i} className="bg-white/20 px-2 py-0.5 rounded-lg text-white font-semibold text-[11px]">
                         {dish}
                       </span>
                     ))}
@@ -238,16 +326,16 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               )}
 
               {/* Short Video Tag & Footer */}
-              <div className="relative z-10 flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-white/10">
+              <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-white/10">
                 {videoSource ? (
                   <div className="flex items-center gap-1 text-pink-300">
-                    <Video className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-[200px]">短影音：{videoSource.title || videoSource.url}</span>
+                    <Video className="w-3 h-3" />
+                    <span className="truncate max-w-[180px]">短影音：{videoSource.title || videoSource.url}</span>
                   </div>
                 ) : (
-                  <span>Google Maps 官方推薦景點</span>
+                  <span>Google Maps 推薦美食</span>
                 )}
-                <span className="font-mono text-[10px] text-slate-400">#BiteMap #美食短影音</span>
+                <span className="font-mono text-[9px] text-slate-400">#BiteMap #美食小卡</span>
               </div>
             </div>
           </div>
@@ -256,15 +344,31 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
               <span>{t.shareTextPreview}</span>
+              <button
+                onClick={handleCopyText}
+                className="text-xs text-amber-600 hover:text-amber-700 font-extrabold flex items-center gap-1"
+              >
+                {copiedText ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedText ? t.copiedSuccess : t.btnCopyText}</span>
+              </button>
             </div>
-            <pre className="text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-40 overflow-y-auto">
+            <pre className="text-xs text-slate-700 bg-slate-50 p-3 rounded-2xl border border-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-28 overflow-y-auto">
               {generateShareText()}
             </pre>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+          <button
+            onClick={handleOpenInstagram}
+            className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>開啟 Instagram</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+
           <a
             href={googleMapsSearchUrl}
             target="_blank"
@@ -274,23 +378,6 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             <Navigation className="w-3.5 h-3.5" />
             <span>{t.testGoogleMaps}</span>
           </a>
-
-          <button
-            onClick={handleCopyText}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95 flex items-center gap-1.5"
-          >
-            {copiedText ? (
-              <>
-                <Check className="w-4 h-4 text-emerald-300" />
-                <span>{t.copiedSuccess}</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                <span>{t.btnCopyText}</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
     </div>
