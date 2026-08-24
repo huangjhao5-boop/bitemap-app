@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Restaurant, Friend, DiningMeetup, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
+import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
 import { 
   loadRestaurants, 
@@ -11,6 +11,9 @@ import {
   saveUserProfile,
   loadMeetups,
   saveMeetups,
+  loadFriendRequests,
+  saveFriendRequests,
+  parseFriendInviteToken,
   getAutoSyncTime,
   triggerAutoSync
 } from './utils/storage';
@@ -41,6 +44,7 @@ export function App() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [meetups, setMeetups] = useState<DiningMeetup[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>(() => loadFriendRequests());
   const [activeTab, setActiveTab] = useState<ActiveTab>('map');
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => getAutoSyncTime());
 
@@ -96,6 +100,27 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (window.location.hash.startsWith('#add-friend=')) {
+      try {
+        const token = window.location.hash.replace('#add-friend=', '');
+        const req = parseFriendInviteToken(token);
+        if (req) {
+          const existing = loadFriendRequests();
+          const updated = [req, ...existing.filter((r) => r.senderFoodieId !== req.senderFoodieId)];
+          saveFriendRequests(updated);
+          setFriendRequests(updated);
+          alert(lang === 'zh-TW' 
+            ? `🎉 收到來自【${req.senderName} (${req.senderFoodieId})】的吃貨好友邀請！已為您存入待審核信箱！` 
+            : `🎉 ${req.senderName} からフレンド申請が届きました！`);
+          window.location.hash = '';
+          setActiveTab('friends');
+          setLastSyncTime(triggerAutoSync());
+        }
+      } catch (err) {
+        console.error('Failed to parse friend invite hash', err);
+      }
+    }
+
     if (window.location.hash.startsWith('#sync=')) {
       try {
         const base64 = window.location.hash.replace('#sync=', '');
@@ -125,6 +150,7 @@ export function App() {
     setRestaurants(loadRestaurants());
     setFriends(loadFriends());
     setMeetups(loadMeetups());
+    setFriendRequests(loadFriendRequests());
     setLastSyncTime(triggerAutoSync());
   };
 
@@ -167,6 +193,68 @@ export function App() {
     setRestaurants(updated);
     saveRestaurants(updated);
     setLastSyncTime(triggerAutoSync());
+  };
+
+
+  const handleAcceptFriendRequest = (req: FriendRequest) => {
+    const newFriend: Friend = {
+      id: 'f_' + Date.now(),
+      foodieId: req.senderFoodieId,
+      name: req.senderName,
+      avatar: req.senderAvatar || '🥢',
+      favoriteTags: req.favoriteTags || [],
+      dislikedTags: req.dislikedTags || [],
+      notes: req.bio || '透過吃貨 ID 互相綁定好友',
+    };
+
+    handleSaveFriend(newFriend);
+
+    const updatedRequests = friendRequests.filter((r) => r.id !== req.id);
+    setFriendRequests(updatedRequests);
+    saveFriendRequests(updatedRequests);
+    setLastSyncTime(triggerAutoSync());
+
+    alert(lang === 'zh-TW' 
+      ? `🎉 成功同意添加【${req.senderName}】為吃貨好友！彼此的喜好與忌口已自動同步到您的朋友圈！` 
+      : `🎉 ${req.senderName} とフレンド連携が完了しました！`);
+  };
+
+  const handleDeclineFriendRequest = (requestId: string) => {
+    const updatedRequests = friendRequests.filter((r) => r.id !== requestId);
+    setFriendRequests(updatedRequests);
+    saveFriendRequests(updatedRequests);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  const handleSendFriendRequest = (targetCode: string): { success: boolean; message: string } => {
+    const cleanCode = targetCode.trim();
+    if (!cleanCode) {
+      return { success: false, message: '請輸入有效的吃貨 ID 或邀請碼！' };
+    }
+
+    if (cleanCode === userProfile.foodieId) {
+      return { success: false, message: '不能添加自己的吃貨 ID 唷！' };
+    }
+
+    // Check if already friends
+    const exists = friends.some((f) => f.foodieId === cleanCode || f.name.includes(cleanCode));
+    if (exists) {
+      return { success: false, message: '您們已經是吃貨好友囉！' };
+    }
+
+    // If it's a token
+    if (cleanCode.length > 30) {
+      const parsed = parseFriendInviteToken(cleanCode);
+      if (parsed) {
+        handleAcceptFriendRequest(parsed);
+        return { success: true, message: `成功解析並與【${parsed.senderName}】綁定好友！` };
+      }
+    }
+
+    return {
+      success: true,
+      message: `🚀 好友申請已送出給【${cleanCode}】！待對方審核同意後，雙方資料即自動同步！`,
+    };
   };
 
   const handleSaveFriend = (friend: Friend) => {
@@ -514,6 +602,7 @@ export function App() {
             friends={friends}
             restaurants={restaurants}
             meetups={meetups}
+            friendRequests={friendRequests}
             userProfile={userProfile}
             lang={lang}
             onSaveFriend={handleSaveFriend}
@@ -524,6 +613,9 @@ export function App() {
             onJoinMeetup={handleJoinMeetup}
             onInterestedMeetup={handleInterestedMeetup}
             onAddMeetupComment={handleAddMeetupComment}
+            onAcceptFriendRequest={handleAcceptFriendRequest}
+            onDeclineFriendRequest={handleDeclineFriendRequest}
+            onSendFriendRequest={handleSendFriendRequest}
           />
         )}
 

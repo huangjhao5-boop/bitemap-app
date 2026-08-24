@@ -1,4 +1,103 @@
-import type { Restaurant, Friend, DiningMeetup } from '../types';
+
+import type { Restaurant, Friend, DiningMeetup, FriendRequest, UserProfile } from '../types';
+
+export const DEFAULT_USER_PROFILE: UserProfile = {
+  foodieId: 'FOODIE-9527',
+  name: '吃貨探險家',
+  avatar: '🥢',
+  bio: '探索全城短影音美食，真心記錄必吃與避雷！',
+  defaultCity: '台北市',
+  instagramHandle: 'foodie_daily',
+  favoriteTags: ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪'],
+  dislikedTags: ['不吃香菜', '怕辣'],
+  spicinessLevel: 'mild' as const,
+  budgetPreference: '$$' as const,
+  favoriteDrink: '無糖冰美式 / 焙茶拿鐵',
+};
+
+export const INITIAL_FRIEND_REQUESTS: FriendRequest[] = [
+  {
+    id: 'req_1',
+    senderFoodieId: 'FOODIE-8842',
+    senderName: '安妮 (日本甜點控)',
+    senderAvatar: '🍮',
+    favoriteTags: ['焦糖布丁', '抹茶聖代', '生吐司', '日式定食'],
+    dislikedTags: ['太甜死甜', '油炸物'],
+    bio: '旅居東京3年，熱愛探訪隱藏版喫茶店！想加入你的吃貨朋友圈互相避雷！',
+    sentAt: '2026-08-24 15:30',
+    status: 'pending',
+  },
+  {
+    id: 'req_2',
+    senderFoodieId: 'FOODIE-3310',
+    senderName: '阿豪 (精釀啤酒漢堡)',
+    senderAvatar: '🍔',
+    favoriteTags: ['美式漢堡', '精釀IPA', '水牛城辣雞翅', '和牛排餐'],
+    dislikedTags: ['素食沙拉', '不吃辣'],
+    bio: '下班常常找人喝一杯吃漢堡，希望能一起抽盲盒聚餐！',
+    sentAt: '2026-08-24 16:10',
+    status: 'pending',
+  }
+];
+
+export function loadFriendRequests(): FriendRequest[] {
+  try {
+    const raw = localStorage.getItem('bitemap_friend_requests_v1');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(INITIAL_FRIEND_REQUESTS));
+    return INITIAL_FRIEND_REQUESTS;
+  } catch {
+    return INITIAL_FRIEND_REQUESTS;
+  }
+}
+
+export function saveFriendRequests(requests: FriendRequest[]): void {
+  try {
+    localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(requests));
+    triggerAutoSync();
+  } catch (err) {
+    console.error('Failed to save friend requests', err);
+  }
+}
+
+// 🪪 Generate Friend Invite Base64 Token
+export function generateFriendInviteToken(profile: UserProfile): string {
+  const payload = {
+    foodieId: profile.foodieId || 'FOODIE-9527',
+    name: profile.name,
+    avatar: profile.avatar,
+    favoriteTags: profile.favoriteTags,
+    dislikedTags: profile.dislikedTags,
+    bio: profile.bio,
+    timestamp: Date.now(),
+  };
+  return btoa(encodeURIComponent(JSON.stringify(payload)));
+}
+
+// 📥 Parse Friend Invite Token
+export function parseFriendInviteToken(token: string): FriendRequest | null {
+  try {
+    const jsonStr = decodeURIComponent(atob(token));
+    const data = JSON.parse(jsonStr);
+    if (!data.foodieId || !data.name) return null;
+    return {
+      id: 'req_' + Date.now(),
+      senderFoodieId: data.foodieId,
+      senderName: data.name,
+      senderAvatar: data.avatar || '🥢',
+      favoriteTags: data.favoriteTags || [],
+      dislikedTags: data.dislikedTags || [],
+      bio: data.bio || '',
+      sentAt: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    };
+  } catch (err) {
+    console.error('Failed to parse friend token', err);
+    return null;
+  }
+}
+
+
 
 export const INITIAL_FRIENDS: Friend[] = [
   {
@@ -250,18 +349,7 @@ const STORAGE_KEYS = {
   LAST_SYNC: 'bitemap_last_sync_v1',
 };
 
-export const DEFAULT_USER_PROFILE = {
-  name: '吃貨探險家',
-  avatar: '🥢',
-  bio: '探索全城短影音美食，真心記錄必吃與避雷！',
-  defaultCity: '台北市',
-  instagramHandle: 'foodie_daily',
-  favoriteTags: ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪'],
-  dislikedTags: ['不吃香菜', '怕辣'],
-  spicinessLevel: 'mild' as const,
-  budgetPreference: '$$' as const,
-  favoriteDrink: '無糖冰美式 / 焙茶拿鐵',
-};
+
 
 export function getAutoSyncTime(): string {
   return localStorage.getItem(STORAGE_KEYS.LAST_SYNC) || new Date().toLocaleTimeString();

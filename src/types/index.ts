@@ -18,6 +18,9 @@ export type RestaurantRatingTag =
   | 'wishlist';      // 📌 待吃口袋名單
 
 export interface Friend {
+  foodieId?: string;
+  status?: 'accepted' | 'pending';
+  boundAt?: string;
   id: string;
   name: string;
   avatar: string;
@@ -51,7 +54,21 @@ export interface Restaurant {
   updatedAt: string;
 }
 
+
+export interface FriendRequest {
+  id: string;
+  senderFoodieId: string;
+  senderName: string;
+  senderAvatar: string;
+  favoriteTags: string[];
+  dislikedTags: string[];
+  bio?: string;
+  sentAt: string;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
 export interface UserProfile {
+  foodieId: string;
   name: string;
   avatar: string;
   bio: string;

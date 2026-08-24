@@ -3,6 +3,9 @@ import type { Friend, Restaurant, DiningMeetup, UserProfile } from '../../types'
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { FriendTasteModal } from './FriendTasteModal';
+import { FriendIdModal } from './FriendIdModal';
+import { FriendRequestsInbox } from './FriendRequestsInbox';
+import type { FriendRequest } from '../../types';
 import { MeetupCreateModal } from './MeetupCreateModal';
 import { MeetupCard } from './MeetupCard';
 import { 
@@ -20,6 +23,7 @@ import {
 
 interface FriendManagerProps {
   friends: Friend[];
+  friendRequests: FriendRequest[];
   restaurants: Restaurant[];
   meetups: DiningMeetup[];
   userProfile: UserProfile;
@@ -32,6 +36,9 @@ interface FriendManagerProps {
   onJoinMeetup: (meetupId: string) => void;
   onInterestedMeetup: (meetupId: string) => void;
   onAddMeetupComment: (meetupId: string, content: string) => void;
+  onAcceptFriendRequest: (request: FriendRequest) => void;
+  onDeclineFriendRequest: (requestId: string) => void;
+  onSendFriendRequest: (targetCode: string) => { success: boolean; message: string };
 }
 
 export const FriendManager: React.FC<FriendManagerProps> = ({
@@ -48,7 +55,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
   onJoinMeetup,
   onInterestedMeetup,
   onAddMeetupComment,
+  friendRequests,
+  onAcceptFriendRequest,
+  onDeclineFriendRequest,
+  onSendFriendRequest,
 }) => {
+  const [isIdModalOpen, setIsIdModalOpen] = useState(false);
   const t = translations[lang];
   const [subTab, setSubTab] = useState<'bulletin' | 'friends'>('bulletin');
   const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
@@ -88,6 +100,15 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
               ? '即時發布聚餐邀請、自訂公開或閨蜜限定範圍、自動比對全員忌口避雷！'
               : '食事会イベントの募集・参加登録・苦手な食材の自動回避'}
           </p>
+        {/* Foodie ID Quick Trigger */}
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10 w-full sm:w-auto">
+          <button
+            onClick={() => setIsIdModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 transition-all"
+          >
+            <span>🪪 我的吃貨 ID：{userProfile.foodieId || 'FOODIE-9527'}</span>
+          </button>
+        </div>
         </div>
 
         {/* Dual Tab Switcher */}
@@ -118,6 +139,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
         </div>
       </div>
 
+      {/* 📬 Incoming Pending Friend Requests Box */}
+      <FriendRequestsInbox
+        requests={friendRequests}
+        onAcceptRequest={onAcceptFriendRequest}
+        onDeclineRequest={onDeclineFriendRequest}
+      />
       {/* 📢 Sub-Tab 1: Meetup & Dining Calls Bulletin Board */}
       {subTab === 'bulletin' && (
         <div className="space-y-4 animate-fadeIn">
@@ -285,6 +312,14 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
         friends={friends}
         userProfile={userProfile}
         lang={lang}
+      />
+      <FriendIdModal
+        isOpen={isIdModalOpen}
+        onClose={() => setIsIdModalOpen(false)}
+        userProfile={userProfile}
+        friends={friends}
+        lang={lang}
+        onSendFriendRequest={onSendFriendRequest}
       />
     </div>
   );

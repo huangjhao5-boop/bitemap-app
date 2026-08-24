@@ -100,6 +100,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
 
     onSaveProfile({
+      foodieId: profile.foodieId || 'FOODIE-9527',
       name: name.trim(),
       avatar,
       bio: bio.trim(),
@@ -111,6 +112,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       budgetPreference,
       favoriteDrink: favoriteDrink.trim(),
     });
+
     onClose();
   };
 
