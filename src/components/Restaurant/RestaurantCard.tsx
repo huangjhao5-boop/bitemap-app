@@ -1,27 +1,24 @@
-﻿import React from 'react';
+import React from 'react';
 import type { Restaurant, Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
-import { VideoEmbed } from './VideoEmbed';
+import { parseVideoUrl } from '../../utils/videoParser';
 import { 
-  MapPin, 
-  Calendar, 
-  Plus, 
   Flame, 
   RotateCw, 
-  ThumbsDown, 
   Bookmark, 
-  HelpCircle, 
+  ThumbsDown, 
+  MapPin, 
+  Star, 
+  AlertTriangle, 
   Navigation, 
   Share2, 
   Edit3, 
   Trash2, 
-  Star,
-  Users,
-  UtensilsCrossed,
-  AlertTriangle
+  Plus,
+  Play,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -31,7 +28,7 @@ interface RestaurantCardProps {
   onEdit: (restaurant: Restaurant) => void;
   onDelete: (id: string) => void;
   onShare: (restaurant: Restaurant) => void;
-  onLocateOnMap?: (restaurant: Restaurant) => void;
+  onLocateOnMap: (restaurant: Restaurant) => void;
 }
 
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
@@ -46,291 +43,207 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
 }) => {
   const t = translations[lang];
 
-  const getTagBadge = (tag: Restaurant['ratingTag']) => {
-    switch (tag) {
-      case 'must_eat':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500 text-white shadow-sm shadow-rose-200">
-            <Flame className="w-3.5 h-3.5 fill-current" />
-            {t.tagMustEat}
-          </span>
-        );
-      case 'frequent_visit':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-sm shadow-emerald-200">
-            <RotateCw className="w-3.5 h-3.5" />
-            {t.tagFrequentVisit}
-          </span>
-        );
-      case 'avoid_again':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-300 shadow-sm border border-rose-500/30">
-            <ThumbsDown className="w-3.5 h-3.5" />
-            {t.tagAvoidAgain}
-          </span>
-        );
-      case 'wishlist':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white shadow-sm shadow-indigo-200">
-            <Bookmark className="w-3.5 h-3.5" />
-            {t.tagWishlist}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
-            <HelpCircle className="w-3.5 h-3.5" />
-            {t.tagMediocre}
-          </span>
-        );
-    }
-  };
-
-  const getRelativeTime = (dateStr?: string) => {
-    if (!dateStr) return t.neverVisited;
-    const visitDate = new Date(dateStr);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - visitDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return t.todayVisited;
-    if (diffDays === 1) return t.yesterdayVisited;
-    if (diffDays < 30) return `${diffDays} ${t.daysAgo} (${dateStr})`;
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths < 12) return `${diffMonths} ${t.monthsAgo} (${dateStr})`;
-    return `> 1 年前 (${dateStr})`;
-  };
-
-  const handlePlusOne = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    confetti({
-      particleCount: 25,
-      spread: 40,
-      origin: {
-        x: (rect.left + rect.width / 2) / window.innerWidth,
-        y: (rect.top + rect.height / 2) / window.innerHeight,
-      },
-    });
-    onIncrementVisit(restaurant.id);
-  };
-
-  const googleMapsSearchUrl = restaurant.googleMapsUrl || 
-    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name + ' ' + restaurant.address)}`;
-
-  const recommenderFriends = friends.filter(f => restaurant.recommendedByFriendIds?.includes(f.id));
-  const companions = friends.filter(f => restaurant.dinedWithFriendIds?.includes(f.id));
+  const recommender = friends.find((f) =>
+    restaurant.recommendedByFriendIds?.includes(f.id)
+  );
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col overflow-hidden group">
-      {/* Header with image or category gradient */}
-      <div className="relative h-36 bg-gradient-to-r from-slate-800 to-slate-900 overflow-hidden">
-        {restaurant.coverImage ? (
-          <img
-            src={restaurant.coverImage}
-            alt={restaurant.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
-            <UtensilsCrossed className="w-12 h-12 stroke-[1.5]" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
-
-        {/* Top Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 items-center">
-          {getTagBadge(restaurant.ratingTag)}
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20">
-            {restaurant.category}
-          </span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-amber-300 border border-white/20">
-            {restaurant.priceRange}
-          </span>
-        </div>
-
-        {/* Bottom Title on Image */}
-        <div className="absolute bottom-2.5 left-3 right-3 text-white">
-          <h3 className="font-bold text-lg leading-tight truncate drop-shadow">
-            {restaurant.name}
-          </h3>
-          <div className="flex items-center gap-1 text-xs text-slate-200 mt-0.5 truncate">
-            <MapPin className="w-3.5 h-3.5 shrink-0 text-rose-400" />
-            <span className="truncate">{restaurant.city} · {restaurant.address}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Body */}
-      <div className="p-4 flex-1 flex flex-col gap-3">
-        {/* Visit stats row */}
-        <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-xl p-2.5">
-          <div className="flex items-center gap-2">
-            <div className="text-center px-2 py-0.5 bg-white rounded-lg border border-slate-200 shadow-2xs">
-              <span className="text-[10px] text-slate-500 block font-medium">{t.visitCount}</span>
-              <span className="text-base font-black text-indigo-600 leading-none">
-                {restaurant.visitCount}
-                <span className="text-xs font-normal text-slate-400 ml-0.5">{t.timesUnit}</span>
-              </span>
+    <div className="cute-glass cute-card-shadow rounded-[32px] overflow-hidden border border-rose-100 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300 group">
+      <div>
+        {/* Cover Image or Aesthetic Gradient Header */}
+        <div className="relative h-44 w-full overflow-hidden bg-gradient-to-tr from-rose-200 via-amber-100 to-purple-200">
+          {restaurant.coverImage ? (
+            <img
+              src={restaurant.coverImage}
+              alt={restaurant.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-5xl">
+              🥢
             </div>
-
-            <div className="text-xs text-slate-600">
-              <div className="flex items-center gap-1 font-medium text-slate-700">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>{t.lastVisited}：{restaurant.lastVisitedDate || '—'}</span>
-              </div>
-              <span className="text-[11px] text-slate-400">
-                {getRelativeTime(restaurant.lastVisitedDate)}
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={handlePlusOne}
-            title={t.plusOneVisit}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 font-semibold text-xs transition-all active:scale-95 shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>{t.plusOneVisit}</span>
-          </button>
-        </div>
-
-        {/* Must-eat items */}
-        {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
-          <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 mb-1.5">
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              <span>{t.mustEatDishesTitle}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {restaurant.mustEatDishes.map((dish, i) => (
-                <span
-                  key={i}
-                  className="text-xs font-medium bg-amber-100/90 text-amber-900 px-2 py-0.5 rounded-md border border-amber-200"
-                >
-                  {dish}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Avoid dishes (Honest Warning) */}
-        {restaurant.avoidDishes && restaurant.avoidDishes.length > 0 && (
-          <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900 mb-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-              <span>{t.avoidDishesTitle}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {restaurant.avoidDishes.map((dish, i) => (
-                <span
-                  key={i}
-                  className="text-xs font-medium bg-rose-100 text-rose-900 px-2 py-0.5 rounded-md border border-rose-200 line-through decoration-rose-500 decoration-1"
-                >
-                  {dish}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Short Videos list */}
-        {restaurant.videos && restaurant.videos.length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-slate-500 block">
-              {t.shortVideoSources} ({restaurant.videos.length})：
-            </span>
-            {restaurant.videos.map((vid) => (
-              <VideoEmbed key={vid.id} video={vid} />
-            ))}
-          </div>
-        )}
-
-        {/* Personal Notes */}
-        {restaurant.personalNotes && (
-          <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
-            <span className="font-semibold text-slate-700 block mb-0.5">{t.personalNotesTitle}</span>
-            <p className="line-clamp-2 leading-relaxed">{restaurant.personalNotes}</p>
-          </div>
-        )}
-
-        {/* Friends Info */}
-        {(recommenderFriends.length > 0 || companions.length > 0) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs pt-1 border-t border-slate-100">
-            {recommenderFriends.length > 0 && (
-              <div className="flex items-center gap-1 text-slate-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
-                <span className="font-medium text-purple-800">{t.recommenderLabel}</span>
-                {recommenderFriends.map(f => (
-                  <span key={f.id} className="inline-flex items-center gap-0.5 text-purple-900 font-semibold">
-                    <span>{f.avatar}</span> {f.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            {companions.length > 0 && (
-              <div className="flex items-center gap-1 text-slate-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                <Users className="w-3 h-3 text-blue-500" />
-                <span className="font-medium text-blue-800">{t.companionsLabel}</span>
-                {companions.map(f => (
-                  <span key={f.id} className="text-blue-900 font-semibold">
-                    {f.avatar} {f.name.split(' ')[0]}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer Actions */}
-      <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 mt-auto">
-        <div className="flex items-center gap-1">
-          {onLocateOnMap && (
-            <button
-              onClick={() => onLocateOnMap(restaurant)}
-              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
-              title={t.locateOnMap}
-            >
-              <MapPin className="w-4 h-4 text-emerald-600" />
-            </button>
           )}
 
-          <a
-            href={googleMapsSearchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs border border-blue-200 transition-colors"
-            title={t.googleMapsNav}
-          >
-            <Navigation className="w-3.5 h-3.5 text-blue-600" />
-            <span>{t.googleMapsNav}</span>
-          </a>
-        </div>
+          {/* Top Floating Badges */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+            {restaurant.ratingTag === 'must_eat' && (
+              <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white font-black text-xs flex items-center gap-1 shadow-md">
+                <Flame className="w-3.5 h-3.5 fill-current" />
+                <span>{t.tagMustEat}</span>
+              </span>
+            )}
+            {restaurant.ratingTag === 'frequent_visit' && (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-white font-black text-xs flex items-center gap-1 shadow-md">
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>{t.tagFrequentVisit}</span>
+              </span>
+            )}
+            {restaurant.ratingTag === 'wishlist' && (
+              <span className="px-2.5 py-1 rounded-full bg-indigo-500 text-white font-black text-xs flex items-center gap-1 shadow-md">
+                <Bookmark className="w-3.5 h-3.5" />
+                <span>{t.tagWishlist}</span>
+              </span>
+            )}
+            {restaurant.ratingTag === 'avoid_again' && (
+              <span className="px-2.5 py-1 rounded-full bg-slate-900 text-rose-300 font-black text-xs flex items-center gap-1 shadow-md">
+                <ThumbsDown className="w-3.5 h-3.5 text-rose-400" />
+                <span>{lang === 'zh-TW' ? '☠️ 黑名單' : '☠️ NG店'}</span>
+              </span>
+            )}
 
-        <div className="flex items-center gap-1">
+            <span className="px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md text-slate-800 font-black text-xs shadow-xs">
+              {restaurant.category} · {restaurant.priceRange}
+            </span>
+          </div>
+
+          {/* Quick Share / Like Button */}
           <button
             onClick={() => onShare(restaurant)}
-            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
-            title={t.shareText}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md hover:bg-white text-rose-500 flex items-center justify-center shadow-md transition-transform active:scale-90"
+            title="分享小卡"
           >
-            <Share2 className="w-4 h-4 text-indigo-600" />
-          </button>
-          <button
-            onClick={() => onEdit(restaurant)}
-            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
-            title={t.editSpot}
-          >
-            <Edit3 className="w-4 h-4 text-slate-600" />
-          </button>
-          <button
-            onClick={() => onDelete(restaurant.id)}
-            className="p-1.5 rounded-lg hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors"
-            title={t.deleteSpot}
-          >
-            <Trash2 className="w-4 h-4" />
+            <Share2 className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Card Body */}
+        <div className="p-4 sm:p-5 space-y-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-rose-600 transition-colors">
+              {restaurant.name}
+            </h3>
+            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span className="truncate">{restaurant.city} · {restaurant.address}</span>
+            </p>
+          </div>
+
+          {/* Visit Count Badge & Recommender */}
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <button
+              onClick={() => onIncrementVisit(restaurant.id)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold border border-rose-200/60 transition-all active:scale-95"
+              title="點擊造訪次數 +1"
+            >
+              <span>{t.visitCount}: {restaurant.visitCount || 0} {t.timesUnit}</span>
+              <Plus className="w-3 h-3 text-rose-500" />
+            </button>
+
+            {recommender && (
+              <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+                {recommender.avatar} {recommender.name} 推薦
+              </span>
+            )}
+          </div>
+
+          {/* Must Eat Dishes */}
+          {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
+            <div className="bg-amber-50/70 p-2.5 rounded-2xl border border-amber-200/50 space-y-1 text-xs">
+              <span className="font-black text-amber-900 flex items-center gap-1">
+                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                <span>{t.mustEatDishesTitle}</span>
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {restaurant.mustEatDishes.map((dish, i) => (
+                  <span
+                    key={i}
+                    className="bg-white text-amber-950 font-bold px-2 py-0.5 rounded-lg border border-amber-200/60 text-[11px]"
+                  >
+                    🌟 {dish}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Avoid Dishes */}
+          {restaurant.avoidDishes && restaurant.avoidDishes.length > 0 && (
+            <div className="bg-rose-50/70 p-2 rounded-2xl border border-rose-200/50 space-y-1 text-xs">
+              <span className="font-black text-rose-900 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-rose-500" />
+                <span>{t.avoidDishesTitle}</span>
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {restaurant.avoidDishes.map((dish, i) => (
+                  <span
+                    key={i}
+                    className="bg-white text-rose-900 font-bold px-2 py-0.5 rounded-lg border border-rose-200 text-[11px] line-through"
+                  >
+                    ❌ {dish}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Video Pill */}
+          {restaurant.videos && restaurant.videos.length > 0 && (
+            <div className="space-y-1">
+              {restaurant.videos.map((vid) => {
+                const parsed = parseVideoUrl(vid.url);
+                return (
+                  <a
+                    key={vid.id}
+                    href={vid.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-pink-50 border border-slate-200/60 text-xs font-bold text-slate-700 transition-colors"
+                  >
+                    <span className="truncate flex items-center gap-1.5">
+                      <Play className="w-3.5 h-3.5 text-rose-500 fill-current" />
+                      <span>{vid.title || parsed.displayLabel}</span>
+                    </span>
+                    <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${parsed.badgeBg}`}>
+                      {parsed.displayLabel}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Card Footer Actions */}
+      <div className="p-3 bg-white/60 border-t border-rose-100/60 flex items-center justify-between gap-1.5">
+        <button
+          onClick={() => onLocateOnMap(restaurant)}
+          className="flex-1 py-2 px-3 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-xs transition-all active:scale-95"
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          <span>{lang === 'zh-TW' ? '在地圖上查看' : 'マップで確認'}</span>
+        </button>
+
+        <a
+          href={
+            restaurant.googleMapsUrl ||
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              restaurant.name + ' ' + restaurant.address
+            )}`
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+          title="Google Maps 導航"
+        >
+          <Navigation className="w-3.5 h-3.5" />
+        </a>
+
+        <button
+          onClick={() => onEdit(restaurant)}
+          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors"
+          title="編輯"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+        </button>
+
+        <button
+          onClick={() => onDelete(restaurant.id)}
+          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+          title="刪除"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

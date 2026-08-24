@@ -2,7 +2,7 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, 'Hiragino Sans GB',
     'Noto Sans TC', sans-serif;
   color-scheme: light;
 }
@@ -10,28 +10,33 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background: #FFFDF9;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(254, 226, 226, 0.4) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(254, 243, 199, 0.4) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(243, 232, 255, 0.3) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: #2D2424;
   overflow-x: hidden;
 }
 
-/* Custom Scrollbar */
+/* Custom Cute Pastel Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: rgba(255, 241, 242, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #FECDD3;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #FDA4AF;
 }
 
 /* Leaflet map custom pin styles */
@@ -39,21 +44,32 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .custom-pin:hover {
-  transform: scale(1.15) translateY(-4px);
+  transform: scale(1.2) translateY(-6px);
   z-index: 1000 !important;
 }
 
-/* Animations */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.05); }
+/* IG Story Gradient Rings & Text */
+.ig-gradient-bg {
+  background: linear-gradient(45deg, #F58529 0%, #FEDA77 25%, #DD2A7B 50%, #8134AF 75%, #515BD4 100%);
 }
 
-.animate-pulse-subtle {
-  animation: pulse-subtle 3s infinite ease-in-out;
+.ig-gradient-text {
+  background: linear-gradient(45deg, #F58529 0%, #DD2A7B 50%, #8134AF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
+.cute-card-shadow {
+  box-shadow: 0 10px 30px -5px rgba(244, 114, 182, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+.cute-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}

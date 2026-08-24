@@ -286,7 +286,6 @@ export function App() {
           setEditingRestaurant(null);
           setIsRestaurantModalOpen(true);
         }}
-        onOpenSyncModal={() => setIsSyncModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenReelsModal={() => setIsReelsModalOpen(true)}
         onOpenMysteryBox={() => setIsMysteryBoxModalOpen(true)}
