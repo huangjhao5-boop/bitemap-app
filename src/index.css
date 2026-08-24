@@ -10,33 +10,28 @@
 body {
   margin: 0;
   padding: 0;
-  background: #FFFDF9;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(254, 226, 226, 0.4) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(254, 243, 199, 0.4) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(243, 232, 255, 0.3) 0px, transparent 50%);
-  background-attachment: fixed;
-  color: #2D2424;
+  background-color: #F8F9FB;
+  color: #1E293B;
   overflow-x: hidden;
 }
 
-/* Custom Cute Pastel Scrollbar */
+/* Custom Clean Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 241, 242, 0.5);
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #FECDD3;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #FDA4AF;
+  background: #94A3B8;
 }
 
 /* Leaflet map custom pin styles */
@@ -48,28 +43,23 @@ body {
 }
 
 .custom-pin:hover {
-  transform: scale(1.2) translateY(-6px);
+  transform: scale(1.22) translateY(-6px);
   z-index: 1000 !important;
 }
 
-/* IG Story Gradient Rings & Text */
-.ig-gradient-bg {
-  background: linear-gradient(45deg, #F58529 0%, #FEDA77 25%, #DD2A7B 50%, #8134AF 75%, #515BD4 100%);
-}
-
+/* Balanced Trendy Accents */
 .ig-gradient-text {
-  background: linear-gradient(45deg, #F58529 0%, #DD2A7B 50%, #8134AF 100%);
+  background: linear-gradient(45deg, #E1306C 0%, #FD1D1D 50%, #F56040 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.cute-card-shadow {
-  box-shadow: 0 10px 30px -5px rgba(244, 114, 182, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+.clean-card-shadow {
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
 }
 
-.cute-glass {
-  background: rgba(255, 255, 255, 0.85);
+.glass-nav {
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
 }

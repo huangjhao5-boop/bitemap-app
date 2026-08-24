@@ -8,7 +8,6 @@ import { calculateDistanceKm, formatDistance, type UserLocation } from '../../ut
 import { parseVideoUrl } from '../../utils/videoParser';
 import { 
   Navigation, 
-  Calendar, 
   Star, 
   AlertTriangle,
   ExternalLink,
@@ -37,48 +36,85 @@ interface FoodMapProps {
   targetRestaurant?: Restaurant | null;
 }
 
-function createCustomPin(tag: Restaurant['ratingTag'], name: string, isSelected: boolean) {
-  let bgColor = 'bg-slate-700';
-  let emoji = '🍴';
-  let ringColor = 'ring-slate-400';
+// 🌈 Category-Based Pin Color & Emoji Dispatcher (Prevents Monotone Red in Dense Areas!)
+function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
+  let bgColor = 'bg-amber-500';
+  let emoji = '🥢';
+  let ringColor = 'ring-amber-200';
 
-  switch (tag) {
-    case 'must_eat':
-      bgColor = 'bg-rose-500';
-      emoji = '🔥';
-      ringColor = 'ring-rose-300';
-      break;
-    case 'frequent_visit':
-      bgColor = 'bg-emerald-600';
-      emoji = '🔄';
-      ringColor = 'ring-emerald-300';
-      break;
-    case 'avoid_again':
-      bgColor = 'bg-slate-950';
-      emoji = '☠️';
-      ringColor = 'ring-rose-600';
-      break;
-    case 'wishlist':
-      bgColor = 'bg-indigo-600';
-      emoji = '📌';
-      ringColor = 'ring-indigo-300';
-      break;
-    default:
-      bgColor = 'bg-slate-600';
-      emoji = '😐';
-      ringColor = 'ring-slate-300';
-      break;
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('拉麵') || cat.includes('麵') || cat.includes('ramen')) {
+    bgColor = 'bg-amber-500'; // 🍜 溫暖琥珀橘
+    emoji = '🍜';
+    ringColor = 'ring-amber-300';
+  } else if (cat.includes('燒肉') || cat.includes('牛排') || cat.includes('肉') || cat.includes('bbq')) {
+    bgColor = 'bg-rose-500'; // 🥩 珊瑚炙烤紅
+    emoji = '🥩';
+    ringColor = 'ring-rose-300';
+  } else if (cat.includes('日料') || cat.includes('壽司') || cat.includes('sushi') || cat.includes('海鮮')) {
+    bgColor = 'bg-blue-600'; // 🍣 經典海藍
+    emoji = '🍣';
+    ringColor = 'ring-blue-300';
+  } else if (cat.includes('咖啡') || cat.includes('早午餐') || cat.includes('cafe') || cat.includes('茶')) {
+    bgColor = 'bg-emerald-600'; // ☕ 抹茶植翠綠
+    emoji = '☕';
+    ringColor = 'ring-emerald-300';
+  } else if (cat.includes('甜點') || cat.includes('蛋糕') || cat.includes('冰') || cat.includes('dessert') || cat.includes('烘焙')) {
+    bgColor = 'bg-pink-500'; // 🍰 蜜桃莓果粉
+    emoji = '🍰';
+    ringColor = 'ring-pink-300';
+  } else if (cat.includes('火鍋') || cat.includes('鍋') || cat.includes('麻辣') || cat.includes('hotpot')) {
+    bgColor = 'bg-orange-600'; // 🍲 暖冬鮮紅
+    emoji = '🍲';
+    ringColor = 'ring-orange-300';
+  } else if (cat.includes('居酒屋') || cat.includes('酒吧') || cat.includes('酒') || cat.includes('bar')) {
+    bgColor = 'bg-purple-600'; // 🍻 霓虹微醺紫
+    emoji = '🍻';
+    ringColor = 'ring-purple-300';
+  } else if (cat.includes('披薩') || cat.includes('義式') || cat.includes('pizza') || cat.includes('pasta')) {
+    bgColor = 'bg-yellow-600'; // 🍕 羅馬金黃
+    emoji = '🍕';
+    ringColor = 'ring-yellow-300';
+  } else if (cat.includes('漢堡') || cat.includes('美式') || cat.includes('burger')) {
+    bgColor = 'bg-red-500'; // 🍔 美式番茄紅
+    emoji = '🍔';
+    ringColor = 'ring-red-300';
+  } else {
+    bgColor = 'bg-indigo-600';
+    emoji = '🥢';
+    ringColor = 'ring-indigo-300';
   }
 
-  const selectedClass = isSelected ? 'scale-125 ring-4 ring-amber-400 z-50' : 'group-hover:scale-110';
+  // Blacklist override
+  if (tag === 'avoid_again') {
+    bgColor = 'bg-slate-900';
+    emoji = '☠️';
+    ringColor = 'ring-slate-700';
+  }
+
+  return { bgColor, emoji, ringColor };
+}
+
+function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
+  const { bgColor, emoji, ringColor } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
+  const selectedClass = isSelected ? 'scale-125 ring-4 ring-amber-400 z-50 shadow-xl' : 'group-hover:scale-110';
+
+  // Status Badge on top-right of pin (Crown/Flame for must-eat, repeat for frequent)
+  let statusBadge = '';
+  if (restaurant.ratingTag === 'must_eat') {
+    statusBadge = '<span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-black shadow-xs ring-1 ring-white">👑</span>';
+  } else if (restaurant.ratingTag === 'frequent_visit') {
+    statusBadge = '<span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px] font-black shadow-xs ring-1 ring-white">🔄</span>';
+  }
 
   const html = `
     <div class="custom-pin flex flex-col items-center cursor-pointer group">
-      <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl ${bgColor} text-white flex items-center justify-center text-sm sm:text-base shadow-lg shadow-black/30 ring-2 ${ringColor} transition-transform ${selectedClass}">
+      <div class="relative w-8 h-8 sm:w-9 sm:h-9 rounded-2xl ${bgColor} text-white flex items-center justify-center text-sm sm:text-base shadow-md shadow-slate-900/20 ring-2 ${ringColor} transition-transform ${selectedClass}">
         <span>${emoji}</span>
+        ${statusBadge}
       </div>
-      <div class="bg-white/95 backdrop-blur-xs text-slate-900 text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-md shadow-md border border-slate-200 mt-1 whitespace-nowrap max-w-[100px] sm:max-w-[120px] truncate">
-        ${name}
+      <div class="bg-white/95 backdrop-blur-xs text-slate-900 text-[10px] sm:text-[11px] font-black px-1.5 py-0.5 rounded-md shadow-md border border-slate-200/80 mt-1 whitespace-nowrap max-w-[100px] sm:max-w-[120px] truncate">
+        ${restaurant.name}
       </div>
       <div class="w-1.5 h-1.5 bg-slate-800 rounded-full mt-0.5"></div>
     </div>
@@ -126,10 +162,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
     targetRestaurant || (restaurants.length > 0 ? restaurants[0] : null)
   );
 
-  // Desktop sidebar collapse state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // Mobile bottom drawer state: 'collapsed' (bottom bar) vs 'expanded' (full list)
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -149,23 +182,22 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
-    // On mobile, collapse the drawer after selection so user sees the map
     setIsMobileDrawerOpen(false);
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-210px)] min-h-[520px] sm:min-h-[600px] rounded-3xl overflow-hidden shadow-md border border-slate-200 bg-slate-100 flex">
+    <div className="relative w-full h-[calc(100vh-210px)] min-h-[520px] sm:min-h-[600px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex">
       
       {/* 🖥️ Desktop Collapsible Floating Sidebar (Left Side) */}
       <div
         className={`hidden lg:flex flex-col z-30 transition-all duration-300 ease-in-out ${
           isSidebarOpen ? 'w-88 sm:w-96' : 'w-0'
-        } h-full bg-white/95 backdrop-blur-md border-r border-slate-200 shadow-xl overflow-hidden relative`}
+        } h-full bg-white border-r border-slate-200 shadow-lg overflow-hidden relative`}
       >
         {isSidebarOpen && (
           <div className="w-88 sm:w-96 h-full flex flex-col">
             {/* Sidebar Header */}
-            <div className="p-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between shrink-0">
+            <div className="p-3.5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-base">🗺️</span>
                 <div>
@@ -181,14 +213,14 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               <button
                 onClick={() => setIsSidebarOpen(false)}
                 className="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
-                title="收合清單以獲得全螢幕地圖"
+                title="收合清單"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
 
             {/* Scrollable Restaurant Items */}
-            <div className="flex-1 overflow-y-auto p-2.5 space-y-2 divide-y divide-slate-100/60">
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-2 divide-y divide-slate-100">
               {sortedRestaurants.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs space-y-2">
                   <MapPin className="w-8 h-8 mx-auto text-slate-300" />
@@ -204,21 +236,25 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                     restaurant.lng
                   );
 
+                  const { emoji } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
+
                   return (
                     <div
                       key={restaurant.id}
                       onClick={() => handleSelectRestaurant(restaurant)}
                       className={`pt-2 first:pt-0 cursor-pointer transition-all group ${
                         isSelected
-                          ? 'bg-indigo-50/90 -mx-1 px-3 py-2 rounded-2xl ring-2 ring-indigo-500 shadow-sm'
+                          ? 'bg-amber-50/80 -mx-1 px-3 py-2 rounded-2xl ring-2 ring-amber-400 shadow-xs'
                           : 'hover:bg-slate-50 p-2 rounded-xl'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-1 flex-1 min-w-0">
                           <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-xs">{emoji}</span>
+                            
                             {restaurant.ratingTag === 'must_eat' && (
-                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-rose-500 text-white flex items-center gap-0.5">
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-amber-500 text-white flex items-center gap-0.5">
                                 <Flame className="w-2.5 h-2.5 fill-current" />
                                 <span>{t.tagMustEat}</span>
                               </span>
@@ -230,7 +266,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                               </span>
                             )}
                             {restaurant.ratingTag === 'wishlist' && (
-                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-600 text-white flex items-center gap-0.5">
+                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-blue-600 text-white flex items-center gap-0.5">
                                 <Bookmark className="w-2.5 h-2.5" />
                                 <span>{t.tagWishlist}</span>
                               </span>
@@ -247,7 +283,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             </span>
                           </div>
 
-                          <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-indigo-600 transition-colors truncate">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-amber-600 transition-colors truncate">
                             {restaurant.name}
                           </h4>
 
@@ -271,10 +307,10 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                         </div>
 
                         <div className="text-right shrink-0 space-y-1">
-                          <span className="inline-block text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          <span className="inline-block text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
                             {formatDistance(distanceKm, lang)}
                           </span>
-                          <div className="text-slate-300 group-hover:text-indigo-600 flex justify-end">
+                          <div className="text-slate-300 group-hover:text-amber-600 flex justify-end">
                             <ChevronRight className="w-3.5 h-3.5" />
                           </div>
                         </div>
@@ -294,7 +330,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           onClick={() => setIsSidebarOpen(true)}
           className="hidden lg:flex absolute top-4 left-4 z-30 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 items-center gap-1.5 text-xs font-bold transition-transform active:scale-95 animate-fadeIn"
         >
-          <List className="w-4 h-4 text-rose-400" />
+          <List className="w-4 h-4 text-amber-400" />
           <span>{lang === 'zh-TW' ? `展開店家清單 (${restaurants.length})` : `店舗一覧を表示 (${restaurants.length})`}</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -331,7 +367,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               <Marker
                 key={restaurant.id}
                 position={[restaurant.lat, restaurant.lng]}
-                icon={createCustomPin(restaurant.ratingTag, restaurant.name, isSelected)}
+                icon={createCustomPin(restaurant, isSelected)}
                 eventHandlers={{
                   click: () => {
                     setSelectedRestaurant(restaurant);
@@ -345,7 +381,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                           {restaurant.category} · {restaurant.priceRange}
                         </span>
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                           {t.visitCount} {restaurant.visitCount} {t.timesUnit}
                         </span>
                       </div>
@@ -357,13 +393,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                         {restaurant.address}
                       </p>
                     </div>
-
-                    {restaurant.lastVisitedDate && (
-                      <div className="flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        <span>{t.lastVisited}：{restaurant.lastVisitedDate}</span>
-                      </div>
-                    )}
 
                     {recommender && (
                       <div className="text-[11px] text-purple-800 bg-purple-50 p-1.5 rounded-lg border border-purple-100 font-medium">
@@ -448,7 +477,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
                       <button
                         onClick={() => onShareRestaurant(restaurant)}
-                        className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
                         title={t.shareText}
                       >
                         <Share2 className="w-3.5 h-3.5" />
@@ -471,15 +500,14 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
         {/* 📱 Mobile Floating Bottom Quick Card / Expandable Drawer */}
         <div className="lg:hidden absolute bottom-3 inset-x-3 z-30 space-y-2">
-          {/* Collapsed Mode: Sleek Floating Card of Selected Spot + List Opener Button */}
           {!isMobileDrawerOpen ? (
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200 p-3 space-y-2.5 animate-fadeIn">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 space-y-2.5 animate-fadeIn">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsMobileDrawerOpen(true)}
-                  className="flex items-center gap-1.5 text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-100 active:scale-95 transition-all"
+                  className="flex items-center gap-1.5 text-xs font-black text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl active:scale-95 transition-all"
                 >
-                  <List className="w-3.5 h-3.5" />
+                  <List className="w-3.5 h-3.5 text-amber-600" />
                   <span>{lang === 'zh-TW' ? `📋 查看全部清單 (${restaurants.length})` : `📋 一覧を開く (${restaurants.length})`}</span>
                   <ChevronUp className="w-3.5 h-3.5" />
                 </button>
@@ -507,7 +535,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800">
+                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-700">
                       {formatDistance(
                         calculateDistanceKm(
                           userLocation.lat,
@@ -537,11 +565,11 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               )}
             </div>
           ) : (
-            /* Expanded Mode: Full Slide-up Drawer List on Mobile */
+            /* Expanded Drawer List on Mobile */
             <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-h-[65vh] flex flex-col overflow-hidden animate-fadeIn">
-              <div className="p-3 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between shrink-0">
+              <div className="p-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <List className="w-4 h-4 text-rose-400" />
+                  <List className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-black">
                     {lang === 'zh-TW' ? `美食店家清單 (${restaurants.length} 間)` : `店舗一覧 (${restaurants.length} 件)`}
                   </span>
@@ -569,7 +597,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       key={restaurant.id}
                       onClick={() => handleSelectRestaurant(restaurant)}
                       className={`pt-2 first:pt-0 p-2 rounded-xl transition-all ${
-                        isSelected ? 'bg-indigo-50 ring-2 ring-indigo-500' : 'hover:bg-slate-50'
+                        isSelected ? 'bg-amber-50 ring-2 ring-amber-400' : 'hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -581,7 +609,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             {restaurant.address}
                           </p>
                         </div>
-                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 shrink-0">
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 shrink-0">
                           {formatDistance(distanceKm, lang)}
                         </span>
                       </div>
@@ -593,21 +621,33 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           )}
         </div>
 
-        {/* Map Legend Floating Box (Desktop Only) */}
-        <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur-md p-2.5 rounded-2xl shadow-md border border-slate-200 text-[11px] hidden sm:block">
-          <span className="font-extrabold text-slate-800 block mb-1">{t.mapLegendTitle}</span>
-          <div className="space-y-0.5">
+        {/* Map Legend Floating Box (Category Color Indicators!) */}
+        <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-2xl shadow-md border border-slate-200 text-[11px] hidden sm:block">
+          <span className="font-extrabold text-slate-800 block mb-1.5">🌈 料理分類標籤</span>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              <span className="text-slate-600 font-medium">🍜 麵食拉麵</span>
+            </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-              <span className="text-slate-600 font-medium">{t.tagMustEat}</span>
+              <span className="text-slate-600 font-medium">🥩 燒肉牛排</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+              <span className="text-slate-600 font-medium">🍣 壽司日料</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-              <span className="text-slate-600 font-medium">{t.tagFrequentVisit}</span>
+              <span className="text-slate-600 font-medium">☕ 咖啡早午餐</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
-              <span className="text-slate-600 font-medium">{t.tagAvoidAgain}</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+              <span className="text-slate-600 font-medium">🍰 甜點冰品</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
+              <span className="text-slate-600 font-medium">🍻 居酒餐酒</span>
             </div>
           </div>
         </div>
