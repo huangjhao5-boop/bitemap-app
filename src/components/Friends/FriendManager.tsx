@@ -35,7 +35,8 @@ interface FriendManagerProps {
   onDeleteMeetup: (meetupId: string) => void;
   onJoinMeetup: (meetupId: string) => void;
   onInterestedMeetup: (meetupId: string) => void;
-  onAddMeetupComment: (meetupId: string, content: string) => void;
+  onAddMeetupComment: (meetupId: string, content: string, image?: string) => void;
+
   onAcceptFriendRequest: (request: FriendRequest) => void;
   onDeclineFriendRequest: (requestId: string) => void;
   onSendFriendRequest: (targetCode: string) => { success: boolean; message: string };

@@ -363,7 +363,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleAddMeetupComment = (meetupId: string, content: string) => {
+  const handleAddMeetupComment = (meetupId: string, content: string, image?: string) => {
     const now = new Date();
     const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const updated = meetups.map((m) => {
@@ -377,6 +377,7 @@ export function App() {
               authorName: userProfile.name || '吃貨好友',
               authorAvatar: userProfile.avatar || '🧋',
               content,
+              image,
               createdAt: timeStr,
             },
           ],
@@ -388,6 +389,7 @@ export function App() {
     saveMeetups(updated);
     setLastSyncTime(triggerAutoSync());
   };
+
 
 
   const handleLoginSuccess = (account: AccountRecord) => {

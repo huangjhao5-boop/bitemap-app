@@ -96,8 +96,10 @@ export interface MeetupComment {
   authorName: string;
   authorAvatar: string;
   content: string;
+  image?: string;
   createdAt: string;
 }
+
 
 export interface DiningMeetup {
   id: string;
