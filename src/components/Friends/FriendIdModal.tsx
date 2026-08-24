@@ -163,10 +163,17 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
               {/* Foodie Identity Card */}
               <div className="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden border border-slate-700 space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{userProfile.avatar || '🥢'}</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-white/10 shrink-0 border border-white/20">
+                      {userProfile.avatar?.startsWith('data:') || userProfile.avatar?.startsWith('http') ? (
+                        <img src={userProfile.avatar} alt="頭像" className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <span className="text-2xl">{userProfile.avatar || '🥢'}</span>
+                      )}
+                    </div>
                     <div>
                       <h3 className="font-black text-base text-white">{userProfile.name}</h3>
+
                       <p className="text-[10px] text-amber-400 font-mono font-bold tracking-wider">
                         {userProfile.foodieId || 'kaw_foodie'} · PIN: {userProfile.pinCode || '8888'}
                       </p>

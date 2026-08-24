@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
@@ -57,6 +57,37 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [favoriteDrink, setFavoriteDrink] = useState(profile.favoriteDrink || '');
 
   if (!isOpen) return null;
+
+    const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const SIZE = 400; // Perfect high-res square avatar
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Crop center square
+          const minDim = Math.min(img.width, img.height);
+          const startX = (img.width - minDim) / 2;
+          const startY = (img.height - minDim) / 2;
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, SIZE, SIZE);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          setAvatar(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleAddFavorite = (tagToAdd?: string) => {
     const val = (tagToAdd || newFavInput).trim();
@@ -182,27 +213,84 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <span>🆔</span> {lang === 'zh-TW' ? '基本資料' : '基本情報'}
             </h3>
 
-            {/* Avatar picker */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                {lang === 'zh-TW' ? '選擇您的吃貨代表頭像' : 'プロフィールアイコン'}
+            {/* 📷 Avatar Picker & Custom Photo Uploader */}
+            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 space-y-3">
+              <label className="block text-xs font-black text-slate-800">
+                {lang === 'zh-TW' ? '📷 個人專屬頭像 (可上傳個人照片或自選 Emoji)' : '📷 プロフィール写真・アイコン'}
               </label>
-              <div className="flex flex-wrap gap-2">
-                {EMOJI_AVATARS.map((emo) => (
-                  <button
-                    key={emo}
-                    type="button"
-                    onClick={() => setAvatar(emo)}
-                    className={`w-10 h-10 rounded-2xl text-xl flex items-center justify-center border transition-all ${
-                      avatar === emo
-                        ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-300 scale-110 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {emo}
-                  </button>
-                ))}
+
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                {/* Large Avatar Preview with Upload Trigger */}
+                <div className="relative group cursor-pointer" onClick={() => avatarFileInputRef.current?.click()}>
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[2.5px] shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform overflow-hidden">
+                    <div className="w-full h-full bg-white rounded-full flex items-center justify-center overflow-hidden">
+                      {avatar?.startsWith('data:') || avatar?.startsWith('http') ? (
+                        <img src={avatar} alt="頭像" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl">{avatar || '🥢'}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-rose-500 text-white shadow-md border-2 border-white">
+                    <Camera className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+
+                {/* Upload Buttons & Emoji Selector */}
+                <div className="space-y-2 flex-1 w-full text-center sm:text-left">
+                  <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-rose-600/20 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{avatar?.startsWith('data:') ? '更換照片頭貼' : '上傳我的照片'}</span>
+                    </button>
+
+                    {avatar?.startsWith('data:') && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatar('🥢')}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        恢復預設 Emoji
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Emoji Avatar Selector */}
+                  <div className="flex flex-wrap gap-1.5 justify-center sm:justify-start pt-1">
+                    {EMOJI_AVATARS.map((emo) => (
+                      <button
+                        key={emo}
+                        type="button"
+                        onClick={() => setAvatar(emo)}
+                        className={`w-8 h-8 rounded-xl text-base flex items-center justify-center border transition-all cursor-pointer ${
+                          avatar === emo
+                            ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-300 scale-110 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:bg-slate-100'
+                        }`}
+                        title={emo}
+                      >
+                        {emo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
+
+              {/* Hidden Avatar File Input */}
+              <input
+                type="file"
+                ref={avatarFileInputRef}
+                onChange={handleAvatarUpload}
+                accept="image/*"
+                className="hidden"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -187,9 +187,13 @@ export const Header: React.FC<HeaderProps> = ({
             className="p-1 sm:px-2.5 sm:py-1.5 rounded-2xl bg-white hover:bg-pink-50 text-slate-800 border border-pink-200/80 font-bold text-xs flex items-center gap-1.5 shadow-2xs group transition-all"
             title={lang === 'zh-TW' ? '個人檔案與帳號設定' : 'プロフィール設定'}
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.8px] flex items-center justify-center">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-sm">
-                {profile.avatar}
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.8px] flex items-center justify-center overflow-hidden">
+              <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-sm overflow-hidden">
+                {profile.avatar?.startsWith('data:') || profile.avatar?.startsWith('http') ? (
+                  <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  profile.avatar
+                )}
               </div>
             </div>
             <span className="hidden md:inline font-black text-slate-800">{profile.name}</span>
