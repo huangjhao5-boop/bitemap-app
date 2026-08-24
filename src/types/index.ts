@@ -70,3 +70,34 @@ export type SortOption = 'distance' | 'rating' | 'price_asc' | 'price_desc' | 'v
 
 
 
+
+export type MeetupAudience = 'public' | 'friends_only' | 'private';
+
+export interface MeetupComment {
+  id: string;
+  authorName: string;
+  authorAvatar: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface DiningMeetup {
+  id: string;
+  title: string;
+  restaurantId?: string;
+  restaurantName: string;
+  category?: string;
+  address?: string;
+  googleMapsUrl?: string;
+  plannedDate: string;
+  description: string;
+  creatorName: string;
+  creatorAvatar: string;
+  audience: MeetupAudience;
+  targetFriendIds?: string[];
+  joinedFriendIds: string[];
+  interestedFriendIds: string[];
+  comments: MeetupComment[];
+  status: 'open' | 'closed';
+  createdAt: string;
+}

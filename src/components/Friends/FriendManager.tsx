@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import type { Friend, Restaurant } from '../../types';
+import type { Friend, Restaurant, DiningMeetup, UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { FriendTasteModal } from './FriendTasteModal';
+import { MeetupCreateModal } from './MeetupCreateModal';
+import { MeetupCard } from './MeetupCard';
 import { 
   UserPlus, 
   Heart, 
@@ -10,39 +12,58 @@ import {
   Edit2, 
   Trash2, 
   UtensilsCrossed, 
-  Search
+  Search,
+  MessageSquarePlus,
+  Radio,
+  Users
 } from 'lucide-react';
 
 interface FriendManagerProps {
   friends: Friend[];
   restaurants: Restaurant[];
+  meetups: DiningMeetup[];
+  userProfile: UserProfile;
   lang: Language;
   onSaveFriend: (friend: Friend) => void;
   onDeleteFriend: (id: string) => void;
   onViewFriendRestaurants: (friendId: string) => void;
+  onSaveMeetup: (meetup: DiningMeetup) => void;
+  onDeleteMeetup: (meetupId: string) => void;
+  onJoinMeetup: (meetupId: string) => void;
+  onInterestedMeetup: (meetupId: string) => void;
+  onAddMeetupComment: (meetupId: string, content: string) => void;
 }
 
 export const FriendManager: React.FC<FriendManagerProps> = ({
   friends,
   restaurants,
+  meetups,
+  userProfile,
   lang,
   onSaveFriend,
   onDeleteFriend,
   onViewFriendRestaurants,
+  onSaveMeetup,
+  onDeleteMeetup,
+  onJoinMeetup,
+  onInterestedMeetup,
+  onAddMeetupComment,
 }) => {
   const t = translations[lang];
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [subTab, setSubTab] = useState<'bulletin' | 'friends'>('bulletin');
+  const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
+  const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false);
   const [editingFriend, setEditingFriend] = useState<Friend | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleAddNew = () => {
+  const handleAddNewFriend = () => {
     setEditingFriend(null);
-    setIsModalOpen(true);
+    setIsFriendModalOpen(true);
   };
 
-  const handleEdit = (friend: Friend) => {
+  const handleEditFriend = (friend: Friend) => {
     setEditingFriend(friend);
-    setIsModalOpen(true);
+    setIsFriendModalOpen(true);
   };
 
   const filteredFriends = friends.filter((f) =>
@@ -52,173 +73,217 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
   );
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="space-y-1.5">
+    <div className="space-y-5 max-w-5xl mx-auto pb-12">
+      {/* Top Banner with Quick Actions */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-7 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-3xl">👥</span>
-            <h2 className="text-2xl font-black tracking-tight">{t.friendsBannerTitle}</h2>
+            <span className="text-2xl">🍲</span>
+            <h2 className="text-lg sm:text-xl font-black text-white">
+              {lang === 'zh-TW' ? '吃貨朋友圈 & 揪團開飯留言板' : 'グルメフレンド＆食事会募集'}
+            </h2>
           </div>
-          <p className="text-purple-100 text-sm max-w-xl leading-relaxed">
-            {t.friendsBannerDesc}
+          <p className="text-xs text-slate-300">
+            {lang === 'zh-TW'
+              ? '即時發布聚餐邀請、自訂公開或閨蜜限定範圍、自動比對全員忌口避雷！'
+              : '食事会イベントの募集・参加登録・苦手な食材の自動回避'}
           </p>
         </div>
 
-        <button
-          onClick={handleAddNew}
-          className="px-5 py-2.5 rounded-2xl bg-white text-purple-900 hover:bg-purple-50 font-black text-sm shadow-lg transition-all active:scale-95 flex items-center gap-2 shrink-0"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>{t.btnAddNewFriend}</span>
-        </button>
+        {/* Dual Tab Switcher */}
+        <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md p-1 rounded-2xl">
+          <button
+            onClick={() => setSubTab('bulletin')}
+            className={`px-3.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all ${
+              subTab === 'bulletin'
+                ? 'bg-amber-500 text-white shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5 animate-pulse" />
+            <span>{lang === 'zh-TW' ? `📢 揪團留言板 (${meetups.length})` : `📢 募集掲示板 (${meetups.length})`}</span>
+          </button>
+
+          <button
+            onClick={() => setSubTab('friends')}
+            className={`px-3.5 py-1.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all ${
+              subTab === 'friends'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>{lang === 'zh-TW' ? `👥 好友名冊 (${friends.length})` : `👥 フレンド (${friends.length})`}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Search Filter Bar */}
-      <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder={t.searchFriendPlaceholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-medium"
-          />
-        </div>
+      {/* 📢 Sub-Tab 1: Meetup & Dining Calls Bulletin Board */}
+      {subTab === 'bulletin' && (
+        <div className="space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-black text-slate-900">
+                {lang === 'zh-TW' ? '🔥 最新聚餐邀請與開飯貼文' : '🔥 最新の食事会募集'}
+              </h3>
+              <p className="text-xs text-slate-400">點擊 +1 報名或直接轉發至 LINE 群組揪人！</p>
+            </div>
 
-        <div className="text-xs font-bold text-slate-500 shrink-0">
-          {filteredFriends.length} {t.friendsCountLabel}
-        </div>
-      </div>
-
-      {/* Friends Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredFriends.map((friend) => {
-          const recommendedCount = restaurants.filter((r) =>
-            r.recommendedByFriendIds?.includes(friend.id)
-          ).length;
-
-          const dinedTogetherCount = restaurants.filter((r) =>
-            r.dinedWithFriendIds?.includes(friend.id)
-          ).length;
-
-          return (
-            <div
-              key={friend.id}
-              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group"
+            <button
+              onClick={() => setIsMeetupModalOpen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white rounded-2xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all"
             >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-2xl shadow-xs group-hover:scale-105 transition-transform">
-                      {friend.avatar}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-slate-900 leading-tight">
-                        {friend.name}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                        <span>{t.friendRecommendedCount} {recommendedCount} {t.placesUnit}</span>
-                        <span>·</span>
-                        <span>{t.friendDinedCount} {dinedTogetherCount} {t.timesUnit}</span>
+              <MessageSquarePlus className="w-4 h-4" />
+              <span>{lang === 'zh-TW' ? '➕ 發布聚餐邀請' : '➕ 食事会を募集する'}</span>
+            </button>
+          </div>
+
+          {meetups.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-2xs space-y-3">
+              <UtensilsCrossed className="w-12 h-12 text-slate-300 mx-auto" />
+              <h3 className="text-base font-bold text-slate-700">目前還沒有聚餐邀請</h3>
+              <p className="text-xs text-slate-400">點擊右上角「發布聚餐邀請」，找吃貨朋友一起吃大餐吧！</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {meetups.map((meetup) => (
+                <MeetupCard
+                  key={meetup.id}
+                  meetup={meetup}
+                  friends={friends}
+                  userProfile={userProfile}
+                  lang={lang}
+                  onJoinMeetup={onJoinMeetup}
+                  onInterestedMeetup={onInterestedMeetup}
+                  onAddComment={onAddMeetupComment}
+                  onDeleteMeetup={onDeleteMeetup}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 👥 Sub-Tab 2: Friends Taste & Dislikes Manager */}
+      {subTab === 'friends' && (
+        <div className="space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder={t.searchFriendPlaceholder}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-white rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-medium"
+              />
+            </div>
+
+            <button
+              onClick={handleAddNewFriend}
+              className="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{t.btnAddNewFriend}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredFriends.map((friend) => {
+              const friendRecommendations = restaurants.filter((r) =>
+                r.recommendedByFriendIds?.includes(friend.id)
+              );
+
+              return (
+                <div
+                  key={friend.id}
+                  className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-2xs space-y-3.5 hover:border-purple-300 transition-all group"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-2xl shadow-2xs">
+                        {friend.avatar}
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-slate-900">{friend.name}</h4>
+                        <button
+                          onClick={() => onViewFriendRestaurants(friend.id)}
+                          className="text-[11px] text-purple-600 hover:underline font-bold"
+                        >
+                          {friendRecommendations.length} {t.friendRecommendedCount}
+                        </button>
                       </div>
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditFriend(friend)}
+                        className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors"
+                        title={t.editSpot}
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteFriend(friend.id)}
+                        className="p-1.5 rounded-xl hover:bg-rose-50 text-rose-600 transition-colors"
+                        title="刪除"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEdit(friend)}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                      title={t.editSpot}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        const confirmMsg = lang === 'zh-TW'
-                          ? `確定要刪除好友「${friend.name}」嗎？`
-                          : `「${friend.name}」を削除しますか？`;
-                        if (confirm(confirmMsg)) {
-                          onDeleteFriend(friend.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                      title={t.deleteSpot}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-center gap-1 text-xs font-bold text-emerald-800">
-                    <Heart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
-                    <span>{t.friendLikesTitle}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {friend.favoriteTags.length > 0 ? (
-                      friend.favoriteTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-200"
-                        >
+                  {/* Favorite Tags */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-extrabold text-emerald-800 flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-emerald-600 fill-emerald-600" />
+                      <span>{t.friendLikesTitle}</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {friend.favoriteTags.map((tag, i) => (
+                        <span key={i} className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-100">
                           {tag}
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">{t.noPreferencesYet}</span>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2 mb-3">
-                  <div className="flex items-center gap-1 text-xs font-bold text-rose-800">
-                    <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
-                    <span>{t.friendDislikesTitle}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {friend.dislikedTags.length > 0 ? (
-                      friend.dislikedTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs font-semibold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-lg border border-rose-200"
-                        >
-                          ⚠️ {tag}
+                  {/* Disliked Tags */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-extrabold text-rose-800 flex items-center gap-1">
+                      <AlertOctagon className="w-3 h-3 text-rose-500" />
+                      <span>{t.friendDislikesTitle}</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {friend.dislikedTags.map((tag, i) => (
+                        <span key={i} className="text-[11px] font-semibold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-lg border border-rose-100 line-through">
+                          {tag}
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">{t.noDislikes}</span>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 </div>
-
-                {friend.notes && (
-                  <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100 leading-relaxed">
-                    💡 {friend.notes}
-                  </p>
-                )}
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  onClick={() => onViewFriendRestaurants(friend.id)}
-                  className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 hover:underline"
-                >
-                  <UtensilsCrossed className="w-3.5 h-3.5" />
-                  <span>{t.btnViewFriendSpots} ({recommendedCount})</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <FriendTasteModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isFriendModalOpen}
+        onClose={() => setIsFriendModalOpen(false)}
         onSave={onSaveFriend}
         editingFriend={editingFriend}
+        lang={lang}
+      />
+
+      <MeetupCreateModal
+        isOpen={isMeetupModalOpen}
+        onClose={() => setIsMeetupModalOpen(false)}
+        onSave={onSaveMeetup}
+        restaurants={restaurants}
+        friends={friends}
+        userProfile={userProfile}
         lang={lang}
       />
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Restaurant, Friend, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
+import type { Restaurant, Friend, DiningMeetup, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
 import { 
   loadRestaurants, 
@@ -9,6 +9,8 @@ import {
   importBackupData,
   loadUserProfile,
   saveUserProfile,
+  loadMeetups,
+  saveMeetups,
   getAutoSyncTime,
   triggerAutoSync
 } from './utils/storage';
@@ -38,6 +40,7 @@ export function App() {
   const [userProfile, setUserProfile] = useState<UserProfile>(() => loadUserProfile());
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [meetups, setMeetups] = useState<DiningMeetup[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('map');
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => getAutoSyncTime());
 
@@ -110,6 +113,7 @@ export function App() {
 
     setRestaurants(loadRestaurants());
     setFriends(loadFriends());
+    setMeetups(loadMeetups());
   }, []);
 
   const handleLanguageChange = (newLang: Language) => {
@@ -120,6 +124,7 @@ export function App() {
   const refreshData = () => {
     setRestaurants(loadRestaurants());
     setFriends(loadFriends());
+    setMeetups(loadMeetups());
     setLastSyncTime(triggerAutoSync());
   };
 
@@ -181,6 +186,81 @@ export function App() {
     const updated = friends.filter((f) => f.id !== id);
     setFriends(updated);
     saveFriends(updated);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+
+  const handleSaveMeetup = (meetup: DiningMeetup) => {
+    const updated = [meetup, ...meetups];
+    setMeetups(updated);
+    saveMeetups(updated);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  const handleDeleteMeetup = (meetupId: string) => {
+    if (confirm(lang === 'zh-TW' ? '確定要刪除這則聚餐邀請嗎？' : 'この食事会募集を削除しますか？')) {
+      const updated = meetups.filter((m) => m.id !== meetupId);
+      setMeetups(updated);
+      saveMeetups(updated);
+      setLastSyncTime(triggerAutoSync());
+    }
+  };
+
+  const handleJoinMeetup = (meetupId: string) => {
+    const updated = meetups.map((m) => {
+      if (m.id === meetupId) {
+        const hasJoined = m.joinedFriendIds.includes('me') || m.joinedFriendIds.includes(userProfile.name);
+        const newJoined = hasJoined
+          ? m.joinedFriendIds.filter((id) => id !== 'me' && id !== userProfile.name)
+          : [...m.joinedFriendIds, 'me'];
+        return { ...m, joinedFriendIds: newJoined };
+      }
+      return m;
+    });
+    setMeetups(updated);
+    saveMeetups(updated);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  const handleInterestedMeetup = (meetupId: string) => {
+    const updated = meetups.map((m) => {
+      if (m.id === meetupId) {
+        const hasInterested = m.interestedFriendIds.includes('me') || m.interestedFriendIds.includes(userProfile.name);
+        const newInterested = hasInterested
+          ? m.interestedFriendIds.filter((id) => id !== 'me' && id !== userProfile.name)
+          : [...m.interestedFriendIds, 'me'];
+        return { ...m, interestedFriendIds: newInterested };
+      }
+      return m;
+    });
+    setMeetups(updated);
+    saveMeetups(updated);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  const handleAddMeetupComment = (meetupId: string, content: string) => {
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const updated = meetups.map((m) => {
+      if (m.id === meetupId) {
+        return {
+          ...m,
+          comments: [
+            ...m.comments,
+            {
+              id: 'c_' + Date.now(),
+              authorName: userProfile.name || '吃貨好友',
+              authorAvatar: userProfile.avatar || '🧋',
+              content,
+              createdAt: timeStr,
+            },
+          ],
+        };
+      }
+      return m;
+    });
+    setMeetups(updated);
+    saveMeetups(updated);
     setLastSyncTime(triggerAutoSync());
   };
 
@@ -433,10 +513,17 @@ export function App() {
           <FriendManager
             friends={friends}
             restaurants={restaurants}
+            meetups={meetups}
+            userProfile={userProfile}
             lang={lang}
             onSaveFriend={handleSaveFriend}
             onDeleteFriend={handleDeleteFriend}
             onViewFriendRestaurants={handleViewFriendRestaurants}
+            onSaveMeetup={handleSaveMeetup}
+            onDeleteMeetup={handleDeleteMeetup}
+            onJoinMeetup={handleJoinMeetup}
+            onInterestedMeetup={handleInterestedMeetup}
+            onAddMeetupComment={handleAddMeetupComment}
           />
         )}
 
