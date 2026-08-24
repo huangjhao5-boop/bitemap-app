@@ -69,10 +69,10 @@ export const FriendRequestsInbox: React.FC<FriendRequestsInboxProps> = ({
 
             {/* Favorite & Dislikes */}
             <div className="space-y-1 text-[10px]">
-              {req.favoriteTags.length > 0 && (
+              {(req.favoriteTags || []).length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap">
                   <span className="font-bold text-emerald-800 shrink-0">❤️ 愛吃：</span>
-                  {req.favoriteTags.map((tag, i) => (
+                  {(req.favoriteTags || []).map((tag, i) => (
                     <span key={i} className="bg-emerald-50 text-emerald-800 px-1.5 py-0.2 rounded font-medium">
                       {tag}
                     </span>
@@ -80,10 +80,10 @@ export const FriendRequestsInbox: React.FC<FriendRequestsInboxProps> = ({
                 </div>
               )}
 
-              {req.dislikedTags.length > 0 && (
+              {(req.dislikedTags || []).length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap">
                   <span className="font-bold text-rose-800 shrink-0">⚠️ 忌口：</span>
-                  {req.dislikedTags.map((tag, i) => (
+                  {(req.dislikedTags || []).map((tag, i) => (
                     <span key={i} className="bg-rose-50 text-rose-800 px-1.5 py-0.2 rounded font-medium line-through">
                       {tag}
                     </span>

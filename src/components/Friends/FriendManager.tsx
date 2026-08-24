@@ -79,11 +79,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
     setIsFriendModalOpen(true);
   };
 
-  const filteredFriends = friends.filter((f) =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.favoriteTags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    f.dislikedTags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredFriends = friends.filter((f) => {
+    const nameMatch = (f.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const favMatch = (f.favoriteTags || []).some((t) => (t || '').toLowerCase().includes(searchQuery.toLowerCase()));
+    const dislikeMatch = (f.dislikedTags || []).some((t) => (t || '').toLowerCase().includes(searchQuery.toLowerCase()));
+    return nameMatch || favMatch || dislikeMatch;
+  });
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-12">
@@ -286,7 +287,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                       <span>{t.friendLikesTitle}</span>
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {friend.favoriteTags.map((tag, i) => (
+                      {(friend.favoriteTags || []).map((tag, i) => (
                         <span key={i} className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-100">
                           {tag}
                         </span>
@@ -301,7 +302,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                       <span>{t.friendDislikesTitle}</span>
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {friend.dislikedTags.map((tag, i) => (
+                      {(friend.dislikedTags || []).map((tag, i) => (
                         <span key={i} className="text-[11px] font-semibold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-lg border border-rose-100 line-through">
                           {tag}
                         </span>

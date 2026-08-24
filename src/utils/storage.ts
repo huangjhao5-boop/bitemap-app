@@ -63,17 +63,21 @@ export function saveFriendRequests(requests: FriendRequest[]): void {
 
 // 🪪 Generate Friend Invite Base64 Token
 export function generateFriendInviteToken(profile: UserProfile): string {
-  const payload = {
-    foodieId: profile.foodieId || 'kaw_foodie',
-pinCode: profile.pinCode || '8888',
-    name: profile.name,
-    avatar: profile.avatar,
-    favoriteTags: profile.favoriteTags,
-    dislikedTags: profile.dislikedTags,
-    bio: profile.bio,
-    timestamp: Date.now(),
-  };
-  return btoa(encodeURIComponent(JSON.stringify(payload)));
+  try {
+    const payload = {
+      foodieId: profile?.foodieId || 'kaw_foodie',
+      name: profile?.name || '吃貨好友',
+      avatar: profile?.avatar || '🥢',
+      favoriteTags: profile?.favoriteTags || [],
+      dislikedTags: profile?.dislikedTags || [],
+      bio: profile?.bio || '',
+      timestamp: Date.now(),
+    };
+    return btoa(encodeURIComponent(JSON.stringify(payload)));
+  } catch (err) {
+    console.error('Failed to generate token', err);
+    return 'token_fallback';
+  }
 }
 
 // 📥 Parse Friend Invite Token
@@ -364,11 +368,19 @@ export function triggerAutoSync(): string {
 }
 
 
-export function loadUserProfile() {
+export function loadUserProfile(): UserProfile {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      return {
+        ...DEFAULT_USER_PROFILE,
+        ...parsed,
+        foodieId: parsed.foodieId || DEFAULT_USER_PROFILE.foodieId,
+        pinCode: parsed.pinCode || DEFAULT_USER_PROFILE.pinCode,
+        favoriteTags: Array.isArray(parsed.favoriteTags) ? parsed.favoriteTags : DEFAULT_USER_PROFILE.favoriteTags,
+        dislikedTags: Array.isArray(parsed.dislikedTags) ? parsed.dislikedTags : DEFAULT_USER_PROFILE.dislikedTags,
+      };
     }
   } catch (err) {
     console.error('Failed to load user profile:', err);
@@ -409,7 +421,15 @@ export function loadFriends(): Friend[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.FRIENDS);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.map((f: any) => ({
+          ...f,
+          avatar: f.avatar || '🥢',
+          favoriteTags: Array.isArray(f.favoriteTags) ? f.favoriteTags : [],
+          dislikedTags: Array.isArray(f.dislikedTags) ? f.dislikedTags : [],
+        }));
+      }
     }
   } catch (err) {
     console.error('Failed to load friends from localStorage:', err);

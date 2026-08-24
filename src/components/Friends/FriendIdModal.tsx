@@ -48,6 +48,8 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
 
   if (!isOpen) return null;
 
+  const favList = userProfile?.favoriteTags || [];
+  const dislikeList = userProfile?.dislikedTags || [];
   const inviteToken = generateFriendInviteToken(userProfile);
   const currentBaseUrl = window.location.origin + window.location.pathname;
   const inviteUrl = `${currentBaseUrl}#add-friend=${inviteToken}`;
@@ -81,11 +83,9 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
 `;
     msg += `👤 名稱：${userProfile.name}
 `;
-    msg += `❤️ 喜愛美食：${userProfile.favoriteTags.join('、')}
-`;
-    if (userProfile.dislikedTags.length > 0) {
-      msg += `⚠️ 飲食忌口：${userProfile.dislikedTags.join('、')}
-`;
+    if (favList.length > 0) msg += `❤️ 喜愛美食：${favList.join('、')}\n`;
+    if (dislikeList.length > 0) {
+      msg += `⚠️ 飲食忌口：${dislikeList.join('、')}\n`;
     }
     msg += `
 🔗 點擊連結一鍵發送好友申請：
@@ -191,12 +191,12 @@ ${inviteUrl}
                 {/* Taste badges */}
                 <div className="space-y-1 text-xs">
                   <div className="flex flex-wrap gap-1">
-                    {userProfile.favoriteTags.map((tag, i) => (
+                    {favList.map((tag, i) => (
                       <span key={i} className="bg-white/10 px-2 py-0.5 rounded-lg text-white font-medium text-[10px]">
                         ❤️ {tag}
                       </span>
                     ))}
-                    {userProfile.dislikedTags.map((tag, i) => (
+                    {dislikeList.map((tag, i) => (
                       <span key={i} className="bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-lg font-medium text-[10px] line-through">
                         ⚠️ {tag}
                       </span>
