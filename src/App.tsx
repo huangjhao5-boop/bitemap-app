@@ -33,6 +33,9 @@ import { UserProfileModal } from './components/Layout/UserProfileModal';
 import { ReelsFeedModal } from './components/Reels/ReelsFeedModal';
 import { MysteryBoxModal } from './components/Tools/MysteryBoxModal';
 import { BillSplitterModal } from './components/Tools/BillSplitterModal';
+import { AuthModal } from './components/Layout/AuthModal';
+import type { AccountRecord } from './utils/storage';
+import { findFoodieProfileById } from './utils/storage';
 import { UtensilsCrossed } from 'lucide-react';
 
 export function App() {
@@ -75,6 +78,7 @@ export function App() {
   const [isReelsModalOpen, setIsReelsModalOpen] = useState(false);
   const [isMysteryBoxModalOpen, setIsMysteryBoxModalOpen] = useState(false);
   const [isBillSplitterModalOpen, setIsBillSplitterModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null);
   const [sharingRestaurant, setSharingRestaurant] = useState<Restaurant | null>(null);
   const [targetMapRestaurant, setTargetMapRestaurant] = useState<Restaurant | null>(null);
@@ -226,34 +230,65 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleSendFriendRequest = (targetCode: string): { success: boolean; message: string } => {
-    const cleanCode = targetCode.trim();
-    if (!cleanCode) {
-      return { success: false, message: '請輸入有效的吃貨 ID 或邀請碼！' };
+  const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
+    const cleanId = targetFoodieId.trim().toLowerCase();
+    if (!cleanId) {
+      return { success: false, message: '請輸入好友的吃貨 ID！' };
     }
 
-    if (cleanCode === userProfile.foodieId) {
+    if (cleanId === userProfile.foodieId.toLowerCase()) {
       return { success: false, message: '不能添加自己的吃貨 ID 唷！' };
     }
 
-    // Check if already friends
-    const exists = friends.some((f) => f.foodieId === cleanCode || f.name.includes(cleanCode));
-    if (exists) {
+    const alreadyFriend = friends.some((f) => f.foodieId?.toLowerCase() === cleanId);
+    if (alreadyFriend) {
       return { success: false, message: '您們已經是吃貨好友囉！' };
     }
 
-    // If it's a token
-    if (cleanCode.length > 30) {
-      const parsed = parseFriendInviteToken(cleanCode);
-      if (parsed) {
-        handleAcceptFriendRequest(parsed);
-        return { success: true, message: `成功解析並與【${parsed.senderName}】綁定好友！` };
-      }
+    // Look up in account registry or mock database
+    const foundProfile = findFoodieProfileById(cleanId);
+    if (foundProfile) {
+      const newIncomingRequest: FriendRequest = {
+        id: 'req_' + Date.now(),
+        senderFoodieId: foundProfile.foodieId,
+        senderName: foundProfile.name,
+        senderAvatar: foundProfile.avatar,
+        favoriteTags: foundProfile.favoriteTags,
+        dislikedTags: foundProfile.dislikedTags,
+        bio: foundProfile.bio,
+        sentAt: new Date().toISOString().split('T')[0],
+        status: 'pending',
+      };
+
+      const updatedReqs = [newIncomingRequest, ...friendRequests.filter((r) => r.senderFoodieId !== foundProfile.foodieId)];
+      setFriendRequests(updatedReqs);
+      saveFriendRequests(updatedReqs);
+
+      return {
+        success: true,
+        message: `🎉 已向【${foundProfile.name} (${foundProfile.foodieId})】發送好友邀請！已在「待審核信箱」中收到對方的吃貨名片！`,
+      };
     }
+
+    // Fallback for custom unlisted IDs
+    const mockRequest: FriendRequest = {
+      id: 'req_' + Date.now(),
+      senderFoodieId: cleanId,
+      senderName: cleanId,
+      senderAvatar: '🥢',
+      favoriteTags: ['拉麵', '美食探店'],
+      dislikedTags: [],
+      bio: '吃貨好友',
+      sentAt: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    };
+    const updatedReqs = [mockRequest, ...friendRequests];
+    setFriendRequests(updatedReqs);
+    saveFriendRequests(updatedReqs);
 
     return {
       success: true,
-      message: `🚀 好友申請已送出給【${cleanCode}】！待對方審核同意後，雙方資料即自動同步！`,
+      message: `🚀 已送出好友申請給【${cleanId}】！待審核同意後即可同步口味！`,
     };
   };
 
@@ -349,6 +384,27 @@ export function App() {
     });
     setMeetups(updated);
     saveMeetups(updated);
+    setLastSyncTime(triggerAutoSync());
+  };
+
+
+  const handleLoginSuccess = (account: AccountRecord) => {
+    setUserProfile(account.profile);
+    saveUserProfile(account.profile);
+
+    if (account.restaurants && account.restaurants.length > 0) {
+      setRestaurants(account.restaurants);
+      saveRestaurants(account.restaurants);
+    }
+    if (account.friends && account.friends.length > 0) {
+      setFriends(account.friends);
+      saveFriends(account.friends);
+    }
+    if (account.meetups && account.meetups.length > 0) {
+      setMeetups(account.meetups);
+      saveMeetups(account.meetups);
+    }
+
     setLastSyncTime(triggerAutoSync());
   };
 
@@ -496,6 +552,7 @@ export function App() {
         onOpenReelsModal={() => setIsReelsModalOpen(true)}
         onOpenMysteryBox={() => setIsMysteryBoxModalOpen(true)}
         onOpenBillSplitter={() => setIsBillSplitterModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onDataChange={refreshData}
       />
 
@@ -636,6 +693,22 @@ export function App() {
         )}
       </main>
 
+      {/* 🏷️ App Footer with Producer & Version */}
+      <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 text-center text-xs text-slate-500 space-y-1 mt-8">
+        <div className="flex items-center justify-center gap-2 flex-wrap font-bold">
+          <span className="text-slate-900 font-black">BiteMap 短影音美食地圖</span>
+          <span className="px-2 py-0.2 rounded-md bg-amber-100 text-amber-900 text-[10px] font-mono font-black border border-amber-300">
+            v2.4.0 (Pro Foodie Edition)
+          </span>
+          <span>·</span>
+          <span className="text-slate-800">製作人: <strong className="text-rose-600">k-kaw</strong></span>
+        </div>
+        <p className="text-[11px] text-slate-400">
+          Powered by Google Deepmind AI Pair-Programming · 吃貨專屬避雷手冊與朋友圈系統
+        </p>
+      </footer>
+
+
       <RestaurantModal
         isOpen={isRestaurantModalOpen}
         onClose={() => {
@@ -697,6 +770,17 @@ export function App() {
         onClose={() => setIsBillSplitterModalOpen(false)}
         friends={friends}
         lang={lang}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentProfile={userProfile}
+        restaurants={restaurants}
+        friends={friends}
+        meetups={meetups}
+        lang={lang}
+        onLoginSuccess={handleLoginSuccess}
       />
     </div>
   );

@@ -562,3 +562,162 @@ export function saveMeetups(meetups: DiningMeetup[]): void {
     console.error('Failed to save meetups', err);
   }
 }
+
+
+export interface AccountRecord {
+  foodieId: string;
+  pinCode: string;
+  profile: UserProfile;
+  restaurants: Restaurant[];
+  friends: Friend[];
+  meetups: DiningMeetup[];
+}
+
+export const INITIAL_ACCOUNT_REGISTRY: Record<string, AccountRecord> = {
+  'kaw_foodie': {
+    foodieId: 'kaw_foodie',
+    pinCode: '8888',
+    profile: {
+      foodieId: 'kaw_foodie',
+      pinCode: '8888',
+      name: '吃貨探險家 Kevin',
+      avatar: '🥢',
+      bio: '探索全城短影音美食，真心記錄必吃與避雷！',
+      defaultCity: '台北市',
+      instagramHandle: 'kaw_foodie',
+      favoriteTags: ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪'],
+      dislikedTags: ['不吃香菜', '怕辣'],
+      spicinessLevel: 'mild',
+      budgetPreference: '$$',
+      favoriteDrink: '無糖冰美式 / 熟成蜜香紅茶',
+    },
+    restaurants: INITIAL_RESTAURANTS,
+    friends: INITIAL_FRIENDS,
+    meetups: INITIAL_MEETUPS,
+  },
+  'annie_sweets': {
+    foodieId: 'annie_sweets',
+    pinCode: '1234',
+    profile: {
+      foodieId: 'annie_sweets',
+      pinCode: '1234',
+      name: '安妮 (日本甜點控)',
+      avatar: '🍮',
+      bio: '旅居東京3年，熱愛探訪隱藏版喫茶店！想加入你的吃貨朋友圈互相避雷！',
+      defaultCity: '東京',
+      instagramHandle: 'annie_sweets_tokyo',
+      favoriteTags: ['焦糖布丁', '抹茶聖代', '生吐司', '日式定食'],
+      dislikedTags: ['太甜死甜', '油炸物'],
+      spicinessLevel: 'none',
+      budgetPreference: '$$$',
+      favoriteDrink: '宇治抹茶拿鐵',
+    },
+    restaurants: [],
+    friends: [],
+    meetups: [],
+  },
+  'ming_ramen': {
+    foodieId: 'ming_ramen',
+    pinCode: '0000',
+    profile: {
+      foodieId: 'ming_ramen',
+      pinCode: '0000',
+      name: '小明 (拉麵狂人)',
+      avatar: '🍜',
+      bio: '全台拉麵百店巡禮中，重度豚骨愛好者。',
+      defaultCity: '台北市',
+      instagramHandle: 'ming_ramen_hunter',
+      favoriteTags: ['日式拉麵', '厚切叉燒', '濃厚豚骨', '辛味噌'],
+      dislikedTags: ['香菜', '生魚片'],
+      spicinessLevel: 'hot',
+      budgetPreference: '$$',
+      favoriteDrink: '冰涼可樂',
+    },
+    restaurants: [],
+    friends: [],
+    meetups: [],
+  },
+  'kevin_meat': {
+    foodieId: 'kevin_meat',
+    pinCode: '6666',
+    profile: {
+      foodieId: 'kevin_meat',
+      pinCode: '6666',
+      name: '凱文 (肉食聚餐王)',
+      avatar: '🥩',
+      bio: '無肉不歡！大口吃和牛大口喝酒！',
+      defaultCity: '台北市',
+      instagramHandle: 'kevin_meat_king',
+      favoriteTags: ['和牛燒肉', '麻辣鍋', '居酒屋', '精釀啤酒'],
+      dislikedTags: ['素食沙拉', '不吃辣'],
+      spicinessLevel: 'insane',
+      budgetPreference: '$$$$',
+      favoriteDrink: '精釀IPA生啤酒',
+    },
+    restaurants: [],
+    friends: [],
+    meetups: [],
+  }
+};
+
+export function loadAccountRegistry(): Record<string, AccountRecord> {
+  try {
+    const raw = localStorage.getItem('bitemap_account_registry_v1');
+    if (raw) return JSON.parse(raw);
+    localStorage.setItem('bitemap_account_registry_v1', JSON.stringify(INITIAL_ACCOUNT_REGISTRY));
+    return INITIAL_ACCOUNT_REGISTRY;
+  } catch {
+    return INITIAL_ACCOUNT_REGISTRY;
+  }
+}
+
+export function saveAccountRegistry(registry: Record<string, AccountRecord>): void {
+  try {
+    localStorage.setItem('bitemap_account_registry_v1', JSON.stringify(registry));
+  } catch (err) {
+    console.error('Failed to save account registry', err);
+  }
+}
+
+// 🔐 Save or Register Account to Registry
+export function registerOrUpdateAccount(
+  profile: UserProfile,
+  restaurants: Restaurant[],
+  friends: Friend[],
+  meetups: DiningMeetup[]
+): void {
+  const registry = loadAccountRegistry();
+  registry[profile.foodieId] = {
+    foodieId: profile.foodieId,
+    pinCode: profile.pinCode,
+    profile,
+    restaurants,
+    friends,
+    meetups,
+  };
+  saveAccountRegistry(registry);
+}
+
+// 🔑 Login Account
+export function authenticateAndLoginAccount(foodieId: string, pinCode: string): {
+  success: boolean;
+  message: string;
+  account?: AccountRecord;
+} {
+  const registry = loadAccountRegistry();
+  const acc = registry[foodieId];
+  if (!acc) {
+    return { success: false, message: `查無吃貨 ID【${foodieId}】！請確認 ID 是否正確或直接註冊新帳號。` };
+  }
+  if (acc.pinCode !== pinCode) {
+    return { success: false, message: '認證失敗！4 碼安全 PIN 碼錯誤，請重新輸入。' };
+  }
+  return { success: true, message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, account: acc };
+}
+
+// 🔍 Search Pure Foodie ID for Friend Request
+export function findFoodieProfileById(targetFoodieId: string): UserProfile | null {
+  const registry = loadAccountRegistry();
+  const acc = registry[targetFoodieId];
+  return acc ? acc.profile : null;
+}

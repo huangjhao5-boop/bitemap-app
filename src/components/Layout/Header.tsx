@@ -26,6 +26,7 @@ interface HeaderProps {
   onOpenReelsModal: () => void;
   onOpenMysteryBox: () => void;
   onOpenBillSplitter: () => void;
+  onOpenAuthModal: () => void;
   onDataChange: () => void;
 }
 
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReelsModal,
   onOpenMysteryBox,
   onOpenBillSplitter,
+  onOpenAuthModal,
   onDataChange,
 }) => {
   const t = translations[lang];
@@ -168,9 +170,20 @@ export const Header: React.FC<HeaderProps> = ({
             {lang === 'zh-TW' ? '🇯🇵 日' : '🇹🇼 中'}
           </button>
 
+          {/* Account Login / Switch Button */}
+          <button
+            onClick={onOpenAuthModal}
+            className="px-2.5 py-1.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+            title="登入、註冊或切換吃貨帳號"
+          >
+            <span>🔑</span>
+            <span className="font-mono text-[11px]">{profile.foodieId || '登入'}</span>
+          </button>
+
           {/* User Profile Button with IG Story Gradient Ring! */}
           <button
             onClick={onOpenProfileModal}
+
             className="p-1 sm:px-2.5 sm:py-1.5 rounded-2xl bg-white hover:bg-pink-50 text-slate-800 border border-pink-200/80 font-bold text-xs flex items-center gap-1.5 shadow-2xs group transition-all"
             title={lang === 'zh-TW' ? '個人檔案與帳號設定' : 'プロフィール設定'}
           >
