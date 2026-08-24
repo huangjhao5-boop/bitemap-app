@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Restaurant } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
@@ -39,7 +39,12 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
   const t = translations[lang];
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Flatten all videos from restaurants and sort them strictly by distance from current user location!
+  // Touch gesture tracking for mobile swipe up/down
+  const touchStartY = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
+  const lastWheelTime = useRef<number>(0);
+
+  // Flatten all videos and sort strictly by distance from current user location!
   const sortedReelItems = useMemo(() => {
     const items: {
       restaurant: Restaurant;
@@ -64,7 +69,6 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
           });
         });
       } else {
-        // Fallback item even if no specific video
         items.push({
           restaurant: r,
           video: {
@@ -78,9 +82,79 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
       }
     });
 
-    // Nearest to furthest sorting!
     return items.sort((a, b) => a.distanceKm - b.distanceKm);
   }, [restaurants, userLocation]);
+
+  const handleNext = useCallback(() => {
+    if (sortedReelItems.length === 0) return;
+    setCurrentIndex((prev) => (prev < sortedReelItems.length - 1 ? prev + 1 : 0));
+  }, [sortedReelItems.length]);
+
+  const handlePrev = useCallback(() => {
+    if (sortedReelItems.length === 0) return;
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : sortedReelItems.length - 1));
+  }, [sortedReelItems.length]);
+
+  // Keyboard navigation (ArrowUp, ArrowDown, Space, Escape)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleNext, handlePrev, onClose]);
+
+  // Touch Swipe Handlers for Mobile (Swipe up = next, Swipe down = prev)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchEndY.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartY.current === null || touchEndY.current === null) return;
+    const distance = touchStartY.current - touchEndY.current;
+    const minSwipeDistance = 45; // 45px swipe threshold
+
+    if (distance > minSwipeDistance) {
+      // Swiped UP -> Next video!
+      handleNext();
+    } else if (distance < -minSwipeDistance) {
+      // Swiped DOWN -> Previous video!
+      handlePrev();
+    }
+
+    touchStartY.current = null;
+    touchEndY.current = null;
+  };
+
+  // Mouse Wheel / Trackpad Scroll Handler (Debounced)
+  const handleWheel = (e: React.WheelEvent) => {
+    const now = Date.now();
+    if (now - lastWheelTime.current < 400) return; // 400ms cooldown
+
+    if (e.deltaY > 25) {
+      lastWheelTime.current = now;
+      handleNext();
+    } else if (e.deltaY < -25) {
+      lastWheelTime.current = now;
+      handlePrev();
+    }
+  };
 
   if (!isOpen || sortedReelItems.length === 0) return null;
 
@@ -88,32 +162,23 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
   const { restaurant, video, distanceKm } = currentItem;
   const parsedVideo = parseVideoUrl(video.url);
 
-  const handleNext = () => {
-    if (currentIndex < sortedReelItems.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setCurrentIndex(0); // loop
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    } else {
-      setCurrentIndex(sortedReelItems.length - 1);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-2 sm:p-4 animate-fadeIn">
-      {/* Container simulating a mobile phone viewport */}
-      <div className="relative w-full max-w-md h-[92vh] max-h-[820px] bg-slate-950 rounded-[36px] overflow-hidden shadow-2xl border border-slate-800 flex flex-col justify-between text-white">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-0 sm:p-4 animate-fadeIn select-none touch-none"
+      onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Phone container mockup */}
+      <div className="relative w-full sm:max-w-md h-full sm:h-[92vh] sm:max-h-[820px] bg-slate-950 sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border border-slate-800 flex flex-col justify-between text-white">
+        
         {/* Top Floating Control Bar */}
-        <div className="absolute top-0 inset-x-0 z-20 p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="px-3 py-1 rounded-full bg-rose-500/90 backdrop-blur-md text-[11px] font-black text-white flex items-center gap-1 shadow-md">
+        <div className="absolute top-0 inset-x-0 z-30 p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between pointer-events-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="px-2.5 py-1 rounded-full bg-rose-500 text-[11px] font-black text-white flex items-center gap-1 shadow-md">
               <Play className="w-3 h-3 fill-current" />
-              <span>{lang === 'zh-TW' ? '短影音探店流' : 'ショート動画フィード'}</span>
+              <span>{lang === 'zh-TW' ? '短影音探店流' : 'ショート動画'}</span>
             </div>
 
             {/* Distance Badge relative to user */}
@@ -137,15 +202,15 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
             <img
               src={restaurant.coverImage}
               alt={restaurant.name}
-              className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 filter blur-xs"
+              className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 filter blur-xs transition-all duration-500"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-950" />
           )}
 
           {/* Center Interactive Preview Card */}
-          <div className="relative z-10 p-6 text-center space-y-4 max-w-xs">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center text-4xl shadow-xl ring-4 ring-white/20 animate-pulse">
+          <div className="relative z-10 p-6 text-center space-y-4 max-w-xs animate-fadeIn">
+            <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center text-4xl shadow-xl ring-4 ring-white/20">
               🥢
             </div>
 
@@ -168,17 +233,21 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
                 href={video.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-500 hover:to-pink-500 text-white font-black text-sm shadow-xl shadow-rose-900/40 transition-transform active:scale-95"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-500 hover:to-pink-500 text-white font-black text-sm shadow-xl shadow-rose-900/40 transition-transform active:scale-95 pointer-events-auto"
               >
                 <Play className="w-4 h-4 fill-current" />
                 <span>{lang === 'zh-TW' ? '觀看短影音介紹' : '動画を再生する'}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
+
+            <p className="text-[11px] text-white/50 pt-2 animate-pulse">
+              {lang === 'zh-TW' ? '👆 上下滑動 / 滾輪 切換下一間' : '👆 スワイプで次の動画へ'}
+            </p>
           </div>
 
           {/* Right Floating Quick Action Buttons */}
-          <div className="absolute right-3 bottom-32 z-20 flex flex-col gap-3">
+          <div className="absolute right-3.5 bottom-32 z-30 flex flex-col gap-3 pointer-events-auto">
             <button
               onClick={() => onShareRestaurant(restaurant)}
               className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-md hover:bg-white/20 text-white flex items-center justify-center border border-white/20 shadow-lg transition-transform active:scale-90"
@@ -201,7 +270,7 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
         </div>
 
         {/* Bottom Details Drawer */}
-        <div className="relative z-20 p-5 bg-gradient-to-t from-black via-black/90 to-transparent space-y-3.5 border-t border-white/10">
+        <div className="relative z-30 p-4 sm:p-5 bg-gradient-to-t from-black via-black/90 to-transparent space-y-3 border-t border-white/10 pointer-events-auto">
           {/* Must-Eat Dishes Highlights */}
           {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
             <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 text-xs space-y-1.5">
@@ -238,8 +307,8 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
             <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-xl p-1 border border-white/10">
               <button
                 onClick={handlePrev}
-                className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors"
-                title="上一則"
+                className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors active:scale-90"
+                title="上一則 (向上滑動)"
               >
                 <ChevronUp className="w-4 h-4" />
               </button>
@@ -248,8 +317,8 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
               </span>
               <button
                 onClick={handleNext}
-                className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors"
-                title="下一則"
+                className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors active:scale-90"
+                title="下一則 (向下滑動)"
               >
                 <ChevronDown className="w-4 h-4" />
               </button>
