@@ -267,28 +267,43 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
-                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{lang === 'zh-TW' ? '常用預算偏好：' : '予算傾向：'}</span>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{lang === 'zh-TW' ? '常用預算偏好：' : '予算傾向：'}</span>
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-700">
+                    {budgetPreference === '$' && '< $200 (平價小吃)'}
+                    {budgetPreference === '$$' && '$200 ~ $500 (日常拉麵/聚餐)'}
+                    {budgetPreference === '$$$' && '$500 ~ $1,500 (精緻火鍋/居酒屋)'}
+                    {budgetPreference === '$$$$' && '$1,500+ (頂級割烹/和牛)'}
+                  </span>
                 </label>
-                <div className="flex gap-1.5">
-                  {(['$', '$$', '$$$', '$$$$'] as const).map((b) => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { lvl: '$' as const, label: '< $200' },
+                    { lvl: '$$' as const, label: '$200-500' },
+                    { lvl: '$$$' as const, label: '$500-1.5k' },
+                    { lvl: '$$$$' as const, label: '$1.5k+' },
+                  ].map((item) => (
                     <button
-                      key={b}
+                      key={item.lvl}
                       type="button"
-                      onClick={() => setBudgetPreference(b)}
-                      className={`flex-1 py-1.5 rounded-xl font-bold text-xs border transition-all ${
-                        budgetPreference === b
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      onClick={() => setBudgetPreference(item.lvl)}
+                      className={`py-1.5 px-1 rounded-xl text-center border transition-all ${
+                        budgetPreference === item.lvl
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-300'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      {b}
+                      <div className="font-black text-xs">{item.lvl}</div>
+                      <div className="text-[9px] opacity-80">{item.label}</div>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
+
 
             {/* Favorite Foods */}
             <div className="space-y-2">

@@ -413,28 +413,41 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelPriceRange}
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>{t.labelPriceRange} *</span>
+                  <span className="text-[11px] font-bold text-amber-600">
+                    {priceRange === '$' && (lang === 'zh-TW' ? '💰 銅板小吃 (< $200)' : '💰 リーズナブル (~1,000円)')}
+                    {priceRange === '$$' && (lang === 'zh-TW' ? '🍽️ 日常聚餐 ($200 ~ $500)' : '🍽️ 定番ランチ (1,000~2,500円)')}
+                    {priceRange === '$$$' && (lang === 'zh-TW' ? '✨ 精緻享受 ($500 ~ $1,500)' : '✨ ディナー・居酒屋 (2,500~8,000円)')}
+                    {priceRange === '$$$$' && (lang === 'zh-TW' ? '💎 頂級奢華 ($1,500+)' : '💎 高級・コース (8,000円~)')}
+                  </span>
                 </label>
-                <div className="flex gap-2">
-                  {(['$', '$$', '$$$', '$$$$'] as const).map((lvl) => (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { lvl: '$' as const, label: lang === 'zh-TW' ? '銅板平價' : '手頃', range: '< $200' },
+                    { lvl: '$$' as const, label: lang === 'zh-TW' ? '日常聚餐' : '普通', range: '$200-500' },
+                    { lvl: '$$$' as const, label: lang === 'zh-TW' ? '精緻饗宴' : 'プチ贅沢', range: '$500-1.5k' },
+                    { lvl: '$$$$' as const, label: lang === 'zh-TW' ? '奢華頂級' : '高級', range: '$1.5k+' },
+                  ].map((item) => (
                     <button
-                      key={lvl}
+                      key={item.lvl}
                       type="button"
-                      onClick={() => setPriceRange(lvl)}
-                      className={`flex-1 py-1.5 rounded-xl font-bold text-xs border transition-all ${
-                        priceRange === lvl
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      onClick={() => setPriceRange(item.lvl)}
+                      className={`p-2 rounded-2xl text-center border transition-all ${
+                        priceRange === item.lvl
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-md scale-102 ring-2 ring-amber-300'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      {lvl}
+                      <div className="font-black text-sm">{item.lvl}</div>
+                      <div className="text-[10px] font-bold opacity-90">{item.range}</div>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
           </div>
+
 
           {/* Section 2: Store Overall Rating Tag */}
           <div className="space-y-4 pt-2">
