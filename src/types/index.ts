@@ -80,6 +80,8 @@ export interface UserProfile {
   spicinessLevel: 'none' | 'mild' | 'medium' | 'hot' | 'insane';
   budgetPreference: '$' | '$$' | '$$$' | '$$$$';
   favoriteDrink?: string;
+  googleEmail?: string;
+  googleUid?: string;
 }
 
 export type ActiveTab = 'map' | 'list' | 'friends' | 'matcher';

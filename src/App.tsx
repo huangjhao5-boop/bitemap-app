@@ -807,6 +807,18 @@ export function App() {
         onClose={() => setIsSyncModalOpen(false)}
         lang={lang}
         onDataImported={refreshData}
+        userProfile={userProfile}
+        restaurants={restaurants}
+        friends={friends}
+        meetups={meetups}
+        friendRequests={friendRequests}
+        onCloudRestored={(data) => {
+          if (data.profile) setUserProfile(data.profile);
+          if (data.restaurants) setRestaurants(data.restaurants);
+          if (data.friends) setFriends(data.friends);
+          if (data.meetups) setMeetups(data.meetups);
+          refreshData();
+        }}
       />
 
       <UserProfileModal

@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import type { UserProfile, Restaurant, Friend, DiningMeetup } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { 
+  signInWithGoogle,
+  signOutGoogle,
+  syncDataToCloud,
+  fetchUserDataFromCloud,
+} from '../../utils/firebase';
+import { 
   authenticateAndLoginAccount, 
   registerOrUpdateAccount, 
   loadAccountRegistry,
@@ -51,6 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [regName, setRegName] = useState('');
   
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -125,6 +132,95 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 800);
   };
 
+  
+  const handleGoogleAuth = async () => {
+    setIsGoogleLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await signInWithGoogle();
+      if (!res.success || !res.user) {
+        setStatusMessage({ type: 'error', text: res.message });
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      const gUser = res.user;
+      setStatusMessage({ type: 'success', text: `🎉 Google 登入成功：${gUser.displayName || gUser.email}` });
+
+      // Check if user has cloud backup in Firestore
+      const cloudRes = await fetchUserDataFromCloud(gUser.uid);
+      if (cloudRes.success && cloudRes.data && cloudRes.data.profile) {
+        // Restore from cloud
+        const restoredProfile: UserProfile = {
+          ...cloudRes.data.profile,
+          googleEmail: gUser.email || undefined,
+          googleUid: gUser.uid,
+          avatar: currentProfile.avatar?.startsWith('data:') ? currentProfile.avatar : (gUser.photoURL || currentProfile.avatar),
+        };
+
+        onLoginSuccess({
+          foodieId: restoredProfile.foodieId,
+          pinCode: restoredProfile.pinCode,
+          profile: restoredProfile,
+          restaurants: cloudRes.data.restaurants || restaurants,
+          friends: cloudRes.data.friends || friends,
+          meetups: cloudRes.data.meetups || meetups,
+        });
+
+        setStatusMessage({
+          type: 'success',
+          text: `🎉 歡迎回來！已從 Google 雲端載入您的吃貨資料（共 ${(cloudRes.data.restaurants || []).length} 間私房店家）！`,
+        });
+
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      } else {
+        // First time Google bind: Upload current local data to cloud under this Google account
+        const updatedProfile: UserProfile = {
+          ...currentProfile,
+          googleEmail: gUser.email || undefined,
+          googleUid: gUser.uid,
+          name: currentProfile.name || gUser.displayName || '吃貨探險家',
+          avatar: currentProfile.avatar || gUser.photoURL || '🥢',
+        };
+
+        await syncDataToCloud(gUser.uid, {
+          profile: updatedProfile,
+          restaurants,
+          friends,
+          meetups,
+          friendRequests: [],
+        });
+
+        registerOrUpdateAccount(updatedProfile, restaurants, friends, meetups);
+
+        onLoginSuccess({
+          foodieId: updatedProfile.foodieId,
+          pinCode: updatedProfile.pinCode,
+          profile: updatedProfile,
+          restaurants,
+          friends,
+          meetups,
+        });
+
+        setStatusMessage({
+          type: 'success',
+          text: '🎉 已成功綁定您的 Google 帳號！全站資料已自動同步備份至雲端！',
+        });
+
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: `Google 登入失敗：${err.message || '請確認網路'}` });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
   const quickSwitchDemo = (demoId: string, demoPin: string) => {
     setLoginId(demoId);
     setLoginPin(demoPin);
@@ -153,10 +249,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
+        {/* 🔵 Google 1-Click Account Link & Cloud Sync */}
+        <div className="p-4 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-rose-50/60 border-b border-indigo-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">☁️</span>
+              <div>
+                <h4 className="text-xs font-black text-slate-900">
+                  Google 帳號一鍵無痛轉移
+                </h4>
+                <p className="text-[10px] text-slate-500">
+                  跨手機、跨電腦免手動匯出，登入自動雲端即時同步
+                </p>
+              </div>
+            </div>
+            {currentProfile.googleEmail ? (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center gap-1 border border-emerald-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>已綁定</span>
+              </span>
+            ) : null}
+          </div>
+
+          {currentProfile.googleEmail ? (
+            <div className="bg-white/80 p-2.5 rounded-2xl border border-indigo-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs truncate">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span className="font-bold text-slate-800 truncate">{currentProfile.googleEmail}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                disabled={isGoogleLoading}
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black shadow-xs shrink-0 cursor-pointer active:scale-95 transition-all"
+              >
+                {isGoogleLoading ? '同步中...' : '☁️ 立即同步'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={isGoogleLoading}
+              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-800 rounded-2xl font-black text-xs border border-slate-300/80 shadow-xs flex items-center justify-center gap-2.5 transition-all active:scale-95 cursor-pointer hover:border-indigo-400 group"
+            >
+              <svg className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>{isGoogleLoading ? '連線登入中...' : '使用 Google 帳號一鍵登入 / 跨裝置移轉'}</span>
+            </button>
+          )}
+        </div>
+
         {/* Current Active Account Indicator */}
         <div className="p-3 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{currentProfile.avatar || '🥢'}</span>
+            <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center bg-white shrink-0 shadow-2xs border border-amber-300">
+              {currentProfile.avatar?.startsWith('data:') || currentProfile.avatar?.startsWith('http') ? (
+                <img src={currentProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs">{currentProfile.avatar || '🥢'}</span>
+              )}
+            </div>
             <div>
               <span className="text-[10px] text-amber-900 block font-bold">目前裝置登入身份：</span>
               <span className="font-black text-slate-900">{currentProfile.name} ({currentProfile.foodieId}#{currentProfile.pinCode})</span>

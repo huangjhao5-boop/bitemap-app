@@ -14,12 +14,20 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { exportBackupData, importBackupData, loadRestaurants } from '../../utils/storage';
+import { signInWithGoogle, syncDataToCloud, fetchUserDataFromCloud } from '../../utils/firebase';
+import type { UserProfile, Restaurant, Friend, DiningMeetup, FriendRequest } from '../../types';
 
 interface DataSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
   onDataImported: () => void;
+  userProfile?: UserProfile;
+  restaurants?: Restaurant[];
+  friends?: Friend[];
+  meetups?: DiningMeetup[];
+  friendRequests?: FriendRequest[];
+  onCloudRestored?: (data: { profile?: UserProfile; restaurants?: Restaurant[]; friends?: Friend[]; meetups?: DiningMeetup[] }) => void;
 }
 
 export const DataSyncModal: React.FC<DataSyncModalProps> = ({
@@ -27,7 +35,15 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
   onClose,
   lang,
   onDataImported,
+  userProfile,
+  restaurants = [],
+  friends = [],
+  meetups = [],
+  friendRequests = [],
+  onCloudRestored,
 }) => {
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const t = translations[lang];
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copiedPrivateUrl, setCopiedPrivateUrl] = useState(false);
