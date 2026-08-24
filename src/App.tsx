@@ -72,6 +72,7 @@ export function App() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedFriendId, setSelectedFriendId] = useState('all');
+  const [listViewMode, setListViewMode] = useState<'cards' | 'compact'>('compact');
   const [sortOption, setSortOption] = useState<SortOption>('distance'); // Default Nearest
 
   // Modal States

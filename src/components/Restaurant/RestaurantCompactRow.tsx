@@ -9,7 +9,6 @@ import {
   Bookmark, 
   ThumbsDown, 
   MapPin, 
-  Star, 
   Navigation, 
   Share2, 
   Edit3, 
