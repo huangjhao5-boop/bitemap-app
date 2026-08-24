@@ -55,10 +55,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [spicinessLevel, setSpicinessLevel] = useState<UserProfile['spicinessLevel']>(profile.spicinessLevel || 'mild');
   const [budgetPreference, setBudgetPreference] = useState<UserProfile['budgetPreference']>(profile.budgetPreference || '$$');
   const [favoriteDrink, setFavoriteDrink] = useState(profile.favoriteDrink || '');
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
-
-    const avatarFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
