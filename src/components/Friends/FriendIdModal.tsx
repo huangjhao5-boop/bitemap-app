@@ -104,6 +104,9 @@ ${inviteUrl}
     if (res.success) {
       setStatusMessage({ type: 'success', text: res.message });
       setInputCode('');
+      setTimeout(() => {
+        onClose();
+      }, 1200);
     } else {
       setStatusMessage({ type: 'error', text: res.message });
     }

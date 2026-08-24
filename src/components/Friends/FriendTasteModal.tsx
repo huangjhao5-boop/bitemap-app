@@ -31,6 +31,7 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
   const COMMON_FAVORITES = lang === 'zh-TW' ? COMMON_FAVORITES_ZH : COMMON_FAVORITES_JA;
   const COMMON_DISLIKES = lang === 'zh-TW' ? COMMON_DISLIKES_ZH : COMMON_DISLIKES_JA;
 
+  const [foodieId, setFoodieId] = useState('');
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('🍜');
   const [favoriteTags, setFavoriteTags] = useState<string[]>([]);
@@ -41,12 +42,14 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
 
   useEffect(() => {
     if (editingFriend) {
+      setFoodieId(editingFriend.foodieId || '');
       setName(editingFriend.name);
       setAvatar(editingFriend.avatar);
       setFavoriteTags(editingFriend.favoriteTags || []);
       setDislikedTags(editingFriend.dislikedTags || []);
       setNotes(editingFriend.notes || '');
     } else {
+      setFoodieId('');
       setName('');
       setAvatar('🍜');
       setFavoriteTags(lang === 'zh-TW' ? ['拉麵', '燒肉'] : ['ラーメン', '焼肉']);
@@ -86,12 +89,14 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
 
     const friendData: Friend = {
       id: editingFriend ? editingFriend.id : 'f_' + Date.now(),
+      foodieId: foodieId.trim() || undefined,
       name: name.trim(),
       avatar,
       favoriteTags,
       dislikedTags,
       notes: notes.trim(),
     };
+
 
     onSave(friendData);
     onClose();
