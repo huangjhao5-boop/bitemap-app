@@ -2,7 +2,8 @@
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, UserProfile } from '../types';
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
-  foodieId: 'FOODIE-9527',
+  foodieId: 'kaw_foodie',
+  pinCode: '8888',
   name: '吃貨探險家',
   avatar: '🥢',
   bio: '探索全城短影音美食，真心記錄必吃與避雷！',
@@ -63,7 +64,8 @@ export function saveFriendRequests(requests: FriendRequest[]): void {
 // 🪪 Generate Friend Invite Base64 Token
 export function generateFriendInviteToken(profile: UserProfile): string {
   const payload = {
-    foodieId: profile.foodieId || 'FOODIE-9527',
+    foodieId: profile.foodieId || 'kaw_foodie',
+pinCode: profile.pinCode || '8888',
     name: profile.name,
     avatar: profile.avatar,
     favoriteTags: profile.favoriteTags,

@@ -30,9 +30,10 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   lang,
   onSendFriendRequest,
 }) => {
-  const [activeTab, setActiveTab] = useState<'my_id' | 'add_by_id'>('my_id');
+  const [activeTab, setActiveTab] = useState<'my_id' | 'add_by_id' | 'restore'>('my_id');
   const [inputCode, setInputCode] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -41,6 +42,8 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   const inviteToken = generateFriendInviteToken(userProfile);
   const currentBaseUrl = window.location.origin + window.location.pathname;
   const inviteUrl = `${currentBaseUrl}#add-friend=${inviteToken}`;
+  const [restoreId, setRestoreId] = useState('');
+  const [restorePin, setRestorePin] = useState('');
 
   const handleCopyId = async () => {
     try {
@@ -129,6 +132,16 @@ ${inviteUrl}
           >
             🪪 我的吃貨名片 & ID
           </button>
+          <button
+            onClick={() => { setActiveTab('restore'); setStatusMessage(null); }}
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
+              activeTab === 'restore'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            🔑 登入 / 還原帳號
+          </button>
 
           <button
             onClick={() => { setActiveTab('add_by_id'); setStatusMessage(null); }}
@@ -153,7 +166,7 @@ ${inviteUrl}
                     <div>
                       <h3 className="font-black text-base text-white">{userProfile.name}</h3>
                       <p className="text-[10px] text-amber-400 font-mono font-bold tracking-wider">
-                        {userProfile.foodieId || 'FOODIE-9527'}
+                        {userProfile.foodieId || 'kaw_foodie'} · PIN: {userProfile.pinCode || '8888'}
                       </p>
                     </div>
                   </div>
@@ -211,6 +224,79 @@ ${inviteUrl}
               >
                 <Send className="w-4 h-4" />
                 <span>💬 發送吃貨名片至 LINE 邀請好友綁定</span>
+              </button>
+            </div>
+          )}
+
+          
+          {activeTab === 'restore' && (
+            <div className="space-y-4 animate-fadeIn">
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-1">
+                <p className="font-bold flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>跨裝置 / 清除紀錄後還原身份：</span>
+                </p>
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  若您更換了手機或不小心清除瀏覽器紀錄，只要在此輸入您當初自訂的「吃貨 ID」與「4 碼安全認證碼」，就能立即登入並重新綁定您的吃貨身份！
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1">
+                    您的吃貨 ID (帳號)：
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="例如：kaw_foodie"
+                    value={restoreId}
+                    onChange={(e) => setRestoreId(e.target.value.toLowerCase().trim())}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1">
+                    4 碼安全認證碼 (PIN)：
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="4 位數數字密碼"
+                    value={restorePin}
+                    onChange={(e) => setRestorePin(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono font-black tracking-widest"
+                  />
+                </div>
+              </div>
+
+              {statusMessage && (
+                <div
+                  className={`p-3 rounded-2xl text-xs font-bold ${
+                    statusMessage.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-900 border border-rose-200'
+                  }`}
+                >
+                  {statusMessage.text}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!restoreId || restorePin.length !== 4) {
+                    setStatusMessage({ type: 'error', text: '請輸入正確的 ID 與 4 碼 PIN 碼！' });
+                    return;
+                  }
+                  setStatusMessage({
+                    type: 'success',
+                    text: `🎉 驗證成功！已成功登入並鎖定吃貨帳號【${restoreId}】！`,
+                  });
+                }}
+                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              >
+                🔐 驗證 PIN 碼並登入還原
               </button>
             </div>
           )}

@@ -69,6 +69,7 @@ export interface FriendRequest {
 
 export interface UserProfile {
   foodieId: string;
+  pinCode: string;
   name: string;
   avatar: string;
   bio: string;

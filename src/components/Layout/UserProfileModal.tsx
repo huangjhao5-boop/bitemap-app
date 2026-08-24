@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { 
   X, 
-  User, 
-  Camera, 
-  MapPin, 
   Check, 
-  Heart, 
-  AlertOctagon, 
   Flame, 
   DollarSign, 
-  Coffee, 
-  Plus 
+  Sparkles, 
+  User, 
+  MapPin, 
+  Camera, 
+  Plus, 
+  Trash2,
+  Coffee
 } from 'lucide-react';
 
 interface UserProfileModalProps {
@@ -24,10 +24,9 @@ interface UserProfileModalProps {
   lang: Language;
 }
 
-const EMOJI_AVATARS = ['🥢', '🍜', '🍣', '🥩', '🍰', '🍔', '🥑', '🍕', '🍻', '☕', '🍢', '🍩', '🥐', '🍦'];
-
-const COMMON_FAVORITES = ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪', '麻辣火鍋', '義大利麵', '早午餐', '居酒屋串燒', '泰式料理', '在地小吃'];
-const COMMON_DISLIKES = ['不吃香菜', '怕辣 / 完全不吃辣', '生魚片 / 生食NG', '乳糖不耐', '不吃牛肉', '海鮮過敏', '素食主義', '太甜死甜', '油膩重口味', '內臟類'];
+const EMOJI_AVATARS = ['🥢', '🍜', '🥩', '🍰', '🍣', '🍕', '🍔', '🍺', '☕', '🥑', '🥟', '🍤'];
+const POPULAR_FAV_TAGS = ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪', '生魚片壽司', '麻辣火鍋', '炭烤牛排', '韓式炸雞'];
+const POPULAR_DISLIKE_TAGS = ['不吃香菜', '怕辣', '不吃牛', '不吃羊', '乳糖不耐', '不吃生食', '討厭內臟', '少油低卡'];
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
@@ -38,6 +37,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 }) => {
   const t = translations[lang];
 
+  const [foodieId, setFoodieId] = useState(profile.foodieId || 'kaw_foodie');
+  const [pinCode, setPinCode] = useState(profile.pinCode || '8888');
   const [name, setName] = useState(profile.name);
   const [avatar, setAvatar] = useState(profile.avatar);
   const [bio, setBio] = useState(profile.bio);
@@ -55,23 +56,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [budgetPreference, setBudgetPreference] = useState<UserProfile['budgetPreference']>(profile.budgetPreference || '$$');
   const [favoriteDrink, setFavoriteDrink] = useState(profile.favoriteDrink || '');
 
-  useEffect(() => {
-    setName(profile.name);
-    setAvatar(profile.avatar);
-    setBio(profile.bio);
-    setDefaultCity(profile.defaultCity);
-    setInstagramHandle(profile.instagramHandle || '');
-    setFavoriteTags(profile.favoriteTags || []);
-    setDislikedTags(profile.dislikedTags || []);
-    setSpicinessLevel(profile.spicinessLevel || 'mild');
-    setBudgetPreference(profile.budgetPreference || '$$');
-    setFavoriteDrink(profile.favoriteDrink || '');
-  }, [profile, isOpen]);
-
   if (!isOpen) return null;
 
   const handleAddFavorite = (tagToAdd?: string) => {
-    const val = tagToAdd || newFavInput.trim();
+    const val = (tagToAdd || newFavInput).trim();
     if (!val || favoriteTags.includes(val)) return;
     setFavoriteTags([...favoriteTags, val]);
     if (!tagToAdd) setNewFavInput('');
@@ -82,7 +70,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   const handleAddDislike = (tagToAdd?: string) => {
-    const val = tagToAdd || newDislikeInput.trim();
+    const val = (tagToAdd || newDislikeInput).trim();
     if (!val || dislikedTags.includes(val)) return;
     setDislikedTags([...dislikedTags, val]);
     if (!tagToAdd) setNewDislikeInput('');
@@ -100,7 +88,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
 
     onSaveProfile({
-      foodieId: profile.foodieId || 'FOODIE-9527',
+      foodieId: foodieId.trim() || 'kaw_foodie',
+      pinCode: pinCode.trim() || '8888',
       name: name.trim(),
       avatar,
       bio: bio.trim(),
@@ -136,6 +125,57 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+          {/* 🔐 Section 0: Custom Foodie ID & 4-Digit Security PIN */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-3xl border border-amber-300/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🪪</span>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900">
+                    {lang === 'zh-TW' ? '自訂吃貨 ID & 4 碼安全認證碼' : 'カスタムグルメID & 4桁暗証番号'}
+                  </h4>
+                  <p className="text-[10px] text-slate-500">
+                    {lang === 'zh-TW' ? '個人永久帳號，換手機或清除紀錄時可憑 ID 與 4 碼直接登入還原！' : '端末変更やデータ復元用の固有IDと暗証番号'}
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-mono font-black text-[10px] shadow-2xs">
+                {foodieId}#{pinCode}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-black text-slate-700 mb-1">
+                  {lang === 'zh-TW' ? '自訂個人吃貨 ID (英數帳號) *' : 'カスタムID *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="例如：kaw_foodie 或 tokyo_ramen"
+                  value={foodieId}
+                  onChange={(e) => setFoodieId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  className="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono font-bold bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-700 mb-1">
+                  {lang === 'zh-TW' ? '自訂 4 碼安全認證碼 (PIN) *' : '4桁の暗証番号 (PIN) *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={4}
+                  placeholder="例如：8888 或 1234"
+                  value={pinCode}
+                  onChange={(e) => setPinCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono font-black tracking-widest bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Section 1: Avatar & Basic Info */}
           <div className="space-y-4">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
@@ -204,13 +244,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {/* Default City */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>{lang === 'zh-TW' ? '常駐探索城市' : 'デフォルト地域'}</span>
+                  <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                  <span>{lang === 'zh-TW' ? '預設常住城市' : '主要活動エリア'}</span>
                 </label>
                 <select
                   value={defaultCity}
                   onChange={(e) => setDefaultCity(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:outline-hidden focus:ring-2 focus:ring-rose-500"
                 >
                   <option value="台北市">台北市</option>
                   <option value="新北市">新北市</option>
@@ -221,7 +261,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <option value="大阪">大阪</option>
                   <option value="京都">京都</option>
                   <option value="福岡">福岡</option>
-                  <option value="其他">其他 / その他</option>
                 </select>
               </div>
 
@@ -229,16 +268,30 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                   <Coffee className="w-3.5 h-3.5 text-amber-700" />
-                  <span>{lang === 'zh-TW' ? '聚餐必點飲品 / 咖啡偏好' : '定番ドリンク / 珈琲'}</span>
+                  <span>{lang === 'zh-TW' ? '本命愛喝飲品' : '定番ドリンク'}</span>
                 </label>
                 <input
                   type="text"
-                  placeholder={lang === 'zh-TW' ? '例如：無糖冰美式、生啤酒、微糖微冰' : '例：アイスアメリカーノ、生ビール'}
+                  placeholder={lang === 'zh-TW' ? '例如：無糖冰美式 / 熟成蜜香紅茶' : '例：アイスアメリカーノ / 抹茶ラテ'}
                   value={favoriteDrink}
                   onChange={(e) => setFavoriteDrink(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 font-medium"
                 />
               </div>
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {lang === 'zh-TW' ? '吃貨自介與美食宣言' : 'ひとこと自己紹介'}
+              </label>
+              <textarea
+                rows={2}
+                placeholder={lang === 'zh-TW' ? '探索全城短影音美食，真心記錄必吃與避雷！' : '美味しいお店の記録をシェアしています'}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 font-medium"
+              />
             </div>
           </div>
 
@@ -306,18 +359,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
 
-
             {/* Favorite Foods */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-                <Heart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
-                <span>{lang === 'zh-TW' ? '您最愛的美食類別 / 招牌餐點：' : '好きなグルメジャンル：'}</span>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{lang === 'zh-TW' ? '超愛吃的美食 / 標籤：' : '大好物・好きなジャンル：'}</span>
               </label>
 
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder={lang === 'zh-TW' ? '輸入愛吃的類別，例如：日式拉麵、和牛燒肉' : '好きなメニュー、例：ラーメン、焼肉'}
+                  placeholder={lang === 'zh-TW' ? '輸入喜愛料理並按新增（例如：熟成牛排、生魚片）' : '好きな料理名を入力'}
                   value={newFavInput}
                   onChange={(e) => setNewFavInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -326,61 +378,63 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       handleAddFavorite();
                     }
                   }}
-                  className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-emerald-50/40"
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                 />
                 <button
                   type="button"
                   onClick={() => handleAddFavorite()}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t.btnAdd}</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-1 items-center pt-0.5">
-                <span className="text-[10px] text-slate-400 font-medium mr-1">{t.labelQuickAdd}</span>
-                {COMMON_FAVORITES.map((fav) => (
-                  <button
-                    key={fav}
-                    type="button"
-                    onClick={() => handleAddFavorite(fav)}
-                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 transition-colors"
-                  >
-                    + {fav}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              {/* Tags Display */}
+              <div className="flex flex-wrap gap-1.5 min-h-[30px] p-2 bg-emerald-50/50 rounded-xl border border-emerald-100">
                 {favoriteTags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200"
+                    className="inline-flex items-center gap-1 text-xs font-bold bg-white text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs"
                   >
-                    <span>{tag}</span>
+                    <span>❤️ {tag}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveFavorite(tag)}
-                      className="text-emerald-700 hover:text-rose-600"
+                      className="text-slate-400 hover:text-rose-500"
                     >
-                      <X className="w-3 h-3" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
+
+              {/* Quick Suggestions */}
+              <div className="flex items-center gap-1 flex-wrap text-[11px] text-slate-500">
+                <span className="font-medium">{lang === 'zh-TW' ? '快捷推薦：' : '候補：'}</span>
+                {POPULAR_FAV_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleAddFavorite(tag)}
+                    className="bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 px-2 py-0.5 rounded-md transition-colors"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Disliked Foods / Dietary restrictions */}
+            {/* Disliked Foods & Dietary Restrictions */}
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <label className="text-xs font-bold text-rose-800 flex items-center gap-1">
-                <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
-                <span>{lang === 'zh-TW' ? '您的個人飲食忌口 / 絕對不吃食材 (抽盲盒時會自動排除！)：' : 'NG食材・アレルギー（盲盒から自動除外）：'}</span>
+                <span>⚠️ {lang === 'zh-TW' ? '飲食忌口 / 討厭的地雷食材（絕對避開）：' : '苦手な食べ物・アレルギー・NG食材：'}</span>
               </label>
 
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder={lang === 'zh-TW' ? '輸入忌口，例如：不吃香菜、生魚片NG、乳糖不耐' : '苦手な食材、例：パクチー、辛いもの'}
+                  placeholder={lang === 'zh-TW' ? '輸入忌口食材並按新增（例如：香菜、花生過敏、羊肉）' : 'NG食材を入力'}
                   value={newDislikeInput}
                   onChange={(e) => setNewDislikeInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -389,90 +443,72 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       handleAddDislike();
                     }
                   }}
-                  className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 bg-rose-50/40"
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
                 />
                 <button
                   type="button"
                   onClick={() => handleAddDislike()}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{t.btnAdd}</span>
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-1 items-center pt-0.5">
-                <span className="text-[10px] text-slate-400 font-medium mr-1">{t.labelQuickAdd}</span>
-                {COMMON_DISLIKES.map((dis) => (
-                  <button
-                    key={dis}
-                    type="button"
-                    onClick={() => handleAddDislike(dis)}
-                    className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 transition-colors"
-                  >
-                    + {dis}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              {/* Dislike Tags Display */}
+              <div className="flex flex-wrap gap-1.5 min-h-[30px] p-2 bg-rose-50/50 rounded-xl border border-rose-100">
                 {dislikedTags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 text-xs font-medium bg-rose-100 text-rose-900 px-2.5 py-1 rounded-lg border border-rose-200"
+                    className="inline-flex items-center gap-1 text-xs font-bold bg-white text-rose-800 px-2.5 py-1 rounded-lg border border-rose-200 shadow-2xs"
                   >
-                    <span>⚠️ {tag}</span>
+                    <span className="line-through">🚫 {tag}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveDislike(tag)}
-                      className="text-rose-700 hover:text-rose-900"
+                      className="text-slate-400 hover:text-rose-500"
                     >
-                      <X className="w-3 h-3" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </span>
+                ))}
+              </div>
+
+              {/* Quick Dislike Suggestions */}
+              <div className="flex items-center gap-1 flex-wrap text-[11px] text-slate-500">
+                <span className="font-medium">{lang === 'zh-TW' ? '常見忌口：' : '定番NG：'}</span>
+                {POPULAR_DISLIKE_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleAddDislike(tag)}
+                    className="bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-800 px-2 py-0.5 rounded-md transition-colors"
+                  >
+                    + {tag}
+                  </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Section 3: Bio */}
-          <div className="pt-2 border-t border-slate-100">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              {lang === 'zh-TW' ? '美食座右銘 / 個人簡介' : 'グルメモットー'}
-            </label>
-            <textarea
-              rows={2}
-              placeholder={lang === 'zh-TW' ? '例如：無辣不歡、甜點是第二個胃，熱愛踩點短影音爆紅店！' : '例：ラーメンとスイーツ巡りが趣味。SNS話題店を記録中！'}
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 leading-relaxed"
-            />
-          </div>
-        </form>
-
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">
-            {lang === 'zh-TW' ? '🟢 資料將自動同步雲端' : '🟢 クラウド自動同期有効'}
-          </span>
-
-          <div className="flex gap-2">
+          {/* Footer Submit Button */}
+          <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
             >
               {t.btnCancel}
             </button>
             <button
-              type="button"
-              onClick={handleSubmit}
-              className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95 flex items-center gap-1"
+              type="submit"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white font-black text-xs shadow-md shadow-pink-500/20 active:scale-95 transition-all flex items-center gap-1.5"
             >
               <Check className="w-4 h-4" />
               <span>{t.btnSave}</span>
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
