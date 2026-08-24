@@ -5,12 +5,11 @@ import type { Restaurant, Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { calculateDistanceKm, formatDistance, type UserLocation } from '../../utils/geo';
-import { parseVideoUrl } from '../../utils/videoParser';
+import { extractSearchMatch } from '../../utils/searchHelper';
 import { 
   Navigation, 
   Star, 
   AlertTriangle,
-  ExternalLink,
   Share2,
   Edit3,
   MapPin,
@@ -30,13 +29,14 @@ interface FoodMapProps {
   restaurants: Restaurant[];
   friends: Friend[];
   userLocation: UserLocation;
+  searchQuery?: string;
   lang: Language;
   onEditRestaurant: (restaurant: Restaurant) => void;
   onShareRestaurant: (restaurant: Restaurant) => void;
   targetRestaurant?: Restaurant | null;
 }
 
-// 🌈 Category-Based Pin Color & Emoji Dispatcher (Prevents Monotone Red in Dense Areas!)
+// Category-Based Pin Color & Emoji Dispatcher
 function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
   let bgColor = 'bg-amber-500';
   let emoji = '🥢';
@@ -44,39 +44,39 @@ function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
 
   const cat = (category || '').toLowerCase();
   if (cat.includes('拉麵') || cat.includes('麵') || cat.includes('ramen')) {
-    bgColor = 'bg-amber-500'; // 🍜 溫暖琥珀橘
+    bgColor = 'bg-amber-500';
     emoji = '🍜';
     ringColor = 'ring-amber-300';
   } else if (cat.includes('燒肉') || cat.includes('牛排') || cat.includes('肉') || cat.includes('bbq')) {
-    bgColor = 'bg-rose-500'; // 🥩 珊瑚炙烤紅
+    bgColor = 'bg-rose-500';
     emoji = '🥩';
     ringColor = 'ring-rose-300';
   } else if (cat.includes('日料') || cat.includes('壽司') || cat.includes('sushi') || cat.includes('海鮮')) {
-    bgColor = 'bg-blue-600'; // 🍣 經典海藍
+    bgColor = 'bg-blue-600';
     emoji = '🍣';
     ringColor = 'ring-blue-300';
   } else if (cat.includes('咖啡') || cat.includes('早午餐') || cat.includes('cafe') || cat.includes('茶')) {
-    bgColor = 'bg-emerald-600'; // ☕ 抹茶植翠綠
+    bgColor = 'bg-emerald-600';
     emoji = '☕';
     ringColor = 'ring-emerald-300';
   } else if (cat.includes('甜點') || cat.includes('蛋糕') || cat.includes('冰') || cat.includes('dessert') || cat.includes('烘焙')) {
-    bgColor = 'bg-pink-500'; // 🍰 蜜桃莓果粉
+    bgColor = 'bg-pink-500';
     emoji = '🍰';
     ringColor = 'ring-pink-300';
   } else if (cat.includes('火鍋') || cat.includes('鍋') || cat.includes('麻辣') || cat.includes('hotpot')) {
-    bgColor = 'bg-orange-600'; // 🍲 暖冬鮮紅
+    bgColor = 'bg-orange-600';
     emoji = '🍲';
     ringColor = 'ring-orange-300';
   } else if (cat.includes('居酒屋') || cat.includes('酒吧') || cat.includes('酒') || cat.includes('bar')) {
-    bgColor = 'bg-purple-600'; // 🍻 霓虹微醺紫
+    bgColor = 'bg-purple-600';
     emoji = '🍻';
     ringColor = 'ring-purple-300';
   } else if (cat.includes('披薩') || cat.includes('義式') || cat.includes('pizza') || cat.includes('pasta')) {
-    bgColor = 'bg-yellow-600'; // 🍕 羅馬金黃
+    bgColor = 'bg-yellow-600';
     emoji = '🍕';
     ringColor = 'ring-yellow-300';
   } else if (cat.includes('漢堡') || cat.includes('美式') || cat.includes('burger')) {
-    bgColor = 'bg-red-500'; // 🍔 美式番茄紅
+    bgColor = 'bg-red-500';
     emoji = '🍔';
     ringColor = 'ring-red-300';
   } else {
@@ -85,7 +85,6 @@ function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
     ringColor = 'ring-indigo-300';
   }
 
-  // Blacklist override
   if (tag === 'avoid_again') {
     bgColor = 'bg-slate-900';
     emoji = '☠️';
@@ -99,7 +98,6 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
   const { bgColor, emoji, ringColor } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
   const selectedClass = isSelected ? 'scale-125 ring-4 ring-amber-400 z-50 shadow-xl' : 'group-hover:scale-110';
 
-  // Status Badge on top-right of pin (Crown/Flame for must-eat, repeat for frequent)
   let statusBadge = '';
   if (restaurant.ratingTag === 'must_eat') {
     statusBadge = '<span class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-black shadow-xs ring-1 ring-white">👑</span>';
@@ -152,6 +150,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   restaurants,
   friends,
   userLocation,
+  searchQuery,
   lang,
   onEditRestaurant,
   onShareRestaurant,
@@ -171,13 +170,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
     }
   }, [targetRestaurant]);
 
-  // Sort list by distance relative to current user location
-  const sortedRestaurants = [...restaurants].sort((a, b) => {
-    const distA = calculateDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng);
-    const distB = calculateDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng);
-    return distA - distB;
-  });
-
   const defaultCenter: [number, number] = [userLocation.lat, userLocation.lng];
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
@@ -191,21 +183,21 @@ export const FoodMap: React.FC<FoodMapProps> = ({
       {/* 🖥️ Desktop Collapsible Floating Sidebar (Left Side) */}
       <div
         className={`hidden lg:flex flex-col z-30 transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? 'w-88 sm:w-96' : 'w-0'
+          isSidebarOpen ? 'w-96' : 'w-0'
         } h-full bg-white border-r border-slate-200 shadow-lg overflow-hidden relative`}
       >
         {isSidebarOpen && (
-          <div className="w-88 sm:w-96 h-full flex flex-col">
+          <div className="w-96 h-full flex flex-col">
             {/* Sidebar Header */}
             <div className="p-3.5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-base">🗺️</span>
                 <div>
                   <h3 className="text-xs font-black tracking-wide text-white uppercase">
-                    {lang === 'zh-TW' ? '美食店家清單' : 'スポット一覧'}
+                    {searchQuery ? `🔍 評比搜尋：「${searchQuery}」` : (lang === 'zh-TW' ? '美食店家清單' : 'スポット一覧')}
                   </h3>
                   <p className="text-[10px] text-slate-300">
-                    {lang === 'zh-TW' ? `共 ${restaurants.length} 間 · 依距離由近到遠` : `全 ${restaurants.length} 件 · 距離順`}
+                    {lang === 'zh-TW' ? `共 ${restaurants.length} 間命中好店` : `全 ${restaurants.length} 件`}
                   </p>
                 </div>
               </div>
@@ -221,13 +213,13 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
             {/* Scrollable Restaurant Items */}
             <div className="flex-1 overflow-y-auto p-2.5 space-y-2 divide-y divide-slate-100">
-              {sortedRestaurants.length === 0 ? (
+              {restaurants.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs space-y-2">
                   <MapPin className="w-8 h-8 mx-auto text-slate-300" />
                   <p>{lang === 'zh-TW' ? '找不到符合條件的店家' : '該当する店舗がありません'}</p>
                 </div>
               ) : (
-                sortedRestaurants.map((restaurant) => {
+                restaurants.map((restaurant, idx) => {
                   const isSelected = selectedRestaurant?.id === restaurant.id;
                   const distanceKm = calculateDistanceKm(
                     userLocation.lat,
@@ -237,6 +229,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                   );
 
                   const { emoji } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
+                  const matchHighlight = extractSearchMatch(restaurant, searchQuery || '');
 
                   return (
                     <div
@@ -244,13 +237,14 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       onClick={() => handleSelectRestaurant(restaurant)}
                       className={`pt-2 first:pt-0 cursor-pointer transition-all group ${
                         isSelected
-                          ? 'bg-amber-50/80 -mx-1 px-3 py-2 rounded-2xl ring-2 ring-amber-400 shadow-xs'
+                          ? 'bg-amber-50/80 -mx-1 px-3 py-2.5 rounded-2xl ring-2 ring-amber-400 shadow-xs'
                           : 'hover:bg-slate-50 p-2 rounded-xl'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-1 flex-1 min-w-0">
                           <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-xs font-mono font-bold text-slate-400">#{idx + 1}</span>
                             <span className="text-xs">{emoji}</span>
                             
                             {restaurant.ratingTag === 'must_eat' && (
@@ -279,7 +273,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             )}
 
                             <span className="text-[10px] font-bold text-slate-500 truncate">
-                              {restaurant.category}
+                              {restaurant.category} · {restaurant.priceRange}
                             </span>
                           </div>
 
@@ -287,23 +281,18 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             {restaurant.name}
                           </h4>
 
+                          {/* 🎯 Deep Search Match Snippet Highlight */}
+                          {matchHighlight && (
+                            <div className={`p-1.5 rounded-xl border text-[11px] font-medium space-y-0.5 ${matchHighlight.badgeColor}`}>
+                              <span className="font-bold text-[10px] block opacity-80">{matchHighlight.label}</span>
+                              <p className="line-clamp-2 leading-tight">"{matchHighlight.snippet}"</p>
+                            </div>
+                          )}
+
                           <p className="text-[11px] text-slate-500 line-clamp-1 flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                             <span className="truncate">{restaurant.address}</span>
                           </p>
-
-                          {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
-                            <div className="flex flex-wrap gap-1 pt-0.5">
-                              {restaurant.mustEatDishes.slice(0, 2).map((dish, i) => (
-                                <span
-                                  key={i}
-                                  className="text-[9px] font-semibold bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded"
-                                >
-                                  🌟 {dish}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
 
                         <div className="text-right shrink-0 space-y-1">
@@ -440,29 +429,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </div>
                     )}
 
-                    {/* Videos */}
-                    {restaurant.videos && restaurant.videos.length > 0 && (
-                      <div className="space-y-1">
-                        {restaurant.videos.map((vid) => {
-                          const parsed = parseVideoUrl(vid.url);
-                          return (
-                            <a
-                              key={vid.id}
-                              href={vid.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-between text-[11px] p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-medium transition-colors"
-                            >
-                              <span className="truncate max-w-[180px]">
-                                🎬 {vid.title || parsed.displayLabel}
-                              </span>
-                              <ExternalLink className="w-3 h-3 text-slate-500" />
-                            </a>
-                          );
-                        })}
-                      </div>
-                    )}
-
                     {/* Action buttons */}
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
                       <a
@@ -498,7 +464,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           })}
         </MapContainer>
 
-        {/* 📱 Mobile Floating Bottom Quick Card / Expandable Drawer */}
+        {/* 📱 Mobile Floating Bottom Quick Card */}
         <div className="lg:hidden absolute bottom-3 inset-x-3 z-30 space-y-2">
           {!isMobileDrawerOpen ? (
             <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 space-y-2.5 animate-fadeIn">
@@ -508,7 +474,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                   className="flex items-center gap-1.5 text-xs font-black text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl active:scale-95 transition-all"
                 >
                   <List className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{lang === 'zh-TW' ? `📋 查看全部清單 (${restaurants.length})` : `📋 一覧を開く (${restaurants.length})`}</span>
+                  <span>{searchQuery ? `🔍 評比清單 (${restaurants.length})` : `📋 查看全部清單 (${restaurants.length})`}</span>
                   <ChevronUp className="w-3.5 h-3.5" />
                 </button>
 
@@ -565,13 +531,12 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               )}
             </div>
           ) : (
-            /* Expanded Drawer List on Mobile */
             <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-h-[65vh] flex flex-col overflow-hidden animate-fadeIn">
               <div className="p-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
                   <List className="w-4 h-4 text-amber-400" />
                   <span className="text-xs font-black">
-                    {lang === 'zh-TW' ? `美食店家清單 (${restaurants.length} 間)` : `店舗一覧 (${restaurants.length} 件)`}
+                    {searchQuery ? `🔍 評比搜尋：「${searchQuery}」` : `美食店家清單 (${restaurants.length} 間)`}
                   </span>
                 </div>
                 <button
@@ -583,7 +548,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               </div>
 
               <div className="p-2 overflow-y-auto space-y-2 flex-1 divide-y divide-slate-100">
-                {sortedRestaurants.map((restaurant) => {
+                {restaurants.map((restaurant) => {
                   const isSelected = selectedRestaurant?.id === restaurant.id;
                   const distanceKm = calculateDistanceKm(
                     userLocation.lat,
@@ -591,6 +556,8 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                     restaurant.lat,
                     restaurant.lng
                   );
+
+                  const matchHighlight = extractSearchMatch(restaurant, searchQuery || '');
 
                   return (
                     <div
@@ -601,10 +568,15 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 space-y-0.5">
                           <h4 className="text-xs font-black text-slate-900 truncate">
                             {restaurant.name}
                           </h4>
+                          {matchHighlight && (
+                            <p className="text-[10px] text-amber-800 line-clamp-1 font-medium">
+                              {matchHighlight.label}：{matchHighlight.snippet}
+                            </p>
+                          )}
                           <p className="text-[10px] text-slate-500 truncate">
                             {restaurant.address}
                           </p>
@@ -619,37 +591,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Map Legend Floating Box (Category Color Indicators!) */}
-        <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-2xl shadow-md border border-slate-200 text-[11px] hidden sm:block">
-          <span className="font-extrabold text-slate-800 block mb-1.5">🌈 料理分類標籤</span>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span className="text-slate-600 font-medium">🍜 麵食拉麵</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-              <span className="text-slate-600 font-medium">🥩 燒肉牛排</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-              <span className="text-slate-600 font-medium">🍣 壽司日料</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-              <span className="text-slate-600 font-medium">☕ 咖啡早午餐</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-              <span className="text-slate-600 font-medium">🍰 甜點冰品</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
-              <span className="text-slate-600 font-medium">🍻 居酒餐酒</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Restaurant, Friend, ActiveTab, RestaurantRatingTag, UserProfile } from './types';
+import type { Restaurant, Friend, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
 import { 
   loadRestaurants, 
@@ -12,7 +12,7 @@ import {
   getAutoSyncTime,
   triggerAutoSync
 } from './utils/storage';
-import { type UserLocation, CITY_COORDS } from './utils/geo';
+import { type UserLocation, CITY_COORDS, calculateDistanceKm } from './utils/geo';
 
 import { Header } from './components/Layout/Header';
 import { TabNavigation } from './components/Layout/TabNavigation';
@@ -41,7 +41,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('map');
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => getAutoSyncTime());
 
-  // Real-time / Selected User Location
+  // Real-time User Location
   const [userLocation, setUserLocation] = useState<UserLocation>(() => {
     const defaultCity = userProfile.defaultCity || (lang === 'ja' ? '東京' : '台北市');
     const coords = CITY_COORDS[defaultCity] || { lat: 25.0478, lng: 121.5319 };
@@ -53,12 +53,13 @@ export function App() {
     };
   });
 
-  // Filter States
+  // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<RestaurantRatingTag | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedFriendId, setSelectedFriendId] = useState('all');
+  const [sortOption, setSortOption] = useState<SortOption>('distance'); // Default Nearest
 
   // Modal States
   const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
@@ -189,27 +190,25 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const categories = useMemo(() => {
-    const set = new Set(restaurants.map((r) => r.category).filter(Boolean));
-    return Array.from(set);
-  }, [restaurants]);
 
   const cities = useMemo(() => {
     const set = new Set(restaurants.map((r) => r.city).filter(Boolean));
     return Array.from(set);
   }, [restaurants]);
 
-  const filteredRestaurants = useMemo(() => {
-    return restaurants.filter((r) => {
+  // Deep Filtered & Multi-Mode Sorted Restaurants
+  const filteredAndSortedRestaurants = useMemo(() => {
+    // 1. Filter
+    const filtered = restaurants.filter((r) => {
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         const matchesName = r.name.toLowerCase().includes(q);
         const matchesCategory = r.category.toLowerCase().includes(q);
         const matchesCity = r.city.toLowerCase().includes(q);
         const matchesAddress = r.address.toLowerCase().includes(q);
         const matchesMustEat = r.mustEatDishes.some((d) => d.toLowerCase().includes(q));
         const matchesAvoid = r.avoidDishes.some((d) => d.toLowerCase().includes(q));
-        const matchesNotes = r.personalNotes.toLowerCase().includes(q);
+        const matchesNotes = r.personalNotes?.toLowerCase().includes(q);
         const matchesVideo = r.videos.some(
           (v) => (v.title && v.title.toLowerCase().includes(q)) || (v.creatorName && v.creatorName.toLowerCase().includes(q))
         );
@@ -250,7 +249,46 @@ export function App() {
 
       return true;
     });
-  }, [restaurants, searchQuery, selectedTag, selectedCategory, selectedCity, selectedFriendId]);
+
+    // 2. Sort by sortOption
+    return [...filtered].sort((a, b) => {
+      if (sortOption === 'distance') {
+        const distA = calculateDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const distB = calculateDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return distA - distB;
+      }
+
+      if (sortOption === 'rating') {
+        const rankWeight = {
+          must_eat: 5,
+          frequent_visit: 4,
+          wishlist: 3,
+          mediocre: 2,
+          avoid_again: 1,
+        };
+        const weightA = rankWeight[a.ratingTag] || 2;
+        const weightB = rankWeight[b.ratingTag] || 2;
+        if (weightA !== weightB) return weightB - weightA;
+        return (b.googleRating || 0) - (a.googleRating || 0);
+      }
+
+      if (sortOption === 'price_asc') {
+        const priceWeight = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+        return (priceWeight[a.priceRange] || 2) - (priceWeight[b.priceRange] || 2);
+      }
+
+      if (sortOption === 'price_desc') {
+        const priceWeight = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+        return (priceWeight[b.priceRange] || 2) - (priceWeight[a.priceRange] || 2);
+      }
+
+      if (sortOption === 'visits') {
+        return (b.visitCount || 0) - (a.visitCount || 0);
+      }
+
+      return 0;
+    });
+  }, [restaurants, searchQuery, selectedTag, selectedCategory, selectedCity, selectedFriendId, sortOption, userLocation]);
 
   const handleLocateOnMap = (restaurant: Restaurant) => {
     setTargetMapRestaurant(restaurant);
@@ -275,7 +313,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800">
       <Header
         restaurants={restaurants}
         lang={lang}
@@ -301,9 +339,9 @@ export function App() {
         lang={lang}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-4">
         {activeTab === 'map' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <MapFilterBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -311,23 +349,22 @@ export function App() {
               onTagSelect={setSelectedTag}
               selectedCategory={selectedCategory}
               onCategorySelect={setSelectedCategory}
-              categories={categories}
               selectedCity={selectedCity}
               onCitySelect={handleCitySelectWithCoords}
               cities={cities}
               selectedFriendId={selectedFriendId}
               onFriendSelect={setSelectedFriendId}
-              friends={friends}
-              totalCount={restaurants.length}
-              filteredCount={filteredRestaurants.length}
+              sortOption={sortOption}
+              onSortChange={setSortOption}
               lang={lang}
             />
 
             {/* Split View Map + Real-time Interactive Sidebar List */}
             <FoodMap
-              restaurants={filteredRestaurants}
+              restaurants={filteredAndSortedRestaurants}
               friends={friends}
               userLocation={userLocation}
+              searchQuery={searchQuery}
               lang={lang}
               onEditRestaurant={(r) => {
                 setEditingRestaurant(r);
@@ -348,44 +385,34 @@ export function App() {
               onTagSelect={setSelectedTag}
               selectedCategory={selectedCategory}
               onCategorySelect={setSelectedCategory}
-              categories={categories}
               selectedCity={selectedCity}
               onCitySelect={handleCitySelectWithCoords}
               cities={cities}
               selectedFriendId={selectedFriendId}
               onFriendSelect={setSelectedFriendId}
-              friends={friends}
-              totalCount={restaurants.length}
-              filteredCount={filteredRestaurants.length}
+              sortOption={sortOption}
+              onSortChange={setSortOption}
               lang={lang}
             />
 
-            {filteredRestaurants.length === 0 ? (
+            {filteredAndSortedRestaurants.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
                 <UtensilsCrossed className="w-12 h-12 text-slate-300 mx-auto" />
                 <h3 className="text-base font-bold text-slate-700">
                   {lang === 'zh-TW' ? '找不到符合條件的美食紀錄' : '該当するグルメが見つかりません'}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  {lang === 'zh-TW' ? '嘗試調整篩選條件，或點擊上方「新增美食」！' : '検索条件を変更するか、新規追加してください！'}
+                  {lang === 'zh-TW' ? '嘗試調整搜尋關鍵字或篩選條件！' : '検索条件を変更してください！'}
                 </p>
-                <button
-                  onClick={() => {
-                    setEditingRestaurant(null);
-                    setIsRestaurantModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs"
-                >
-                  {lang === 'zh-TW' ? '新增第一間美食' : '最初のグルメを追加'}
-                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredRestaurants.map((restaurant) => (
+                {filteredAndSortedRestaurants.map((restaurant) => (
                   <RestaurantCard
                     key={restaurant.id}
                     restaurant={restaurant}
                     friends={friends}
+                    searchQuery={searchQuery}
                     lang={lang}
                     onIncrementVisit={handleIncrementVisit}
                     onEdit={(r) => {
@@ -465,7 +492,6 @@ export function App() {
         lang={lang}
       />
 
-      {/* 📱 Reels Feed Modal (Nearest-first sorted!) */}
       <ReelsFeedModal
         isOpen={isReelsModalOpen}
         onClose={() => setIsReelsModalOpen(false)}
@@ -476,7 +502,6 @@ export function App() {
         onLocateOnMap={handleLocateOnMap}
       />
 
-      {/* 🎁 Mystery Box Modal (With Attending Friends & Dietary Filter!) */}
       <MysteryBoxModal
         isOpen={isMysteryBoxModalOpen}
         onClose={() => setIsMysteryBoxModalOpen(false)}
@@ -488,7 +513,6 @@ export function App() {
         onLocateOnMap={handleLocateOnMap}
       />
 
-      {/* 🎲 Bill Splitter Modal */}
       <BillSplitterModal
         isOpen={isBillSplitterModalOpen}
         onClose={() => setIsBillSplitterModalOpen(false)}

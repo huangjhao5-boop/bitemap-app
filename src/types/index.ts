@@ -66,4 +66,7 @@ export interface UserProfile {
 
 export type ActiveTab = 'map' | 'list' | 'friends' | 'matcher';
 
+export type SortOption = 'distance' | 'rating' | 'price_asc' | 'price_desc' | 'visits';
+
+
 
