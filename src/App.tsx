@@ -24,6 +24,8 @@ import { TabNavigation } from './components/Layout/TabNavigation';
 import { FoodMap } from './components/Map/FoodMap';
 import { MapFilterBar } from './components/Map/MapFilterBar';
 import { RestaurantCard } from './components/Restaurant/RestaurantCard';
+import { RestaurantCompactRow } from './components/Restaurant/RestaurantCompactRow';
+import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { RestaurantModal } from './components/Restaurant/RestaurantModal';
 import { FriendManager } from './components/Friends/FriendManager';
 import { GroupDiningMatcher } from './components/Friends/GroupDiningMatcher';
@@ -624,6 +626,42 @@ export function App() {
               lang={lang}
             />
 
+            {/* List Header with Count and View Mode Toggle */}
+            <div className="flex items-center justify-between px-1">
+              <div className="text-xs font-black text-slate-600">
+                <span>{lang === 'zh-TW' ? `🍽️ 共 ${filteredAndSortedRestaurants.length} 間美食紀錄` : `全 ${filteredAndSortedRestaurants.length} 件`}</span>
+              </div>
+
+              {/* View Mode Toggle: Compact Rows vs Photo Cards */}
+              <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-2xl">
+                <button
+                  onClick={() => setListViewMode('compact')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer ${
+                    listViewMode === 'compact'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="橫向單行緊湊清單（一頁看更多、好找關鍵字）"
+                >
+                  <ListIcon className="w-3.5 h-3.5" />
+                  <span>橫式緊湊清單</span>
+                </button>
+
+                <button
+                  onClick={() => setListViewMode('cards')}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer ${
+                    listViewMode === 'cards'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="大圖卡片網格"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>大圖卡片</span>
+                </button>
+              </div>
+            </div>
+
             {filteredAndSortedRestaurants.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
                 <UtensilsCrossed className="w-12 h-12 text-slate-300 mx-auto" />
@@ -634,8 +672,30 @@ export function App() {
                   {lang === 'zh-TW' ? '嘗試調整搜尋關鍵字或篩選條件！' : '検索条件を変更してください！'}
                 </p>
               </div>
+            ) : listViewMode === 'compact' ? (
+              /* 📑 橫式緊湊純文字/關鍵字條列清單 (一頁看 15~20 間) */
+              <div className="space-y-2">
+                {filteredAndSortedRestaurants.map((restaurant) => (
+                  <RestaurantCompactRow
+                    key={restaurant.id}
+                    restaurant={restaurant}
+                    friends={friends}
+                    searchQuery={searchQuery}
+                    lang={lang}
+                    onIncrementVisit={handleIncrementVisit}
+                    onEdit={(r) => {
+                      setEditingRestaurant(r);
+                      setIsRestaurantModalOpen(true);
+                    }}
+                    onDelete={handleDeleteRestaurant}
+                    onShare={(r) => setSharingRestaurant(r)}
+                    onLocateOnMap={handleLocateOnMap}
+                  />
+                ))}
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 landscape:grid-cols-2 lg:landscape:grid-cols-3 xl:landscape:grid-cols-4 gap-4 sm:gap-5">
+              /* 🔲 大圖卡片網格 */
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                 {filteredAndSortedRestaurants.map((restaurant) => (
                   <RestaurantCard
                     key={restaurant.id}
