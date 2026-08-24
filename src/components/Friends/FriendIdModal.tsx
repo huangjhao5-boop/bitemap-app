@@ -2,17 +2,16 @@ import React, { useState } from 'react';
 import type { UserProfile, Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { generateFriendInviteToken } from '../../utils/storage';
-import { 
-  X, 
-  Copy, 
-  Check, 
-  UserPlus, 
-  ShieldCheck, 
-  Sparkles, 
+import {
+  X,
+  Copy,
+  Check,
+  UserPlus,
+  ShieldCheck,
+  Sparkles,
   Search,
   Send
 } from 'lucide-react';
-
 
 interface FriendIdModalProps {
   isOpen: boolean;
@@ -32,7 +31,14 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   initialTab = 'add_by_id',
   onSendFriendRequest,
 }) => {
+  // ✅ 所有 useState 均宣告在最頂部，解決 React 順序違規崩潰問題
   const [activeTab, setActiveTab] = useState<'my_id' | 'add_by_id' | 'restore'>(initialTab);
+  const [inputCode, setInputCode] = useState('');
+  const [copiedId, setCopiedId] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [restoreId, setRestoreId] = useState('');
+  const [restorePin, setRestorePin] = useState('');
 
   React.useEffect(() => {
     if (isOpen) {
@@ -40,11 +46,6 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
       setStatusMessage(null);
     }
   }, [isOpen, initialTab]);
-  const [inputCode, setInputCode] = useState('');
-  const [copiedId, setCopiedId] = useState(false);
-
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -53,12 +54,10 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   const inviteToken = generateFriendInviteToken(userProfile);
   const currentBaseUrl = window.location.origin + window.location.pathname;
   const inviteUrl = `${currentBaseUrl}#add-friend=${inviteToken}`;
-  const [restoreId, setRestoreId] = useState('');
-  const [restorePin, setRestorePin] = useState('');
 
   const handleCopyId = async () => {
     try {
-      await navigator.clipboard.writeText(userProfile.foodieId || 'FOODIE-9527');
+      await navigator.clipboard.writeText(userProfile.foodieId || 'kaw_foodie');
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2500);
     } catch (err) {
@@ -77,20 +76,14 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   };
 
   const handleLineShareId = () => {
-    let msg = `🥢 【加我為 BiteMap 吃貨好友！】
-`;
-    msg += `🪪 我的吃貨 ID：${userProfile.foodieId || 'FOODIE-9527'}
-`;
-    msg += `👤 名稱：${userProfile.name}
-`;
+    let msg = `🥢 【加我為 BiteMap 吃貨好友！】\n`;
+    msg += `🪪 我的吃貨 ID：${userProfile.foodieId || 'kaw_foodie'}\n`;
+    msg += `👤 名稱：${userProfile.name}\n`;
     if (favList.length > 0) msg += `❤️ 喜愛美食：${favList.join('、')}\n`;
     if (dislikeList.length > 0) {
       msg += `⚠️ 飲食忌口：${dislikeList.join('、')}\n`;
     }
-    msg += `
-🔗 點擊連結一鍵發送好友申請：
-${inviteUrl}
-`;
+    msg += `\n🔗 點擊連結一鍵發送好友申請：\n${inviteUrl}\n`;
     msg += `— 來自 BiteMap 短影音美食地圖`;
 
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(msg)}`, '_blank');
@@ -126,7 +119,7 @@ ${inviteUrl}
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,34 +129,31 @@ ${inviteUrl}
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex gap-2">
           <button
             onClick={() => { setActiveTab('my_id'); setStatusMessage(null); }}
-            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
-              activeTab === 'my_id'
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${activeTab === 'my_id'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+              }`}
           >
             🪪 我的吃貨名片 & ID
           </button>
           <button
             onClick={() => { setActiveTab('restore'); setStatusMessage(null); }}
-            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
-              activeTab === 'restore'
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${activeTab === 'restore'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+              }`}
           >
             🔑 登入 / 還原帳號
           </button>
 
           <button
             onClick={() => { setActiveTab('add_by_id'); setStatusMessage(null); }}
-            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
-              activeTab === 'add_by_id'
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${activeTab === 'add_by_id'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
+              }`}
           >
-            ➕ 輸入 ID 申請加好友
+            ➕ 輸入 ID 加好友
           </button>
         </div>
 
@@ -214,15 +204,15 @@ ${inviteUrl}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={handleCopyId}
-                  className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                 >
                   {copiedId ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-amber-600" />}
-                  <span>{copiedId ? '已複製 ID：' + (userProfile.foodieId || 'FOODIE-9527') : '📋 複製我的吃貨 ID'}</span>
+                  <span>{copiedId ? '已複製 ID：' + (userProfile.foodieId || 'kaw_foodie') : '📋 複製我的吃貨 ID'}</span>
                 </button>
 
                 <button
                   onClick={handleCopyLink}
-                  className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                  className="p-3 rounded-2xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                 >
                   {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Sparkles className="w-4 h-4 text-purple-600" />}
                   <span>{copiedLink ? '已複製加友專屬連結！' : '🔗 複製加友專屬連結'}</span>
@@ -232,7 +222,7 @@ ${inviteUrl}
               {/* LINE Share Button */}
               <button
                 onClick={handleLineShareId}
-                className="w-full py-3 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                className="w-full py-3 rounded-2xl bg-[#06C755] hover:bg-[#05b34c] text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4" />
                 <span>💬 發送吃貨名片至 LINE 邀請好友綁定</span>
@@ -240,7 +230,6 @@ ${inviteUrl}
             </div>
           )}
 
-          
           {activeTab === 'restore' && (
             <div className="space-y-4 animate-fadeIn">
               <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-1">
@@ -284,11 +273,10 @@ ${inviteUrl}
 
               {statusMessage && (
                 <div
-                  className={`p-3 rounded-2xl text-xs font-bold ${
-                    statusMessage.type === 'success'
+                  className={`p-3 rounded-2xl text-xs font-bold ${statusMessage.type === 'success'
                       ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
                       : 'bg-rose-50 text-rose-900 border border-rose-200'
-                  }`}
+                    }`}
                 >
                   {statusMessage.text}
                 </div>
@@ -306,7 +294,7 @@ ${inviteUrl}
                     text: `🎉 驗證成功！已成功登入並鎖定吃貨帳號【${restoreId}】！`,
                   });
                 }}
-                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
               >
                 🔐 驗證 PIN 碼並登入還原
               </button>
@@ -317,14 +305,14 @@ ${inviteUrl}
             <form onSubmit={handleAddSubmit} className="space-y-4 animate-fadeIn">
               <div>
                 <label className="block text-xs font-black text-slate-800 mb-1">
-                  輸入對方的 吃貨 ID 或 貼上邀請碼：
+                  請輸入好友的 吃貨 ID：
                 </label>
                 <div className="relative">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     required
-                    placeholder="例如：FOODIE-8842 或貼上邀請碼/連結"
+                    placeholder="輸入好友 ID，例如：annie_sweets 或 ming_ramen"
                     value={inputCode}
                     onChange={(e) => { setInputCode(e.target.value); setStatusMessage(null); }}
                     className="w-full pl-9 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono font-bold"
@@ -332,34 +320,47 @@ ${inviteUrl}
                 </div>
               </div>
 
+              {/* Quick Preset Friend ID chips */}
+              <div className="p-2.5 bg-purple-50 rounded-2xl border border-purple-200 space-y-1 text-[11px]">
+                <span className="font-bold text-purple-900 block flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-purple-600" />
+                  <span>可直接點選測試好友 ID：</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'annie_sweets', name: '🍮 安妮 (日本甜點控)' },
+                    { id: 'ming_ramen', name: '🍜 小明 (拉麵狂人)' },
+                    { id: 'kevin_meat', name: '🥩 凱文 (肉食聚餐王)' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => { setInputCode(f.id); setStatusMessage(null); }}
+                      className="px-2 py-0.5 rounded-lg bg-white hover:bg-purple-100 text-purple-950 font-bold border border-purple-200 transition-colors cursor-pointer"
+                    >
+                      {f.name} ({f.id})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {statusMessage && (
                 <div
-                  className={`p-3 rounded-2xl text-xs font-bold ${
-                    statusMessage.type === 'success'
+                  className={`p-3 rounded-2xl text-xs font-bold ${statusMessage.type === 'success'
                       ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
                       : 'bg-rose-50 text-rose-900 border border-rose-200'
-                  }`}
+                    }`}
                 >
                   {statusMessage.text}
                 </div>
               )}
 
-              <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200/80 text-[11px] text-purple-950 space-y-1">
-                <p className="font-bold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  <span>綁定流程說明：</span>
-                </p>
-                <p className="text-slate-600 leading-relaxed">
-                  輸入 ID 發送申請後，對方會在「待審核好友邀請」中收到您的吃貨名片與口味偏好。對方點擊「同意」後，雙方即刻互相綁定並同步忌口雷區！
-                </p>
-              </div>
-
               <button
                 type="submit"
-                className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
+                className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 active:scale-95 transition-all cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>🚀 發送好友申請</span>
+                <span>🚀 送出吃貨好友申請</span>
               </button>
             </form>
           )}
