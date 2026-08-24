@@ -93,29 +93,29 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-slate-900 text-white sticky top-0 z-40 shadow-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo & Name */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center text-xl shadow-md shadow-rose-500/20">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-600 flex items-center justify-center text-lg sm:text-xl shadow-md shadow-rose-500/20">
             🥢
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-lg font-black tracking-tight text-white m-0">
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <h1 className="text-base sm:text-lg font-black tracking-tight text-white m-0">
                 {t.appName}
               </h1>
-              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white uppercase">
+              <span className="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-rose-500 text-white uppercase">
                 {t.appSubtitle}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+            <p className="text-[10px] text-slate-400 font-medium hidden md:block">
               {t.appDesc}
             </p>
           </div>
         </div>
 
-        {/* Real-time stats summary badges */}
-        <div className="hidden lg:flex items-center gap-2 text-xs">
+        {/* Real-time stats summary badges (Desktop Only) */}
+        <div className="hidden xl:flex items-center gap-2 text-xs">
           <div className="flex items-center gap-1 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700">
             <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
             <span className="text-slate-300">{t.mustEatSpots}:</span>
@@ -144,86 +144,70 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* Language Switcher */}
-          <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
-            <button
-              onClick={() => onLanguageChange('zh-TW')}
-              className={`px-2 py-1 rounded-lg font-bold transition-all ${
-                lang === 'zh-TW'
-                  ? 'bg-rose-500 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🇹🇼 中文
-            </button>
-            <button
-              onClick={() => onLanguageChange('ja')}
-              className={`px-2 py-1 rounded-lg font-bold transition-all ${
-                lang === 'ja'
-                  ? 'bg-rose-500 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🇯🇵 日本語
-            </button>
-          </div>
-
-          {/* Quick Interactive Tools */}
-          <div className="flex items-center gap-1.5 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Quick Interactive Tools (Icons on Mobile, text on Desktop) */}
+          <div className="flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700">
             {/* Reels Feed Button */}
             <button
               onClick={onOpenReelsModal}
-              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
               title={lang === 'zh-TW' ? '📱 沉浸式短影音流 (依最近距離排序)' : '📱 ショート動画フィード'}
             >
-              <Play className="w-3 h-3 fill-current" />
-              <span className="hidden md:inline">{lang === 'zh-TW' ? '短影音流' : '動画'}</span>
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '短影音流' : '動画'}</span>
             </button>
 
             {/* Mystery Box Button */}
             <button
               onClick={onOpenMysteryBox}
-              className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
               title={lang === 'zh-TW' ? '🎁 美食盲盒抽籤機' : '🎁 ミステリーボックス'}
             >
-              <Gift className="w-3 h-3" />
-              <span className="hidden md:inline">{lang === 'zh-TW' ? '美食盲盒' : '盲盒'}</span>
+              <Gift className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '美食盲盒' : '盲盒'}</span>
             </button>
 
             {/* Bill Splitter Button */}
             <button
               onClick={onOpenBillSplitter}
-              className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
               title={lang === 'zh-TW' ? '🎲 聚餐分帳與買單轉盤' : '🎲 割り勘＆おごり'}
             >
-              <Calculator className="w-3 h-3" />
-              <span className="hidden md:inline">{lang === 'zh-TW' ? '聚餐分帳' : '割り勘'}</span>
+              <Calculator className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '聚餐分帳' : '割り勘'}</span>
             </button>
           </div>
+
+          {/* Language Switcher */}
+          <button
+            onClick={() => onLanguageChange(lang === 'zh-TW' ? 'ja' : 'zh-TW')}
+            className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition-colors"
+            title="切換語言 / 言語切替"
+          >
+            {lang === 'zh-TW' ? '🇯🇵 日' : '🇹🇼 中'}
+          </button>
 
           {/* User Profile Settings Button */}
           <button
             onClick={onOpenProfileModal}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs group"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs group"
             title={lang === 'zh-TW' ? '個人檔案與帳號設定' : 'プロフィール設定'}
           >
             <span className="text-base group-hover:scale-110 transition-transform">{profile.avatar}</span>
-            <span className="hidden sm:inline font-bold text-slate-200">{profile.name}</span>
+            <span className="hidden md:inline font-bold text-slate-200">{profile.name}</span>
           </button>
 
-          {/* Cloud Sync & Data Binding Button */}
+          {/* Cloud Sync Button */}
           <button
             onClick={onOpenSyncModal}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1 transition-colors shadow-2xs"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1 transition-colors shadow-2xs hidden sm:flex"
             title={t.dataBindingTitle}
           >
             <Database className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden md:inline">{t.dataBindingTitle}</span>
           </button>
 
-          {/* Backup dropdown / controls */}
-          <div className="hidden sm:flex items-center gap-1">
+          {/* Backup dropdown / controls (Hidden on small screens) */}
+          <div className="hidden lg:flex items-center gap-1">
             <button
               onClick={handleExport}
               title={t.exportBackup}
@@ -259,10 +243,11 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Add Restaurant Button */}
           <button
             onClick={onAddNewRestaurant}
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-rose-500/20 transition-all active:scale-95 flex items-center gap-1.5"
+            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-gradient-to-r from-rose-500 to-indigo-600 hover:from-rose-600 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-rose-500/20 transition-all active:scale-95 flex items-center gap-1 shrink-0"
+            title={t.addNewSpot}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>{t.addNewSpot}</span>
+            <span className="hidden sm:inline">{t.addNewSpot}</span>
           </button>
         </div>
       </div>
