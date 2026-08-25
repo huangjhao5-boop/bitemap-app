@@ -33,6 +33,7 @@ interface MapFilterBarProps {
   onScopeChange: (scope: 'all' | 'mine' | 'friends') => void;
   myCount: number;
   friendsCount: number;
+  totalCount: number;
   sortOption: SortOption;
   onSortChange: (sort: SortOption) => void;
   lang: Language;
@@ -55,6 +56,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
   onScopeChange,
   myCount,
   friendsCount,
+  totalCount,
   sortOption,
   onSortChange,
   lang,
@@ -91,7 +93,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-indigo-600" />
-            <span>🌟 全部地圖 ({myCount + friendsCount})</span>
+            <span>🌟 全部地圖 ({totalCount})</span>
           </button>
 
           <button

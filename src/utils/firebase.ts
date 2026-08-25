@@ -298,6 +298,33 @@ export async function publishPublicRestaurantToCloud(
   }
 }
 
+// 🌐 Real-Time WebSocket Listener for All Community Public Restaurants (onSnapshot)
+export async function listenToCommunityPublicRestaurantsRealtime(
+  onUpdate: (restaurants: Restaurant[]) => void
+): Promise<() => void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return () => {};
+
+    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_restaurants');
+    const unsub = fb.firestoreMod.onSnapshot(colRef, (snap: any) => {
+      const list: Restaurant[] = [];
+      snap.forEach((docSnap: any) => {
+        list.push(docSnap.data() as Restaurant);
+      });
+      console.log('🌐 Live community public restaurants updated:', list.length);
+      onUpdate(list);
+    }, (err: any) => {
+      console.warn('Realtime community public restaurant error', err);
+    });
+
+    return unsub;
+  } catch (err) {
+    console.error('Failed to setup realtime community listener', err);
+    return () => {};
+  }
+}
+
 // 🌐 Fetch all Community Public Restaurants from Firestore
 export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
   try {
@@ -462,6 +489,19 @@ export async function saveFoodieAccountToCloud(
       bio: account.profile.bio || '',
       updatedAt: new Date().toISOString(),
     }, { merge: true });
+
+    // 🌐 Automatically sync and publish all public restaurants to bitemap_public_restaurants
+    try {
+      if (Array.isArray(account.restaurants)) {
+        for (const r of account.restaurants) {
+          if (r.visibility === 'public') {
+            await publishPublicRestaurantToCloud(r, account.profile);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Auto publish public restaurants error', e);
+    }
 
     console.log('✅ Account synced to Cloud Firestore:', cleanId);
     return { success: true, message: '帳號已成功同步至雲端！' };

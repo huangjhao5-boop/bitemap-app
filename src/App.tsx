@@ -16,6 +16,7 @@ import {
   syncFriendsWithLatestProfiles,
   syncFriendsRestaurantsFromCloud,
   listenToFriendsRestaurantsRealtime,
+  listenToCommunityPublicRestaurantsRealtime,
 } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
@@ -222,29 +223,19 @@ export function App() {
     checkRedirect();
   }, []);
 
-  // 🌐 Fetch Community Public Restaurants & Purge Dummy Mock Templates
+    // 🌐 0.1-Second Real-Time WebSocket Stream for Community Public Restaurants
   useEffect(() => {
     purgeMockTestData();
-    const loadCommunity = async () => {
-      try {
-        const publicList = await fetchCommunityPublicRestaurants();
-        if (publicList && publicList.length > 0) {
-          setRestaurants((prev) => {
-            const existingIds = new Set(prev.map((r) => r.id));
-            const merged = [...prev];
-            publicList.forEach((pub) => {
-              if (!existingIds.has(pub.id)) {
-                merged.push(pub);
-              }
-            });
-            return merged;
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load community public restaurants', err);
-      }
+    let unsub: (() => void) | null = null;
+    listenToCommunityPublicRestaurantsRealtime((pubList) => {
+      setCommunityRestaurants(pubList);
+    }).then((cleanup) => {
+      unsub = cleanup;
+    });
+
+    return () => {
+      if (unsub) unsub();
     };
-    loadCommunity();
   }, []);
 
   // Filter & Sort States
@@ -256,6 +247,7 @@ export function App() {
   const [listViewMode, setListViewMode] = useState<'cards' | 'compact'>('compact');
   const [sortOption, setSortOption] = useState<SortOption>('distance'); // Default Nearest
   const [friendsRestaurants, setFriendsRestaurants] = useState<Restaurant[]>([]);
+  const [communityRestaurants, setCommunityRestaurants] = useState<Restaurant[]>([]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'mine' | 'friends'>('all');
 
   // Modal States
@@ -699,12 +691,26 @@ export function App() {
     };
   }, [friends]);
 
-  // Combined Restaurants (My Spots + Friends Shared Spots based on Scope)
+    // Combined Restaurants (My Spots + Friends Shared Spots + Global Community Public Spots)
   const allCombinedRestaurants = useMemo(() => {
     if (scopeFilter === 'mine') return restaurants;
     if (scopeFilter === 'friends') return friendsRestaurants;
-    return [...restaurants, ...friendsRestaurants];
-  }, [restaurants, friendsRestaurants, scopeFilter]);
+
+    // 'all' scope: merge my spots + friends spots + community public spots without duplicates
+    const map = new Map<string, Restaurant>();
+    // 1. My local restaurants
+    restaurants.forEach((r) => map.set(r.id, r));
+    // 2. Friends restaurants
+    friendsRestaurants.forEach((r) => map.set(r.id, r));
+    // 3. Community public restaurants
+    communityRestaurants.forEach((r) => {
+      if (!map.has(r.id)) {
+        map.set(r.id, r);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [restaurants, friendsRestaurants, communityRestaurants, scopeFilter]);
 
   const cities = useMemo(() => {
     const set = new Set(allCombinedRestaurants.map((r) => r.city).filter(Boolean));
@@ -899,6 +905,7 @@ export function App() {
               onScopeChange={setScopeFilter}
               myCount={restaurants.length}
               friendsCount={friendsRestaurants.length}
+              totalCount={allCombinedRestaurants.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}
@@ -940,6 +947,7 @@ export function App() {
               onScopeChange={setScopeFilter}
               myCount={restaurants.length}
               friendsCount={friendsRestaurants.length}
+              totalCount={allCombinedRestaurants.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}
