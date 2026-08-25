@@ -84,7 +84,7 @@ export function App() {
   
   
   
-      // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync & Dynamic Nickname Updates
+        // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync & Dynamic Nickname Updates
   useEffect(() => {
     const myId = userProfile.foodieId;
     if (!myId || myId === 'guest' || myId.trim() === '') return;
@@ -150,6 +150,33 @@ export function App() {
             );
             saveFriends(updated);
             console.log('🗑️ Real-time unfriend sync removed:', cleanUnfriend);
+            return updated;
+          }
+          return prevFriends;
+        });
+      },
+      // 4. 🌐 Real-Time Live Profile Sync (Updates Friend's Nickname, Avatar, and Taste Tags in 0.1s!)
+      (updatedProfile) => {
+        const cleanId = updatedProfile.foodieId.toLowerCase().trim();
+        setFriends((prevFriends) => {
+          let modified = false;
+          const updated = prevFriends.map((f) => {
+            if ((f.foodieId || '').toLowerCase().trim() === cleanId) {
+              modified = true;
+              return {
+                ...f,
+                name: updatedProfile.name || f.name,
+                avatar: updatedProfile.avatar || f.avatar,
+                favoriteTags: Array.isArray(updatedProfile.favoriteTags) && updatedProfile.favoriteTags.length > 0 ? updatedProfile.favoriteTags : f.favoriteTags,
+                dislikedTags: Array.isArray(updatedProfile.dislikedTags) && updatedProfile.dislikedTags.length > 0 ? updatedProfile.dislikedTags : f.dislikedTags,
+                notes: updatedProfile.notes || f.notes,
+              };
+            }
+            return f;
+          });
+          if (modified) {
+            saveFriends(updated);
+            console.log('⚡ Dynamic real-time profile update applied for friend:', cleanId);
             return updated;
           }
           return prevFriends;

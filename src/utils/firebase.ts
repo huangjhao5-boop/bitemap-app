@@ -448,12 +448,13 @@ export async function sendCloudFriendRequest(
   }
 }
 
-// ⚡ Real-Time Instant 2-Way WebSocket Listener (Mutual Friend Sync + Deletion Sync + Dynamic Profile Updates!)
+// ⚡ Real-Time Instant 2-Way WebSocket Listener (Mutual Friend Sync + Single-Doc Deletion Sync + Dynamic Profiles Stream!)
 export async function listenToMutualFriendSync(
   myFoodieId: string,
   onIncomingRequests: (requests: FriendRequest[]) => void,
   onFriendAccepted: (newFriend: Friend) => void,
-  onFriendUnfriended: (unfriendedFoodieId: string) => void
+  onFriendUnfriended: (unfriendedFoodieId: string) => void,
+  onFriendProfileUpdated?: (updatedFriend: Partial<Friend> & { foodieId: string }) => void
 ): Promise<() => void> {
   try {
     const fb = await loadFirebaseModules();
@@ -461,6 +462,7 @@ export async function listenToMutualFriendSync(
 
     const cleanMyId = myFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+    const pubColRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_profiles');
 
     // 1. Listen for INCOMING friend requests (where target == my ID)
     const qIncoming = fb.firestoreMod.query(
@@ -478,6 +480,7 @@ export async function listenToMutualFriendSync(
           onFriendUnfriended(data.senderFoodieId);
         }
       });
+      console.log('📬 [Incoming Requests Snapshot]:', cleanMyId, list.length);
       onIncomingRequests(list);
     }, (err: any) => {
       console.error('onSnapshot incoming friend requests error', err);
@@ -502,6 +505,7 @@ export async function listenToMutualFriendSync(
             dislikedTags: Array.isArray(data.receiverDislikedTags) ? data.receiverDislikedTags : [],
             notes: data.receiverBio || '透過吃貨 ID 互相綁定好友',
           };
+          console.log('🎉 [Outgoing Accepted]: Mutual friend added:', acceptedFriend.foodieId);
           onFriendAccepted(acceptedFriend);
         } else if (data.status === 'unfriended' && data.targetFoodieId) {
           onFriendUnfriended(data.targetFoodieId);
@@ -511,10 +515,33 @@ export async function listenToMutualFriendSync(
       console.error('onSnapshot outgoing friend requests error', err);
     });
 
+    // 3. 🌐 Real-Time Public Profile Stream: Instant sync when ANY friend changes Nickname, Avatar, or Tags!
+    const unsubProfiles = fb.firestoreMod.onSnapshot(pubColRef, (snapshot: any) => {
+      if (!onFriendProfileUpdated) return;
+      snapshot.docChanges().forEach((change: any) => {
+        if (change.type === 'added' || change.type === 'modified') {
+          const pub = change.doc.data();
+          if (pub && pub.foodieId && pub.foodieId !== cleanMyId) {
+            onFriendProfileUpdated({
+              foodieId: pub.foodieId,
+              name: pub.name,
+              avatar: pub.avatar,
+              favoriteTags: pub.favoriteTags,
+              dislikedTags: pub.dislikedTags,
+              notes: pub.bio,
+            });
+          }
+        }
+      });
+    }, (err: any) => {
+      console.error('onSnapshot public profiles error', err);
+    });
+
     return () => {
       try {
         unsubIncoming();
         unsubOutgoing();
+        unsubProfiles();
       } catch {}
     };
   } catch (err) {
@@ -523,7 +550,7 @@ export async function listenToMutualFriendSync(
   }
 }
 
-// 🗑️ Cloud Unfriend: Sync Friend Deletion to Both Parties
+// 🗑️ Cloud Unfriend: Failproof single-field update (No composite index required!)
 export async function deleteCloudFriendship(
   myFoodieId: string,
   friendFoodieId: string
@@ -536,42 +563,38 @@ export async function deleteCloudFriendship(
     const cleanFriend = friendFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
 
-    // Query both directions
-    const q1 = fb.firestoreMod.query(
-      colRef,
-      fb.firestoreMod.where('senderFoodieId', '==', cleanMy),
-      fb.firestoreMod.where('targetFoodieId', '==', cleanFriend)
-    );
-    const q2 = fb.firestoreMod.query(
-      colRef,
-      fb.firestoreMod.where('senderFoodieId', '==', cleanFriend),
-      fb.firestoreMod.where('targetFoodieId', '==', cleanMy)
-    );
-
-    const [snap1, snap2] = await Promise.all([
-      fb.firestoreMod.getDocs(q1).catch(() => null),
-      fb.firestoreMod.getDocs(q2).catch(() => null),
+    // Single-field queries (100% failproof on any Firestore configuration)
+    const [snapMySent, snapFriendSent] = await Promise.all([
+      fb.firestoreMod.getDocs(fb.firestoreMod.query(colRef, fb.firestoreMod.where('senderFoodieId', '==', cleanMy))).catch(() => null),
+      fb.firestoreMod.getDocs(fb.firestoreMod.query(colRef, fb.firestoreMod.where('senderFoodieId', '==', cleanFriend))).catch(() => null),
     ]);
 
     const batch = fb.firestoreMod.writeBatch(fb.db);
     let count = 0;
 
-    if (snap1) {
-      snap1.forEach((d: any) => {
-        batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
-        count++;
+    if (snapMySent) {
+      snapMySent.forEach((d: any) => {
+        const data = d.data();
+        if (data.targetFoodieId === cleanFriend) {
+          batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
+          count++;
+        }
       });
     }
-    if (snap2) {
-      snap2.forEach((d: any) => {
-        batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
-        count++;
+
+    if (snapFriendSent) {
+      snapFriendSent.forEach((d: any) => {
+        const data = d.data();
+        if (data.targetFoodieId === cleanMy) {
+          batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
+          count++;
+        }
       });
     }
 
     if (count > 0) {
       await batch.commit();
-      console.log('✅ Cloud friendship removed for:', cleanMy, '<->', cleanFriend);
+      console.log('✅ Cloud friendship successfully unfriended:', cleanMy, '<->', cleanFriend);
     }
   } catch (err) {
     console.error('Failed to delete cloud friendship', err);

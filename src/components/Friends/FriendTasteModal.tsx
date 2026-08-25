@@ -105,11 +105,17 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
+      <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 m-auto">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-purple-900 to-indigo-900 text-white">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{avatar}</span>
+            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-white/20 shrink-0">
+              {avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20) ? (
+                <img src={avatar} alt={name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl">{avatar || '🥢'}</span>
+              )}
+            </div>
             <h2 className="text-lg font-bold text-white">
               {editingFriend ? t.modalEditFriend : t.modalAddFriend}
             </h2>
@@ -133,11 +139,16 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
 
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
-          <div>
+                    <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
               {t.labelAvatarEmoji}
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              {avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20) && (
+                <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-purple-500 ring-2 ring-purple-300 shrink-0">
+                  <img src={avatar} alt="custom avatar" className="w-full h-full object-cover" />
+                </div>
+              )}
               {EMOJI_AVATARS.map((emo) => (
                 <button
                   key={emo}
