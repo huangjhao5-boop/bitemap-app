@@ -462,7 +462,9 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           {/* FlyTo executor — inside MapContainer so useMap() works */}
           {flyToPosition && (
             <FlyToLocation position={flyToPosition} onDone={() => setFlyToPosition(null)} />
-          )}          {restaurants.map((restaurant) => {
+          )}
+
+          {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
             const googleMapsSearchUrl =
               restaurant.googleMapsUrl ||
@@ -474,10 +476,13 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               restaurant.recommendedByFriendIds?.includes(f.id)
             );
 
+            const lat = Number(restaurant.lat) || 25.033;
+            const lng = Number(restaurant.lng) || 121.5654;
+
             return (
               <Marker
                 key={restaurant.id}
-                position={[restaurant.lat, restaurant.lng]}
+                position={[lat, lng]}
                 icon={createCustomPin(restaurant, isSelected)}
                 eventHandlers={{
                   click: () => {
