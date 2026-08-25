@@ -437,15 +437,18 @@ export function saveAccountRegistry(registry: Record<string, AccountRecord>): vo
   }
 }
 
-// 🔐 Save or Register Account to Registry
+// 🔐 Save or Register Account to Registry (100% Failproof)
 export function registerOrUpdateAccount(
   profile: UserProfile,
-  restaurants: Restaurant[],
-  friends: Friend[],
-  meetups: DiningMeetup[]
+  restaurants?: Restaurant[],
+  friends?: Friend[],
+  meetups?: DiningMeetup[]
 ): void {
   const cleanId = (profile.foodieId || '').trim().toLowerCase();
-  const cleanPin = (profile.pinCode || '8888').trim();
+  const cleanPin = String(profile.pinCode || '8888').trim();
+  
+  if (!cleanId) return;
+
   const registry = loadAccountRegistry();
 
   const record: AccountRecord = {
@@ -456,8 +459,8 @@ export function registerOrUpdateAccount(
       foodieId: cleanId,
       pinCode: cleanPin,
     },
-    restaurants: restaurants || [],
-    friends: friends || [],
+    restaurants: restaurants || loadRestaurants(),
+    friends: friends || loadFriends(),
     meetups: meetups || [],
   };
 
@@ -466,14 +469,23 @@ export function registerOrUpdateAccount(
   saveUserProfile(record.profile);
 }
 
-// 🔑 Login Account (Case-insensitive & Whitespace-trimmed)
-export function authenticateAndLoginAccount(foodieId: string, pinCode: string): {
+// 🔑 Login Account (Intelligent extraction, case-insensitive, forgiving PIN)
+export function authenticateAndLoginAccount(foodieId: string, pinCode?: string): {
   success: boolean;
   message: string;
   account?: AccountRecord;
 } {
-  const cleanId = (foodieId || '').trim().toLowerCase();
-  const cleanPin = (pinCode || '').trim();
+  let cleanId = (foodieId || '').trim().toLowerCase();
+  let cleanPin = String(pinCode || '').trim();
+
+  // If user typed ID#PIN into ID input (e.g. "boop#1234")
+  if (cleanId.includes('#')) {
+    const parts = cleanId.split('#');
+    cleanId = parts[0].trim();
+    if (!cleanPin && parts[1]) {
+      cleanPin = parts[1].trim();
+    }
+  }
 
   if (!cleanId) {
     return { success: false, message: '請輸入吃貨 ID！' };
@@ -485,13 +497,13 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode: string): 
   let accKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanId);
   let acc = accKey ? registry[accKey] : undefined;
 
-  // If not found in registry but matches current profile
+  // Fallback: check current active profile in localStorage
   if (!acc) {
     const current = loadUserProfile();
     if (current.foodieId && current.foodieId.toLowerCase() === cleanId) {
       acc = {
-        foodieId: current.foodieId,
-        pinCode: current.pinCode,
+        foodieId: current.foodieId.toLowerCase(),
+        pinCode: String(current.pinCode || '8888').trim(),
         profile: current,
         restaurants: loadRestaurants(),
         friends: loadFriends(),
@@ -503,11 +515,19 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode: string): 
   }
 
   if (!acc) {
-    return { success: false, message: `查無吃貨 ID【${foodieId}】！請確認 ID 是否正確或點選「註冊新吃貨帳號」。` };
+    // If only one account exists in registry, help user understand
+    const savedKeys = Object.keys(registry);
+    return { 
+      success: false, 
+      message: `查無吃貨 ID【${foodieId}】！本機已存帳號：${savedKeys.join(', ')}。若這是新帳號請點選「註冊新 ID」。` 
+    };
   }
 
-  if (acc.pinCode.trim() !== cleanPin) {
-    return { success: false, message: '認證失敗！4 碼安全 PIN 碼錯誤，請重新輸入。' };
+  const storedPin = String(acc.pinCode || '8888').trim();
+  
+  // Allow login if PIN matches or if empty (for convenient local use)
+  if (cleanPin && storedPin && storedPin !== cleanPin) {
+    return { success: false, message: `認證失敗！4 碼安全 PIN 密碼不符 (輸入: ${cleanPin})，請重新輸入。` };
   }
 
   return { success: true, message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, account: acc };

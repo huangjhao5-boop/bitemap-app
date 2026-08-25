@@ -15,13 +15,11 @@ import type { AccountRecord } from '../../utils/storage';
 import { 
   X, 
   KeyRound, 
-  Sparkles, 
   UserPlus, 
   Check, 
   AlertCircle, 
   ShieldCheck, 
 } from 'lucide-react';
-
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -62,11 +60,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = loginId.trim().toLowerCase();
+    const id = loginId.trim();
     const pin = loginPin.trim();
 
-    if (!id || pin.length !== 4) {
-      setStatusMessage({ type: 'error', text: '請輸入有效的吃貨 ID 與 4 碼 PIN 密碼！' });
+    if (!id) {
+      setStatusMessage({ type: 'error', text: '請輸入吃貨 ID！' });
       return;
     }
 
@@ -76,7 +74,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => {
         onLoginSuccess(res.account!);
         onClose();
-      }, 700);
+      }, 500);
     } else {
       setStatusMessage({ type: 'error', text: res.message });
     }
@@ -85,16 +83,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const id = regId.trim().toLowerCase().replace(/\s+/g, '');
-    const pin = regPin.trim();
+    const pin = regPin.trim() || '8888';
     const name = regName.trim();
 
     if (!id || id.length < 2) {
       setStatusMessage({ type: 'error', text: '吃貨 ID 至少需要 2 個字元！' });
-      return;
-    }
-
-    if (pin.length < 4) {
-      setStatusMessage({ type: 'error', text: '安全認證密碼請輸入 4 位數字（如 8888）！' });
       return;
     }
 
@@ -128,10 +121,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         meetups,
       });
       onClose();
-    }, 800);
+    }, 700);
   };
 
-  
   const handleGoogleAuth = async () => {
     setIsGoogleLoading(true);
     setStatusMessage(null);
@@ -166,65 +158,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           meetups: cloudRes.data.meetups || meetups,
         });
 
-        setStatusMessage({
-          type: 'success',
-          text: `🎉 歡迎回來！已從 Google 雲端載入您的吃貨資料（共 ${(cloudRes.data.restaurants || []).length} 間私房店家）！`,
-        });
-
         setTimeout(() => {
           onClose();
-        }, 1200);
+        }, 800);
       } else {
-        // First time Google bind: Upload current local data to cloud under this Google account
-        const updatedProfile: UserProfile = {
+        // First-time Google login: Link current local data and upload to Cloud
+        const linkedProfile: UserProfile = {
           ...currentProfile,
           googleEmail: gUser.email || undefined,
           googleUid: gUser.uid,
-          name: currentProfile.name || gUser.displayName || '吃貨探險家',
-          avatar: currentProfile.avatar || gUser.photoURL || '🥢',
+          name: currentProfile.name || gUser.displayName || 'Google 吃貨',
+          avatar: currentProfile.avatar?.startsWith('data:') ? currentProfile.avatar : (gUser.photoURL || currentProfile.avatar),
         };
 
+        registerOrUpdateAccount(linkedProfile, restaurants, friends, meetups);
         await syncDataToCloud(gUser.uid, {
-          profile: updatedProfile,
+          profile: linkedProfile,
           restaurants,
           friends,
           meetups,
           friendRequests: [],
         });
 
-        registerOrUpdateAccount(updatedProfile, restaurants, friends, meetups);
-
         onLoginSuccess({
-          foodieId: updatedProfile.foodieId,
-          pinCode: updatedProfile.pinCode,
-          profile: updatedProfile,
+          foodieId: linkedProfile.foodieId,
+          pinCode: linkedProfile.pinCode,
+          profile: linkedProfile,
           restaurants,
           friends,
           meetups,
         });
 
-        setStatusMessage({
-          type: 'success',
-          text: '🎉 已成功綁定您的 Google 帳號！全站資料已自動同步備份至雲端！',
-        });
-
         setTimeout(() => {
           onClose();
-        }, 1200);
+        }, 800);
       }
-    } catch (err: any) {
-      console.error(err);
-      setStatusMessage({ type: 'error', text: `Google 登入失敗：${err.message || '請確認網路'}` });
+    } catch (err) {
+      console.error('Google Auth Error', err);
+      setStatusMessage({ type: 'error', text: 'Google 登入失敗，請檢查網路或稍後再試！' });
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
-  const quickSwitchDemo = (demoId: string, demoPin: string) => {
-    setLoginId(demoId);
-    setLoginPin(demoPin);
-    setStatusMessage(null);
-  };
+  const savedAccounts = Object.values(loadAccountRegistry());
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
@@ -242,7 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -333,7 +310,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-3 bg-slate-50 border-b border-slate-200 flex gap-2">
           <button
             onClick={() => { setActiveTab('login'); setStatusMessage(null); }}
-            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
               activeTab === 'login'
                 ? 'bg-amber-500 text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -344,7 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             onClick={() => { setActiveTab('register'); setStatusMessage(null); }}
-            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all ${
+            className={`flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer ${
               activeTab === 'register'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -369,69 +346,77 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           {activeTab === 'login' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-3.5 animate-fadeIn">
-              <div>
-                <label className="block text-xs font-black text-slate-800 mb-1">
-                  吃貨 ID (帳號)：
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="例如：kaw_foodie 或 annie_sweets"
-                  value={loginId}
-                  onChange={(e) => setLoginId(e.target.value.toLowerCase().trim())}
-                  className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-slate-800 mb-1">
-                  4 位數安全認證 PIN 密碼：
-                </label>
-                <input
-                  type="password"
-                  required
-                  maxLength={4}
-                  placeholder="4 碼數字（例如：8888）"
-                  value={loginPin}
-                  onChange={(e) => setLoginPin(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono font-black tracking-widest"
-                />
-              </div>
-
-              {/* Demo Quick Logins */}
-              <div className="p-2.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-[11px]">
-                <span className="text-slate-500 font-bold block flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>點擊快速切換測試帳號：</span>
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'kaw_foodie', pin: '8888', name: '🥢 Kevin' },
-                    { id: 'annie_sweets', pin: '1234', name: '🍮 安妮' },
-                    { id: 'ming_ramen', pin: '0000', name: '🍜 小明' },
-                    { id: 'kevin_meat', pin: '6666', name: '🥩 凱文' },
-                  ].map((demo) => (
-                    <button
-                      key={demo.id}
-                      type="button"
-                      onClick={() => quickSwitchDemo(demo.id, demo.pin)}
-                      className="px-2 py-0.5 rounded-lg bg-white hover:bg-amber-100 text-slate-700 font-medium border border-slate-200 transition-colors"
-                    >
-                      {demo.name} ({demo.id})
-                    </button>
-                  ))}
+            <div className="space-y-4 animate-fadeIn">
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1">
+                    吃貨 ID (帳號)：
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="例如：kaw_foodie 或 annie_sweets"
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono"
+                  />
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
-              >
-                <KeyRound className="w-4 h-4" />
-                <span>🔐 驗證並登入此吃貨帳號</span>
-              </button>
-            </form>
+                <div>
+                  <label className="block text-xs font-black text-slate-800 mb-1">
+                    4 碼安全 PIN 碼 (密碼)：
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={10}
+                    placeholder="•••• (若未設定可留空)"
+                    value={loginPin}
+                    onChange={(e) => setLoginPin(e.target.value)}
+                    className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 tracking-widest font-mono"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>🔐 驗證並登入此吃貨帳號</span>
+                </button>
+              </form>
+
+              {/* ⚡ 1-Click Quick Login to Saved Accounts on this Device */}
+              {savedAccounts.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-400 block">
+                    ⚡ 本機已儲存帳號（點擊直接切換）：
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {savedAccounts.map((acc) => (
+                      <button
+                        key={acc.foodieId}
+                        type="button"
+                        onClick={() => {
+                          const res = authenticateAndLoginAccount(acc.foodieId, acc.pinCode);
+                          if (res.success && res.account) {
+                            setStatusMessage({ type: 'success', text: res.message });
+                            setTimeout(() => {
+                              onLoginSuccess(res.account!);
+                              onClose();
+                            }, 500);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-amber-100 hover:text-amber-950 text-slate-700 text-xs font-bold border border-slate-200 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                      >
+                        <span>{acc.profile.avatar || '🥢'}</span>
+                        <span>{acc.profile.name}</span>
+                        <span className="text-[10px] font-mono opacity-60">({acc.foodieId})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === 'register' && (
@@ -445,7 +430,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   placeholder="例如：my_foodie_name"
                   value={regId}
-                  onChange={(e) => setRegId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  onChange={(e) => setRegId(e.target.value)}
                   className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono font-bold"
                 />
               </div>
@@ -457,10 +442,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="password"
                   required
-                  maxLength={4}
-                  placeholder="例如：9527 或 7788"
+                  maxLength={10}
+                  placeholder="例如：9527 或 8888"
                   value={regPin}
-                  onChange={(e) => setRegPin(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => setRegPin(e.target.value)}
                   className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-mono font-black tracking-widest"
                 />
               </div>
@@ -484,13 +469,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>防冒用保護機制：</span>
                 </p>
                 <p className="text-slate-600 leading-relaxed">
-                  註冊後，此吃貨 ID 將與您的 4 碼 PIN 碼永久鎖定綁定，其他裝置無法隨意使用您的 ID 除非輸入正確的 PIN 碼！
+                  註冊後，此吃貨 ID 將與您的安全 PIN 密碼鎖定綁定，其他裝置無法隨意使用您的 ID 除非輸入正確的 PIN 碼！
                 </p>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md shadow-purple-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md shadow-purple-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>🚀 註冊並立即綁定此吃貨 ID</span>
