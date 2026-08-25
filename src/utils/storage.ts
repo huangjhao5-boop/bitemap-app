@@ -237,69 +237,7 @@ export function importBackupData(jsonString: string): { success: boolean; messag
 }
 
 
-export const INITIAL_MEETUPS: DiningMeetup[] = [
-  {
-    id: 'm1',
-    title: '🥩 週五下班路易奇燒肉小酌團！自己烤半價松露吃到飽',
-    restaurantId: 'r2',
-    restaurantName: '路易奇電力公司 燒肉',
-    category: '燒肉居酒屋',
-    address: '台北市大安區復興南路一段79巷4弄4號',
-    googleMapsUrl: 'https://maps.app.goo.gl/9ZpL9Q',
-    plannedDate: '本週五 19:30',
-    description: '慶祝專案順利上線！目前已有 2 人，預計再揪 2~3 位愛吃牛舌與和牛的朋友！',
-    creatorName: '吃貨小當家',
-    creatorAvatar: '🧋',
-    audience: 'public',
-    joinedFriendIds: ['f1', 'f3'],
-    interestedFriendIds: ['f2'],
-    comments: [
-      {
-        id: 'c1',
-        authorName: '小明 (拉麵狂人)',
-        authorAvatar: '🍜',
-        content: '這家松露醬配蔥鹽牛舌超猛，我一定要跟！',
-        createdAt: '2026-08-24 12:30'
-      },
-      {
-        id: 'c2',
-        authorName: '凱文 (肉食聚餐王)',
-        authorAvatar: '🥩',
-        content: '算我一個，我已經把胃空出來了！',
-        createdAt: '2026-08-24 14:15'
-      }
-    ],
-    status: 'open',
-    createdAt: '2026-08-24T10:00:00Z'
-  },
-  {
-    id: 'm2',
-    title: '🍰 週日下午大安文青下午茶探店（手沖+巴斯克乳酪）',
-    restaurantId: 'r3',
-    restaurantName: 'Fika Fika Cafe',
-    category: '咖啡甜點',
-    address: '台北市中山區伊通街33號',
-    plannedDate: '本週日 14:30',
-    description: '想放鬆喝杯好咖啡聊聊天，歡迎甜點控閨蜜同行！',
-    creatorName: '阿美 (甜點咖啡胃)',
-    creatorAvatar: '🍰',
-    audience: 'friends_only',
-    targetFriendIds: ['f2', 'f4'],
-    joinedFriendIds: ['f2'],
-    interestedFriendIds: [],
-    comments: [
-      {
-        id: 'c3',
-        authorName: 'Peggy (健康輕食派)',
-        authorAvatar: '🥗',
-        content: '這家拿鐵很順口，我週日有空！',
-        createdAt: '2026-08-24 15:00'
-      }
-    ],
-    status: 'open',
-    createdAt: '2026-08-24T11:00:00Z'
-  }
-];
+export const INITIAL_MEETUPS: DiningMeetup[] = [];
 
 export function loadMeetups(): DiningMeetup[] {
   try {
@@ -469,6 +407,12 @@ export function purgeMockTestData(): void {
       const flist = JSON.parse(rawFriends);
       const realFriends = flist.filter((f: any) => !['f1', 'f2', 'f3', 'f4'].includes(f.id));
       localStorage.setItem('bitemap_friends_v1', JSON.stringify(realFriends));
+    }
+    const rawMeetups = localStorage.getItem('bitemap_meetups_v1');
+    if (rawMeetups) {
+      const mlist = JSON.parse(rawMeetups);
+      const realMeetups = mlist.filter((m: any) => !['m1', 'm2'].includes(m.id));
+      localStorage.setItem('bitemap_meetups_v1', JSON.stringify(realMeetups));
     }
     const rawAcc = localStorage.getItem('bitemap_account_registry_v1');
     if (rawAcc) {

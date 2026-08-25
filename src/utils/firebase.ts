@@ -310,3 +310,79 @@ export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
     return [];
   }
 }
+
+
+// 👥 Send Friend Request to Cloud (Cross-Device Routing)
+export async function sendCloudFriendRequest(
+  req: FriendRequest,
+  targetFoodieId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return { success: false, message: '未連線至 Firebase' };
+
+    const cleanTarget = targetFoodieId.toLowerCase().trim();
+    const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_friend_requests', req.id);
+
+    await fb.firestoreMod.setDoc(docRef, {
+      ...req,
+      targetFoodieId: cleanTarget,
+      senderFoodieId: req.senderFoodieId.toLowerCase().trim(),
+      updatedAt: new Date().toISOString(),
+      serverTimestamp: fb.firestoreMod.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      message: `🎉 好友邀請已即時發送至【${targetFoodieId}】的雲端收件箱！對方打開 App 即可看到通知！`,
+    };
+  } catch (err: any) {
+    console.error('Failed to send cloud friend request', err);
+    return { success: false, message: `發送失敗：${err.message}` };
+  }
+}
+
+// 📬 Fetch Incoming Cloud Friend Requests for My Foodie ID
+export async function fetchCloudIncomingFriendRequests(myFoodieId: string): Promise<FriendRequest[]> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || !myFoodieId || myFoodieId === 'guest') return [];
+
+    const cleanMyId = myFoodieId.toLowerCase().trim();
+    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+    const q = fb.firestoreMod.query(
+      colRef,
+      fb.firestoreMod.where('targetFoodieId', '==', cleanMyId),
+      fb.firestoreMod.where('status', '==', 'pending')
+    );
+
+    const snap = await fb.firestoreMod.getDocs(q);
+    const list: FriendRequest[] = [];
+    snap.forEach((docSnap: any) => {
+      list.push(docSnap.data() as FriendRequest);
+    });
+    return list;
+  } catch (err) {
+    console.error('Failed to fetch cloud incoming friend requests', err);
+    return [];
+  }
+}
+
+// 🤝 Respond to Cloud Friend Request (Accept or Decline)
+export async function respondToCloudFriendRequest(
+  requestId: string,
+  status: 'accepted' | 'declined'
+): Promise<void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || !requestId) return;
+
+    const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_friend_requests', requestId);
+    await fb.firestoreMod.updateDoc(docRef, {
+      status,
+      respondedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Failed to respond to cloud friend request', err);
+  }
+}

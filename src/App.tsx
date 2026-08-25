@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
 import { 
+  sendCloudFriendRequest,
+  fetchCloudIncomingFriendRequests,
+  respondToCloudFriendRequest,
   publishPublicRestaurantToCloud, 
   fetchCommunityPublicRestaurants, 
   checkAndHandleRedirectResult, 
@@ -76,6 +79,36 @@ export function App() {
 
   
   
+  
+  // 📬 Auto-Fetch Incoming Cloud Friend Requests from Other Devices
+  useEffect(() => {
+    if (!userProfile.foodieId || userProfile.foodieId === 'guest') return;
+
+    const checkIncoming = async () => {
+      try {
+        const cloudReqs = await fetchCloudIncomingFriendRequests(userProfile.foodieId);
+        if (cloudReqs && cloudReqs.length > 0) {
+          setFriendRequests((prev) => {
+            const existingIds = new Set(prev.map((r) => r.id));
+            const newOnes = cloudReqs.filter((r) => !existingIds.has(r.id));
+            if (newOnes.length > 0) {
+              const merged = [...newOnes, ...prev];
+              saveFriendRequests(merged);
+              return merged;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error('Cloud friend request check error', err);
+      }
+    };
+
+    checkIncoming();
+    const interval = setInterval(checkIncoming, 15000); // Check every 15s
+    return () => clearInterval(interval);
+  }, [userProfile.foodieId]);
+
   // 📲 Check for PWA Google Redirect Login on Mount
   useEffect(() => {
     const checkRedirect = async () => {
@@ -270,6 +303,7 @@ export function App() {
 
 
   const handleAcceptFriendRequest = (req: FriendRequest) => {
+    respondToCloudFriendRequest(req.id, 'accepted');
     const newFriend: Friend = {
       id: 'f_' + Date.now(),
       foodieId: req.senderFoodieId,
@@ -301,11 +335,9 @@ export function App() {
 
   const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
     const cleanId = targetFoodieId.trim().toLowerCase();
-    if (!cleanId) {
-      return { success: false, message: '請輸入好友的吃貨 ID！' };
-    }
+    if (!cleanId) return { success: false, message: '請輸入好友的吃貨 ID！' };
 
-    if (cleanId === userProfile.foodieId.toLowerCase()) {
+    if (cleanId === (userProfile.foodieId || '').toLowerCase()) {
       return { success: false, message: '不能添加自己的吃貨 ID 唷！' };
     }
 
@@ -313,6 +345,23 @@ export function App() {
     if (alreadyFriend) {
       return { success: false, message: '您們已經是吃貨好友囉！' };
     }
+
+    const newIncomingRequest: FriendRequest = {
+      id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      senderFoodieId: userProfile.foodieId || 'foodie',
+      senderName: userProfile.name || '吃貨好友',
+      senderAvatar: userProfile.avatar || '🥢',
+      favoriteTags: userProfile.favoriteTags || [],
+      dislikedTags: userProfile.dislikedTags || [],
+      bio: userProfile.bio || '透過吃貨 ID 互相加好友',
+      sentAt: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    };
+
+    // Send to Google Cloud Firestore so target device receives notification immediately
+    sendCloudFriendRequest(newIncomingRequest, cleanId).then((res) => {
+      console.log('Cloud Friend Request Sent:', res);
+    });
 
     // Look up in account registry or mock database
     const foundProfile = findFoodieProfileById(cleanId);
