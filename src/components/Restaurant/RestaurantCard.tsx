@@ -19,7 +19,8 @@ import {
   Trash2, 
   Plus,
   Play,
-  Languages
+  Languages,
+  Users
 } from 'lucide-react';
 
 interface RestaurantCardProps {
@@ -219,6 +220,28 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               <Share2 className="w-4 h-4" />
             </button>
           </div>
+
+                    {/* 👥 Multi-Foodie Aggregated Reviews Badge */}
+          {restaurant.contributions && restaurant.contributions.length > 1 && (
+            <div className="flex items-center justify-between p-2 rounded-xl bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 border border-purple-200">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-purple-950 flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-purple-600" />
+                  <span>{lang === 'zh-TW' ? `共 ${restaurant.contributions.length} 位吃貨推薦：` : `${restaurant.contributions.length} 人の口コミ：`}</span>
+                </span>
+                <div className="flex items-center -space-x-1.5 overflow-hidden">
+                  {restaurant.contributions.map((c, idx) => (
+                    <div key={idx} className="w-5 h-5 rounded-full bg-white border border-purple-300 flex items-center justify-center text-[10px] shadow-2xs" title={c.authorName}>
+                      {c.authorAvatar || '🥢'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-purple-700 underline cursor-pointer">
+                {lang === 'zh-TW' ? '看大家心得' : '全員の記録を見る'}
+              </span>
+            </div>
+          )}
 
           {/* 🎯 Search Match Snippet if applicable */}
           {matchHighlight && (

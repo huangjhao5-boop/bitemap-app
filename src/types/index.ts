@@ -45,6 +45,23 @@ export interface DishItem {
   note?: string;
 }
 
+export interface RestaurantContribution {
+  restaurantId: string;
+  authorFoodieId?: string;
+  authorName: string;
+  authorAvatar: string;
+  isMine: boolean;
+  ratingTag: RestaurantRatingTag;
+  visitCount: number;
+  mustEatDishes: string[];
+  avoidDishes: string[];
+  personalNotes: string;
+  videos?: ShortVideoSource[];
+  menuDishes?: DishItem[];
+  visibility?: 'public' | 'friends_only' | 'private';
+  updatedAt?: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -72,6 +89,7 @@ export interface Restaurant {
   authorFoodieId?: string;
   authorName?: string;
   authorAvatar?: string;
+  contributions?: RestaurantContribution[];
   createdAt: string;
   updatedAt: string;
 }

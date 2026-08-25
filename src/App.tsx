@@ -1,3 +1,4 @@
+import { aggregateRestaurants } from './utils/restaurantAggregator';
 import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
@@ -838,29 +839,34 @@ export function App() {
     };
   }, [friends]);
 
-    // Combined Restaurants (My Spots + Friends Shared Spots + Global Community Public Spots)
+      // Combined & Multi-Foodie Aggregated Restaurants (Auto-Merges duplicates & groups reviews!)
   const allCombinedRestaurants = useMemo(() => {
-    if (scopeFilter === 'mine') return restaurants;
-    if (scopeFilter === 'friends') return friendsRestaurants;
+    let rawList: Restaurant[];
+    if (scopeFilter === 'mine') {
+      rawList = restaurants;
+    } else if (scopeFilter === 'friends') {
+      rawList = friendsRestaurants;
+    } else {
+      const map = new Map<string, Restaurant>();
+      // 1. My local restaurants
+      restaurants.forEach((r) => map.set(r.id, r));
+      // 2. Friends restaurants
+      friendsRestaurants.forEach((r) => map.set(r.id, r));
+      // 3. Community public restaurants
+      communityRestaurants.forEach((r) => {
+        if (!map.has(r.id)) {
+          map.set(r.id, r);
+        }
+      });
+      rawList = Array.from(map.values());
+    }
 
-    // 'all' scope: merge my spots + friends spots + community public spots without duplicates
-    const map = new Map<string, Restaurant>();
-    // 1. My local restaurants
-    restaurants.forEach((r) => map.set(r.id, r));
-    // 2. Friends restaurants
-    friendsRestaurants.forEach((r) => map.set(r.id, r));
-    // 3. Community public restaurants
-    communityRestaurants.forEach((r) => {
-      if (!map.has(r.id)) {
-        map.set(r.id, r);
-      }
-    });
+    // 🌟 Auto-group identical restaurants across all foodies
+    return aggregateRestaurants(rawList, userProfile.foodieId);
+  }, [restaurants, friendsRestaurants, communityRestaurants, scopeFilter, userProfile.foodieId]);
 
-    return Array.from(map.values());
-  }, [restaurants, friendsRestaurants, communityRestaurants, scopeFilter]);
-
-  const cities = useMemo(() => {
-    const set = new Set(allCombinedRestaurants.map((r) => r.city).filter(Boolean));
+    const cities = useMemo<string[]>(() => {
+    const set = new Set(allCombinedRestaurants.map((r: Restaurant) => r.city).filter(Boolean));
     return Array.from(set);
   }, [allCombinedRestaurants]);
 

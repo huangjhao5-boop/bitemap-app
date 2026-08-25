@@ -10,7 +10,8 @@ import {
   ThumbsDown, 
   MapPin, 
   Navigation, 
-  Share2, 
+  Share2,
+  Users, 
   Edit3, 
   Trash2, 
   Plus

@@ -28,6 +28,9 @@ interface RestaurantModalProps {
   onClose: () => void;
   onSave: (restaurant: Restaurant) => void;
   editingRestaurant?: Restaurant | null;
+  currentFoodieId?: string;
+  currentUserName?: string;
+  currentUserAvatar?: string;
   friends: Friend[];
   lang: Language;
 }
@@ -51,12 +54,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   onClose,
   onSave,
   editingRestaurant,
+  currentFoodieId,
+  currentUserName = '熱心吃貨',
+  currentUserAvatar = '🥢',
   friends,
   lang,
 }) => {
   const t = translations[lang];
 
   // Smart Auto-Fill Input State
+  const [activeReviewIndex, setActiveReviewIndex] = useState<number>(0);
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
+  const [currentAuthorInfo, setCurrentAuthorInfo] = useState<{ name: string; avatar: string }>({ name: '', avatar: '' });
   const [smartInputText, setSmartInputText] = useState('');
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const [menuImages, setMenuImages] = useState<string[]>([]);
@@ -76,6 +85,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [lat, setLat] = useState<number>(25.0478);
   const [lng, setLng] = useState<number>(121.5319);
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
+  const [googleRating, setGoogleRating] = useState<number>(4.5);
   const [priceRange, setPriceRange] = useState<Restaurant['priceRange']>('$$');
   const [ratingTag, setRatingTag] = useState<RestaurantRatingTag>('must_eat');
   const [visibility, setVisibility] = useState<'public' | 'friends_only' | 'private'>('public');
@@ -101,8 +111,24 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [recommendedByFriendIds, setRecommendedByFriendIds] = useState<string[]>([]);
   const [dinedWithFriendIds, setDinedWithFriendIds] = useState<string[]>([]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (editingRestaurant) {
+      const contributions = editingRestaurant.contributions || [];
+      const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+
+      // Check if primary is mine
+      const isMine = 
+        !editingRestaurant.authorFoodieId || 
+        editingRestaurant.authorFoodieId === cleanMyId || 
+        !editingRestaurant.id.startsWith('friend_');
+
+      setIsReadOnlyMode(!isMine);
+      setCurrentAuthorInfo({
+        name: editingRestaurant.authorName || '吃貨好友',
+        avatar: editingRestaurant.authorAvatar || '🥢',
+      });
+      setActiveReviewIndex(0);
+
       setName(editingRestaurant.name);
       setCategory(editingRestaurant.category);
       setCity(editingRestaurant.city);
@@ -110,46 +136,83 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setLat(editingRestaurant.lat);
       setLng(editingRestaurant.lng);
       setGoogleMapsUrl(editingRestaurant.googleMapsUrl || '');
+      setGoogleRating(editingRestaurant.googleRating || 4.5);
       setPriceRange(editingRestaurant.priceRange);
       setRatingTag(editingRestaurant.ratingTag);
+      setVisibility(editingRestaurant.visibility || 'public');
       setVisitCount(editingRestaurant.visitCount);
-      setLastVisitedDate(editingRestaurant.lastVisitedDate || '');
+      setLastVisitedDate(
+        editingRestaurant.lastVisitedDate || new Date().toISOString().split('T')[0]
+      );
       setCoverImage(editingRestaurant.coverImage || '');
+      setMenuImages(editingRestaurant.menuImages || []);
+      setMenuDishes(editingRestaurant.menuDishes || []);
       setPersonalNotes(editingRestaurant.personalNotes || '');
       setMustEatDishes(editingRestaurant.mustEatDishes || []);
       setAvoidDishes(editingRestaurant.avoidDishes || []);
-      setVisibility(editingRestaurant.visibility || 'public');
-      setMenuImages(editingRestaurant.menuImages || []);
-      setMenuDishes(editingRestaurant.menuDishes || []);
       setVideos(editingRestaurant.videos || []);
       setRecommendedByFriendIds(editingRestaurant.recommendedByFriendIds || []);
       setDinedWithFriendIds(editingRestaurant.dinedWithFriendIds || []);
-      setSmartInputText('');
     } else {
+      setIsReadOnlyMode(false);
+      setActiveReviewIndex(0);
       setName('');
       setCategory(lang === 'zh-TW' ? '日式拉麵' : 'ラーメン');
       setCity(lang === 'zh-TW' ? '台北市' : '東京');
       setAddress('');
-      setLat(lang === 'zh-TW' ? 25.0478 : 35.6762);
-      setLng(lang === 'zh-TW' ? 121.5319 : 139.6503);
+      setLat(25.0478);
+      setLng(121.5319);
       setGoogleMapsUrl('');
-      setPriceRange('$$');
+      setGoogleRating(4.5);
+      setPriceRange('$');
       setRatingTag('must_eat');
-      setMenuImages([]);
-      setMenuDishes([]);
       setVisibility('public');
       setVisitCount(1);
       setLastVisitedDate(new Date().toISOString().split('T')[0]);
       setCoverImage('');
+      setMenuImages([]);
+      setMenuDishes([]);
       setPersonalNotes('');
       setMustEatDishes([]);
       setAvoidDishes([]);
       setVideos([]);
       setRecommendedByFriendIds([]);
       setDinedWithFriendIds([]);
-      setSmartInputText('');
     }
-  }, [editingRestaurant, isOpen, lang]);
+  }, [editingRestaurant, isOpen, lang, currentFoodieId]);
+
+  // Switch between different foodies' reviews for the same restaurant
+  const handleSelectReview = (idx: number) => {
+    if (!editingRestaurant?.contributions || !editingRestaurant.contributions[idx]) return;
+    const c = editingRestaurant.contributions[idx];
+    const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    setActiveReviewIndex(idx);
+    setIsReadOnlyMode(!c.isMine);
+    setCurrentAuthorInfo({
+      name: c.authorName,
+      avatar: c.authorAvatar,
+    });
+    setRatingTag(c.ratingTag);
+    setVisitCount(c.visitCount || 1);
+    setMustEatDishes(c.mustEatDishes || []);
+    setAvoidDishes(c.avoidDishes || []);
+    setPersonalNotes(c.personalNotes || '');
+    if (c.videos) setVideos(c.videos);
+    if (c.menuDishes) setMenuDishes(c.menuDishes);
+  };
+
+  // 📌 一鍵收進我的口袋名單 (Clone and customize as my own record)
+  const handleCloneToMyPocket = () => {
+    const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    setIsReadOnlyMode(false);
+    setPersonalNotes(''); // Clear notes so user can write own observation
+    setVisitCount(1);
+    setRatingTag('wishlist'); // Default to wishlist
+    setVisibility('public');
+    alert(lang === 'zh-TW'
+      ? '🎉 已將此店家基本資料複製為您的個人草稿！您可以自由填寫自己的評分、必吃菜色與筆記並儲存。'
+      : '🎉 口コミを自分用にコピーしました！自由に編集して保存できます。');
+  };
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
@@ -369,34 +432,45 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     setVideos(videos.filter((v) => v.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      alert(lang === 'zh-TW' ? '請填寫餐廳名稱！' : '店名を入力してください！');
-      return;
-    }
+    if (!name.trim()) return;
+
+    const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    const isEditingMine = editingRestaurant && !isReadOnlyMode && (
+      !editingRestaurant.authorFoodieId || 
+      editingRestaurant.authorFoodieId === cleanMyId || 
+      !editingRestaurant.id.startsWith('friend_')
+    );
 
     const restaurantData: Restaurant = {
-      id: editingRestaurant ? editingRestaurant.id : 'r_' + Date.now(),
+      id: isEditingMine ? editingRestaurant!.id : `r_${Date.now()}`,
       name: name.trim(),
-      category: category.trim(),
-      city: city.trim(),
-      address: address.trim() || `${city}${name}`,
-      lat: Number(lat) || 25.0478,
-      lng: Number(lng) || 121.5319,
-      googleMapsUrl: googleMapsUrl.trim() || undefined,
+      category: category.trim() || (lang === 'zh-TW' ? '精選美食' : 'グルメ'),
+      city,
+      address: address.trim(),
+      lat,
+      lng,
+      googleMapsUrl: googleMapsUrl.trim(),
+      googleRating,
       priceRange,
       ratingTag,
-      visitCount: Number(visitCount) || 0,
-      lastVisitedDate: lastVisitedDate || undefined,
+      visibility,
+      visitCount,
+      lastVisitedDate,
+      coverImage,
+      menuImages,
+      menuDishes,
+      personalNotes: personalNotes.trim(),
       mustEatDishes,
       avoidDishes,
-      personalNotes: personalNotes.trim(),
       videos,
       recommendedByFriendIds,
       dinedWithFriendIds,
-      coverImage: coverImage.trim() || undefined,
-      createdAt: editingRestaurant ? editingRestaurant.createdAt : new Date().toISOString(),
+      authorFoodieId: cleanMyId || 'foodie',
+      authorName: currentUserName,
+      authorAvatar: currentUserAvatar,
+      createdAt: isEditingMine ? editingRestaurant!.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
