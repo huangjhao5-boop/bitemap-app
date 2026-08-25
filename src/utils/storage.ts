@@ -444,32 +444,72 @@ export function registerOrUpdateAccount(
   friends: Friend[],
   meetups: DiningMeetup[]
 ): void {
+  const cleanId = (profile.foodieId || '').trim().toLowerCase();
+  const cleanPin = (profile.pinCode || '8888').trim();
   const registry = loadAccountRegistry();
-  registry[profile.foodieId] = {
-    foodieId: profile.foodieId,
-    pinCode: profile.pinCode,
-    profile,
-    restaurants,
-    friends,
-    meetups,
+
+  const record: AccountRecord = {
+    foodieId: cleanId,
+    pinCode: cleanPin,
+    profile: {
+      ...profile,
+      foodieId: cleanId,
+      pinCode: cleanPin,
+    },
+    restaurants: restaurants || [],
+    friends: friends || [],
+    meetups: meetups || [],
   };
+
+  registry[cleanId] = record;
   saveAccountRegistry(registry);
+  saveUserProfile(record.profile);
 }
 
-// 🔑 Login Account
+// 🔑 Login Account (Case-insensitive & Whitespace-trimmed)
 export function authenticateAndLoginAccount(foodieId: string, pinCode: string): {
   success: boolean;
   message: string;
   account?: AccountRecord;
 } {
-  const registry = loadAccountRegistry();
-  const acc = registry[foodieId];
-  if (!acc) {
-    return { success: false, message: `查無吃貨 ID【${foodieId}】！請確認 ID 是否正確或直接註冊新帳號。` };
+  const cleanId = (foodieId || '').trim().toLowerCase();
+  const cleanPin = (pinCode || '').trim();
+
+  if (!cleanId) {
+    return { success: false, message: '請輸入吃貨 ID！' };
   }
-  if (acc.pinCode !== pinCode) {
+
+  const registry = loadAccountRegistry();
+  
+  // Find case-insensitive match
+  let accKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanId);
+  let acc = accKey ? registry[accKey] : undefined;
+
+  // If not found in registry but matches current profile
+  if (!acc) {
+    const current = loadUserProfile();
+    if (current.foodieId && current.foodieId.toLowerCase() === cleanId) {
+      acc = {
+        foodieId: current.foodieId,
+        pinCode: current.pinCode,
+        profile: current,
+        restaurants: loadRestaurants(),
+        friends: loadFriends(),
+        meetups: [],
+      };
+      registry[cleanId] = acc;
+      saveAccountRegistry(registry);
+    }
+  }
+
+  if (!acc) {
+    return { success: false, message: `查無吃貨 ID【${foodieId}】！請確認 ID 是否正確或點選「註冊新吃貨帳號」。` };
+  }
+
+  if (acc.pinCode.trim() !== cleanPin) {
     return { success: false, message: '認證失敗！4 碼安全 PIN 碼錯誤，請重新輸入。' };
   }
+
   return { success: true, message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, account: acc };
 }
 

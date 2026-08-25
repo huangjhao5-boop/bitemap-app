@@ -126,80 +126,80 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Quick Interactive Tools (Trendy IG Pills) */}
-          <div className="flex items-center gap-1 bg-rose-50/60 p-1 rounded-2xl border border-rose-100">
+        {/* Right Actions - Compact & Responsive */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Quick Interactive Tools (Collapsed on extra small screens) */}
+          <div className="hidden sm:flex items-center gap-1 bg-rose-50/60 p-1 rounded-2xl border border-rose-100">
             {/* Reels Feed Button */}
             <button
               onClick={onOpenReelsModal}
-              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 hover:opacity-90 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 hover:scale-105"
-              title={lang === 'zh-TW' ? '📱 沉浸式短影音流 (依最近距離排序)' : '📱 ショート動画フィード'}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 hover:opacity-90 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              title={lang === 'zh-TW' ? '📱 沉浸式短影音流' : '📱 ショート動画フィード'}
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span className="hidden lg:inline">{lang === 'zh-TW' ? '短影音流' : '動画'}</span>
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '短影音' : '動画'}</span>
             </button>
 
             {/* Mystery Box Button */}
             <button
               onClick={onOpenMysteryBox}
-              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 hover:from-amber-400 hover:to-orange-500 text-amber-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 hover:scale-105"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 hover:from-amber-400 hover:to-orange-500 text-amber-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
               title={lang === 'zh-TW' ? '🎁 美食盲盒抽籤機' : '🎁 ミステリーボックス'}
             >
               <Gift className="w-3.5 h-3.5 text-amber-900" />
-              <span className="hidden lg:inline">{lang === 'zh-TW' ? '美食盲盒' : '盲盒'}</span>
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '盲盒' : '盲盒'}</span>
             </button>
 
             {/* Bill Splitter Button */}
             <button
               onClick={onOpenBillSplitter}
-              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 hover:scale-105"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
               title={lang === 'zh-TW' ? '🎲 聚餐分帳與買單轉盤' : '🎲 割り勘＆おごり'}
             >
               <Calculator className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">{lang === 'zh-TW' ? '聚餐分帳' : '割り勘'}</span>
+              <span className="hidden lg:inline">{lang === 'zh-TW' ? '分帳' : '割り勘'}</span>
             </button>
           </div>
 
           {/* Language Switcher */}
           <button
             onClick={() => onLanguageChange(lang === 'zh-TW' ? 'ja' : 'zh-TW')}
-            className="px-2.5 py-1.5 rounded-2xl bg-white hover:bg-rose-50 text-slate-700 font-extrabold text-xs border border-rose-200/80 shadow-2xs transition-colors"
+            className="px-2 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-700 font-extrabold text-[11px] sm:text-xs border border-rose-200/80 shadow-2xs transition-colors shrink-0"
             title="切換語言 / 言語切替"
           >
-            {lang === 'zh-TW' ? '🇯🇵 日' : '🇹🇼 中'}
+            {lang === 'zh-TW' ? '🇯🇵' : '🇹🇼'}
           </button>
 
-          {/* Account Login / Guest Mode Indicator */}
+          {/* Account Login / Guest Mode Indicator (Ultra-Safe Responsive Width) */}
           {profile.googleEmail ? (
             <button
               onClick={onOpenAuthModal}
-              className="px-2.5 py-1.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+              className="px-2 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[110px]"
               title="Google 帳號已連線雲端同步"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="font-bold text-[11px] truncate max-w-[90px]">{profile.googleEmail.split('@')[0]}</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span className="font-bold text-[11px] truncate">{profile.googleEmail.split('@')[0]}</span>
             </button>
           ) : (
             <button
               onClick={onOpenAuthModal}
-              className="px-2.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-rose-500 hover:from-amber-500 hover:to-rose-600 text-white font-black text-xs flex items-center gap-1 shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer animate-pulse"
+              className="px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-rose-500 hover:from-amber-500 hover:to-rose-600 text-white font-black text-xs flex items-center gap-1 shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
               title="目前為遊客探索模式 · 點此登入 / 註冊儲存資料"
             >
-              <span>👀 遊客模式</span>
-              <span className="text-[10px] underline font-normal">(點此登入)</span>
+              <span>👀</span>
+              <span className="hidden sm:inline">遊客模式</span>
+              <span className="text-[10px] font-bold underline sm:no-underline">登入</span>
             </button>
           )}
 
           {/* User Profile Button with IG Story Gradient Ring! */}
           <button
             onClick={onOpenProfileModal}
-
-            className="p-1 sm:px-2.5 sm:py-1.5 rounded-2xl bg-white hover:bg-pink-50 text-slate-800 border border-pink-200/80 font-bold text-xs flex items-center gap-1.5 shadow-2xs group transition-all"
+            className="p-1 sm:px-2 sm:py-1.5 rounded-xl bg-white hover:bg-pink-50 text-slate-800 border border-pink-200/80 font-bold text-xs flex items-center gap-1.5 shadow-2xs group transition-all shrink-0"
             title={lang === 'zh-TW' ? '個人檔案與帳號設定' : 'プロフィール設定'}
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.8px] flex items-center justify-center overflow-hidden">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-sm overflow-hidden">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.5px] flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-xs sm:text-sm overflow-hidden">
                 {profile.avatar?.startsWith('data:') || profile.avatar?.startsWith('http') ? (
                   <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" />
                 ) : (
@@ -207,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
             </div>
-            <span className="hidden md:inline font-black text-slate-800">{profile.name}</span>
+            <span className="hidden lg:inline font-black text-slate-800 max-w-[80px] truncate">{profile.name}</span>
           </button>
 
           {/* Backup & Sync Controls */}

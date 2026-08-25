@@ -84,23 +84,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = regId.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const id = regId.trim().toLowerCase().replace(/\s+/g, '');
     const pin = regPin.trim();
     const name = regName.trim();
 
-    if (!id || id.length < 3) {
-      setStatusMessage({ type: 'error', text: '吃貨 ID 至少需要 3 個英數字或底線！' });
+    if (!id || id.length < 2) {
+      setStatusMessage({ type: 'error', text: '吃貨 ID 至少需要 2 個字元！' });
       return;
     }
 
-    if (pin.length !== 4) {
-      setStatusMessage({ type: 'error', text: '安全認證密碼必須是 4 位數字！' });
+    if (pin.length < 4) {
+      setStatusMessage({ type: 'error', text: '安全認證密碼請輸入 4 位數字（如 8888）！' });
       return;
     }
 
     const registry = loadAccountRegistry();
     if (registry[id]) {
-      setStatusMessage({ type: 'error', text: `吃貨 ID【${id}】已經被註冊綁定！若這是您的帳號請直接登入。` });
+      setStatusMessage({ type: 'error', text: `吃貨 ID【${id}】已存在！若這是您的帳號請直接切換至「登入」輸入 4 碼 PIN。` });
       return;
     }
 
@@ -108,7 +108,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       ...currentProfile,
       foodieId: id,
       pinCode: pin,
-      name: name || currentProfile.name,
+      name: name || id,
     };
 
     registerOrUpdateAccount(newProfile, restaurants, friends, meetups);
