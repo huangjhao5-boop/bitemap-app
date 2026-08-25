@@ -8,6 +8,7 @@ interface TabNavigationProps {
   onTabChange: (tab: ActiveTab) => void;
   restaurantCount: number;
   friendCount: number;
+  pendingRequestsCount?: number;
   lang: Language;
 }
 
@@ -16,14 +17,15 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   onTabChange,
   restaurantCount,
   friendCount,
+  pendingRequestsCount = 0,
   lang,
 }) => {
   const t = translations[lang];
 
-  const tabs: { id: ActiveTab; label: string; icon: string; count?: number }[] = [
+  const tabs: { id: ActiveTab; label: string; icon: string; count?: number; badge?: number }[] = [
     { id: 'map', label: t.tabMap, icon: '🗺️', count: restaurantCount },
     { id: 'list', label: t.tabList, icon: '📸', count: restaurantCount },
-    { id: 'friends', label: t.tabFriends, icon: '👯', count: friendCount },
+    { id: 'friends', label: t.tabFriends, icon: '👯', count: friendCount, badge: pendingRequestsCount },
     { id: 'matcher', label: t.tabMatcher, icon: '✨' },
   ];
 
@@ -36,7 +38,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-4 rounded-2xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 relative cursor-pointer ${
                 isActive
                   ? 'bg-white text-slate-900 shadow-md shadow-pink-100 scale-100 text-rose-600'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
@@ -44,7 +46,12 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             >
               <span className="text-sm sm:text-base">{tab.icon}</span>
               <span className="truncate">{tab.label}</span>
-              {typeof tab.count === 'number' && (
+
+              {tab.badge && tab.badge > 0 ? (
+                <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-black text-[10px] shadow-sm animate-bounce">
+                  🔔 {tab.badge}
+                </span>
+              ) : typeof tab.count === 'number' ? (
                 <span
                   className={`text-[10px] font-extrabold px-2 py-0.2 rounded-full ${
                     isActive ? 'bg-pink-100 text-pink-700' : 'bg-rose-200/50 text-slate-500'
@@ -52,7 +59,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
                 >
                   {tab.count}
                 </span>
-              )}
+              ) : null}
             </button>
           );
         })}

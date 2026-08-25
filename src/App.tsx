@@ -647,8 +647,29 @@ export function App() {
         onTabChange={setActiveTab}
         restaurantCount={restaurants.length}
         friendCount={friends.length}
+        pendingRequestsCount={friendRequests.filter((r) => r.status === "pending").length}
         lang={lang}
       />
+
+      {/* 🔔 Real-Time Floating Friend Request Notification Banner */}
+      {friendRequests.filter((r) => r.status === 'pending').length > 0 && activeTab !== 'friends' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2">
+          <div 
+            onClick={() => setActiveTab('friends')}
+            className="bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white p-3 rounded-2xl shadow-lg flex items-center justify-between cursor-pointer active:scale-98 transition-all animate-fadeIn"
+          >
+            <div className="flex items-center gap-2 text-xs font-black truncate">
+              <span className="text-base animate-bounce">🔔</span>
+              <span>
+                {friendRequests.filter((r) => r.status === 'pending').length} 則新的吃貨交友邀請！點擊立即審核同意
+              </span>
+            </div>
+            <span className="text-xs bg-white text-purple-950 font-black px-2.5 py-1 rounded-xl shadow-xs shrink-0">
+              前往查看 ➔
+            </span>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-4">
         {activeTab === 'map' && (

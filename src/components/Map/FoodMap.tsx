@@ -130,7 +130,7 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
 }
 
 
-// 📍 Real-Time GPS Locate Me Control Button
+// 📍 Real-Time GPS Locate Me Control Button (100% Click Responsive)
 function LocateMeControl({ 
   userLocation, 
   lang 
@@ -140,36 +140,55 @@ function LocateMeControl({
 }) {
   const map = useMap();
   const [isLocating, setIsLocating] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const handleLocateMe = () => {
+  React.useEffect(() => {
+    if (containerRef.current) {
+      L.DomEvent.disableClickPropagation(containerRef.current);
+      L.DomEvent.disableScrollPropagation(containerRef.current);
+    }
+  }, []);
+
+  const handleLocateMe = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setIsLocating(true);
+    // Instant Fly to known location
+    map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 0.7 });
+
+    // Query fresh GPS coordinates in background
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setIsLocating(false);
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          map.flyTo([lat, lng], 16, { duration: 1 });
+          map.flyTo([lat, lng], 16, { duration: 0.7 });
         },
         (err) => {
           setIsLocating(false);
-          console.log('GPS error, flying to stored userLocation', err);
-          map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1 });
+          console.log('GPS lookup error, stayed at known location', err);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 6000 }
       );
     } else {
       setIsLocating(false);
-      map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1 });
     }
   };
 
   return (
-    <div className="leaflet-top leaflet-right !top-3 !right-3 !z-[1000] pointer-events-auto">
+    <div 
+      ref={containerRef}
+      className="leaflet-top leaflet-right !top-3 !right-3 !z-[1000] pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
+        type="button"
         onClick={handleLocateMe}
         disabled={isLocating}
-        className="bg-white/95 hover:bg-white text-slate-800 hover:text-blue-600 px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200/90 font-black text-xs flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition-all cursor-pointer group"
+        className="bg-white hover:bg-slate-50 text-slate-800 hover:text-blue-600 px-3.5 py-2.5 rounded-2xl shadow-xl border border-slate-300/90 font-black text-xs flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition-all cursor-pointer group"
         title="定位至我的現在位置"
       >
         <div className="relative">
@@ -179,8 +198,8 @@ function LocateMeControl({
             <LocateFixed className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
           )}
         </div>
-        <span className="hidden sm:inline">
-          {isLocating ? 'GPS 定位中...' : (lang === 'zh-TW' ? '現在位置' : '現在地')}
+        <span className="font-extrabold">
+          {isLocating ? '定位中...' : (lang === 'zh-TW' ? '現在位置' : '現在地')}
         </span>
       </button>
     </div>
