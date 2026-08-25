@@ -83,7 +83,7 @@ export interface GoogleUser {
   photoURL?: string | null;
 }
 
-// 🔵 1-Click Google Sign-In & Account Linking
+// 🔵 1-Click Google Sign-In & Account Linking (PWA & Mobile Standalone Compatible)
 export async function signInWithGoogle(): Promise<{
   success: boolean;
   user?: GoogleUser;
@@ -98,22 +98,48 @@ export async function signInWithGoogle(): Promise<{
       };
     }
 
-    const result = await fb.authMod.signInWithPopup(fb.auth, fb.googleProvider);
-    const u = result.user;
-    return {
-      success: true,
-      user: {
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        photoURL: u.photoURL,
-      },
-      message: `🎉 成功登入 Google 帳號：${u.displayName || u.email}！`,
-    };
+    const isStandalone = 
+      (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
+      (typeof window !== 'undefined' && (window.navigator as any).standalone === true);
+
+    // On PWA Standalone (Installed on Home Screen), Popups are blocked by iOS/Android webviews.
+    // Use signInWithRedirect for 100% reliability in standalone mode.
+    if (isStandalone) {
+      await fb.authMod.signInWithRedirect(fb.auth, fb.googleProvider);
+      return {
+        success: true,
+        message: '正在跳轉至 Google 官方安全登入頁面...',
+      };
+    }
+
+    try {
+      const result = await fb.authMod.signInWithPopup(fb.auth, fb.googleProvider);
+      const u = result.user;
+      return {
+        success: true,
+        user: {
+          uid: u.uid,
+          email: u.email,
+          displayName: u.displayName,
+          photoURL: u.photoURL,
+        },
+        message: `🎉 成功登入 Google 帳號：${u.displayName || u.email}！`,
+      };
+    } catch (popupErr: any) {
+      // If browser blocked popup, fallback immediately to redirect
+      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
+        await fb.authMod.signInWithRedirect(fb.auth, fb.googleProvider);
+        return {
+          success: true,
+          message: '彈跳視窗受限，正在為您切換至 Google 安全跳轉登入...',
+        };
+      }
+      throw popupErr;
+    }
   } catch (err: any) {
     console.error('Google Sign-In Error:', err);
     if (err.code === 'auth/popup-closed-by-user') {
-      return { success: false, message: '已取消 Google 登入視窗。' };
+      return { success: false, message: '已取消 Google 登入。' };
     }
     if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
       return { 
@@ -123,9 +149,31 @@ export async function signInWithGoogle(): Promise<{
     }
     return {
       success: false,
-      message: `Google 登入失敗：${err.message || '請確認網路與 Firebase 授權'}`,
+      message: `Google 登入失敗：${err.message || '請確認已將網域加入 Firebase 已授權網域'}`,
     };
   }
+}
+
+// 📲 Check Redirect Auth Result on App Mount (Crucial for PWA Standalone Mode)
+export async function checkAndHandleRedirectResult(): Promise<GoogleUser | null> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return null;
+
+    const result = await fb.authMod.getRedirectResult(fb.auth);
+    if (result && result.user) {
+      const u = result.user;
+      return {
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        photoURL: u.photoURL,
+      };
+    }
+  } catch (err) {
+    console.error('Redirect result check error', err);
+  }
+  return null;
 }
 
 // 🔴 Sign Out

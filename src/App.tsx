@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
-import { publishPublicRestaurantToCloud, fetchCommunityPublicRestaurants } from './utils/firebase';
+import { publishPublicRestaurantToCloud, fetchCommunityPublicRestaurants, checkAndHandleRedirectResult, fetchUserDataFromCloud } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
   loadRestaurants, 
@@ -69,6 +69,36 @@ export function App() {
   });
 
   
+  
+  // 📲 Check for PWA Google Redirect Login on Mount
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        const gUser = await checkAndHandleRedirectResult();
+        if (gUser) {
+          const cloudRes = await fetchUserDataFromCloud(gUser.uid);
+          if (cloudRes.success && cloudRes.data && cloudRes.data.profile) {
+            handleLoginSuccess({
+              foodieId: cloudRes.data.profile.foodieId,
+              pinCode: cloudRes.data.profile.pinCode,
+              profile: {
+                ...cloudRes.data.profile,
+                googleEmail: gUser.email || undefined,
+                googleUid: gUser.uid,
+              },
+              restaurants: cloudRes.data.restaurants || [],
+              friends: cloudRes.data.friends || [],
+              meetups: cloudRes.data.meetups || [],
+            });
+          }
+        }
+      } catch (err) {
+        console.error('PWA redirect auth check failed', err);
+      }
+    };
+    checkRedirect();
+  }, []);
+
   // 🌐 Fetch Community Public Restaurants & Purge Dummy Mock Templates
   useEffect(() => {
     purgeMockTestData();
