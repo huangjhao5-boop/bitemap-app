@@ -391,8 +391,8 @@ export function App() {
   };
 
 
-  const handleAcceptFriendRequest = (req: FriendRequest) => {
-    respondToCloudFriendRequest(req.id, 'accepted', userProfile);
+    const handleAcceptFriendRequest = (req: FriendRequest) => {
+    respondToCloudFriendRequest(req.id, 'accepted', userProfile, req.senderFoodieId);
     
     const newFriend: Friend = {
       id: 'f_' + req.senderFoodieId.replace(/[^a-zA-Z0-9_]/g, '_'),
@@ -409,7 +409,10 @@ export function App() {
     handleSaveFriend(newFriend);
 
     setFriendRequests((prev) => {
-      const updatedRequests = prev.filter((r) => r.id !== req.id);
+      const cleanSender = (req.senderFoodieId || '').toLowerCase().trim();
+      const updatedRequests = prev.filter(
+        (r) => (r.senderFoodieId || '').toLowerCase().trim() !== cleanSender && r.id !== req.id
+      );
       saveFriendRequests(updatedRequests);
       return updatedRequests;
     });
@@ -662,6 +665,18 @@ export function App() {
   };
 
 
+    // 📬 Pure Active Pending Friend Requests (Filtered: Strictly excludes anyone who is already in friends list!)
+  const validPendingRequests = useMemo(() => {
+    return friendRequests.filter((r) => {
+      if (r.status !== 'pending') return false;
+      const cleanSender = (r.senderFoodieId || '').toLowerCase().trim();
+      const isAlreadyFriend = friends.some(
+        (f) => (f.foodieId || '').toLowerCase().trim() === cleanSender
+      );
+      return !isAlreadyFriend;
+    });
+  }, [friendRequests, friends]);
+
   const cities = useMemo(() => {
     const set = new Set(restaurants.map((r) => r.city).filter(Boolean));
     return Array.from(set);
@@ -808,12 +823,12 @@ export function App() {
         onTabChange={setActiveTab}
         restaurantCount={restaurants.length}
         friendCount={friends.length}
-        pendingRequestsCount={friendRequests.filter((r) => r.status === "pending").length}
+        pendingRequestsCount={validPendingRequests.length}
         lang={lang}
       />
 
       {/* 🔔 Real-Time Floating Friend Request Notification Banner */}
-      {friendRequests.filter((r) => r.status === 'pending').length > 0 && activeTab !== 'friends' && (
+      {validPendingRequests.length > 0 && activeTab !== 'friends' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2">
           <div 
             onClick={() => setActiveTab('friends')}
@@ -822,7 +837,7 @@ export function App() {
             <div className="flex items-center gap-2 text-xs font-black truncate">
               <span className="text-base animate-bounce">🔔</span>
               <span>
-                {friendRequests.filter((r) => r.status === 'pending').length} 則新的吃貨交友邀請！點擊立即審核同意
+                {validPendingRequests.length} 則新的吃貨交友邀請！點擊立即審核同意
               </span>
             </div>
             <span className="text-xs bg-white text-purple-950 font-black px-2.5 py-1 rounded-xl shadow-xs shrink-0">
@@ -985,7 +1000,7 @@ export function App() {
             friends={friends}
             restaurants={restaurants}
             meetups={meetups}
-            friendRequests={friendRequests}
+            friendRequests={validPendingRequests}
             userProfile={userProfile}
             lang={lang}
             onSaveFriend={handleSaveFriend}

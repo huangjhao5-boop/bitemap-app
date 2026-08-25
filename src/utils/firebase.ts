@@ -639,11 +639,12 @@ export async function syncFriendsWithLatestProfiles(
   }
 }
 
-// 🤝 Respond to Cloud Friend Request (Accept or Decline with full profile payload for 2-way sync)
+// 🤝 Respond to Cloud Friend Request (Accept or Decline with full profile payload + Auto-Purge duplicate pending requests)
 export async function respondToCloudFriendRequest(
   requestId: string,
   status: 'accepted' | 'declined',
-  responderProfile?: UserProfile
+  responderProfile?: UserProfile,
+  senderFoodieId?: string
 ): Promise<void> {
   try {
     const fb = await loadFirebaseModules();
@@ -661,6 +662,32 @@ export async function respondToCloudFriendRequest(
       receiverCity: responderProfile?.defaultCity || '',
     });
     console.log('✅ Friend request response sent to Firestore:', requestId, status);
+
+    // Auto-resolve any other pending requests between these two users
+    if (responderProfile?.foodieId && senderFoodieId) {
+      try {
+        const cleanReceiver = responderProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+        const cleanSender = senderFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+        const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+        const q = fb.firestoreMod.query(colRef, fb.firestoreMod.where('targetFoodieId', '==', cleanReceiver));
+        const snap = await fb.firestoreMod.getDocs(q);
+        const batch = fb.firestoreMod.writeBatch(fb.db);
+        let batchCount = 0;
+        snap.forEach((d: any) => {
+          const data = d.data();
+          if (data.senderFoodieId === cleanSender && data.status === 'pending') {
+            batch.update(d.ref, { status, respondedAt: new Date().toISOString() });
+            batchCount++;
+          }
+        });
+        if (batchCount > 0) {
+          await batch.commit();
+          console.log('🧹 Cleaned up duplicate pending requests in Firestore:', batchCount);
+        }
+      } catch (err) {
+        console.warn('Batch duplicate request cleanup error', err);
+      }
+    }
   } catch (err) {
     console.error('Failed to respond to cloud friend request', err);
   }
