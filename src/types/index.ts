@@ -29,6 +29,16 @@ export interface Friend {
   notes?: string;
 }
 
+export type DishRating = 'must_eat' | 'tasty' | 'mediocre' | 'avoid';
+
+export interface DishItem {
+  id: string;
+  name: string;
+  price?: string;
+  rating?: DishRating;
+  note?: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -50,6 +60,8 @@ export interface Restaurant {
   recommendedByFriendIds?: string[];
   dinedWithFriendIds?: string[];
   coverImage?: string;
+  menuImages?: string[];
+  menuDishes?: DishItem[];
   visibility?: 'public' | 'friends_only' | 'private';
   authorFoodieId?: string;
   authorName?: string;

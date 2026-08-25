@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Restaurant, Friend, RestaurantRatingTag, ShortVideoSource } from '../../types';
+import type { Restaurant, Friend, RestaurantRatingTag, ShortVideoSource, DishItem, DishRating } from '../../types';
+import { parseMenuTextToDishes, processMenuImage } from '../../utils/menuOcr';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText } from '../../utils/videoParser';
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Wand2,
   Check,
+  FileText,
   Globe,
   Users,
   Lock,
@@ -56,6 +58,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
   // Smart Auto-Fill Input State
   const [smartInputText, setSmartInputText] = useState('');
+  const menuFileInputRef = useRef<HTMLInputElement>(null);
+  const [menuImages, setMenuImages] = useState<string[]>([]);
+  const [menuDishes, setMenuDishes] = useState<DishItem[]>([]);
+  const [menuTextInput, setMenuTextInput] = useState('');
+  const [showTextMenuInput, setShowTextMenuInput] = useState(false);
+  const [isProcessingMenu, setIsProcessingMenu] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [autoFillSuccess, setAutoFillSuccess] = useState(false);
@@ -123,6 +132,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setGoogleMapsUrl('');
       setPriceRange('$$');
       setRatingTag('must_eat');
+      setMenuImages([]);
+      setMenuDishes([]);
       setVisibility('public');
       setVisitCount(1);
       setLastVisitedDate(new Date().toISOString().split('T')[0]);
@@ -148,6 +159,92 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
   // Smart Auto-Fill Logic
   
+  
+  // 📷 Handle Menu Photo Upload & Auto Parsing
+  const handleMenuPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingMenu(true);
+    try {
+      const result = await processMenuImage(file);
+      setMenuImages((prev) => [...prev, result.imageDataUrl]);
+
+      if (result.extractedDishes.length > 0) {
+        setMenuDishes((prev) => [...prev, ...result.extractedDishes]);
+      } else {
+        setShowTextMenuInput(true);
+      }
+    } catch (err) {
+      console.error('Menu processing error', err);
+    } finally {
+      setIsProcessingMenu(false);
+      e.target.value = '';
+    }
+  };
+
+  // 📝 Parse Raw Text to Dishes
+  const handleParseMenuText = () => {
+    if (!menuTextInput.trim()) return;
+    const extracted = parseMenuTextToDishes(menuTextInput);
+    if (extracted.length > 0) {
+      setMenuDishes((prev) => {
+        const existingNames = new Set(prev.map((d) => d.name));
+        const newItems = extracted.filter((d) => !existingNames.has(d.name));
+        return [...prev, ...newItems];
+      });
+      setMenuTextInput('');
+      setShowTextMenuInput(false);
+    }
+  };
+
+  // 🏷️ Set Dish Rating & Auto Sync to Must-Eat / Avoid lists
+  const handleSetDishRating = (dishId: string, rating?: DishRating) => {
+    setMenuDishes((prev) =>
+      prev.map((d) => {
+        if (d.id === dishId) {
+          const newRating = d.rating === rating ? undefined : rating;
+
+          if (newRating === 'must_eat') {
+            if (!mustEatDishes.includes(d.name)) setMustEatDishes((m) => [...m, d.name]);
+            setAvoidDishes((a) => a.filter((item) => item !== d.name));
+          } else if (newRating === 'avoid') {
+            if (!avoidDishes.includes(d.name)) setAvoidDishes((a) => [...a, d.name]);
+            setMustEatDishes((m) => m.filter((item) => item !== d.name));
+          } else {
+            setMustEatDishes((m) => m.filter((item) => item !== d.name));
+            setAvoidDishes((a) => a.filter((item) => item !== d.name));
+          }
+
+          return { ...d, rating: newRating };
+        }
+        return d;
+      })
+    );
+  };
+
+  // ✏️ Update Dish Name (Manual correction)
+  const handleUpdateDishName = (dishId: string, newName: string) => {
+    setMenuDishes((prev) =>
+      prev.map((d) => (d.id === dishId ? { ...d, name: newName } : d))
+    );
+  };
+
+  // 🗑️ Remove Dish Item
+  const handleRemoveDishItem = (dishId: string) => {
+    setMenuDishes((prev) => prev.filter((d) => d.id !== dishId));
+  };
+
+  // ➕ Add Single Custom Dish
+  const handleAddCustomDish = () => {
+    const newDish: DishItem = {
+      id: 'dish_' + Date.now(),
+      name: '',
+      rating: undefined,
+    };
+    setMenuDishes((prev) => [...prev, newDish]);
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -610,111 +707,280 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Dish Level (Must-Eat vs Dish-Specific Avoids) */}
+          {/* Section 3: 📸 Smart Menu OCR & Interactive Dish Tagger */}
           <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>🍽️</span> {lang === 'zh-TW' ? '餐點層級：必吃招牌 vs 特定雷菜' : 'メニュー別評価：名物 vs 避けるべき料理'}
-            </h3>
+            <div className="flex items-center justify-between border-b pb-1">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span>📋</span> {lang === 'zh-TW' ? '菜單圖片上傳 & 菜色點選評價' : 'メニュー写真・料理別評価'}
+              </h3>
 
-            {/* Must-Eat Dishes */}
-            <div>
-              <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-                <span>{lang === 'zh-TW' ? '🌟 此店必點招牌餐點' : '🌟 必食名物メニュー'}</span>
-              </label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder={lang === 'zh-TW' ? '例如：濃厚干貝沾麵、焦糖布丁' : '例：特製つけ麺、焦がしキャラメルプリン'}
-                  value={newMustEatInput}
-                  onChange={(e) => setNewMustEatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddMustEat();
-                    }
-                  }}
-                  className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-amber-50/40 font-medium"
-                />
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleAddMustEat}
-                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-colors"
+                  onClick={() => menuFileInputRef.current?.click()}
+                  disabled={isProcessingMenu}
+                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95"
                 >
-                  <Plus className="w-4 h-4" />
-                  {t.btnAdd}
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>{isProcessingMenu ? '處理中...' : '📷 上傳菜單照片'}</span>
                 </button>
-              </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {mustEatDishes.map((dish, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs"
-                  >
-                    <span>{dish}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMustEat(i)}
-                      className="text-amber-700 hover:text-rose-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowTextMenuInput(!showTextMenuInput)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-colors cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5 inline mr-1" />
+                  <span>貼上菜單文字</span>
+                </button>
               </div>
             </div>
 
-            {/* Dish-Specific Avoids */}
-            <div>
-              <label className="block text-xs font-bold text-rose-900 mb-1 flex items-center gap-1">
-                <ThumbsDown className="w-3.5 h-3.5 text-rose-600" />
-                <span>{lang === 'zh-TW' ? '❌ 此店特定雷菜（去這間店時千萬別點這道）' : '❌ この店のNGメニュー（特定料理の地雷）'}</span>
-              </label>
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder={lang === 'zh-TW' ? '例如：炸餃子太乾、飲料死甜人工感' : '例：餃子がパサつく、ドリンクが甘すぎる'}
-                  value={newAvoidInput}
-                  onChange={(e) => setNewAvoidInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddAvoidDish();
-                    }
-                  }}
-                  className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 bg-rose-50/40 font-medium"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddAvoidDish}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t.btnAdd}
-                </button>
-              </div>
+            {/* Hidden Menu File Input */}
+            <input
+              type="file"
+              ref={menuFileInputRef}
+              onChange={handleMenuPhotoUpload}
+              accept="image/*"
+              className="hidden"
+            />
 
-              <div className="flex flex-wrap gap-1.5">
-                {avoidDishes.map((dish, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 text-xs font-medium bg-rose-100 text-rose-900 px-2.5 py-1 rounded-lg border border-rose-200 line-through decoration-rose-600 shadow-2xs"
-                  >
-                    <span>{dish}</span>
+            {/* Menu Photo Gallery Preview */}
+            {menuImages.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto py-1">
+                {menuImages.map((img, idx) => (
+                  <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-300 shadow-2xs shrink-0 group">
+                    <img src={img} alt="菜單" className="w-full h-full object-cover" />
                     <button
                       type="button"
-                      onClick={() => handleRemoveAvoidDish(i)}
-                      className="text-rose-700 hover:text-rose-900 no-underline"
+                      onClick={() => setMenuImages((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-rose-600 text-white rounded-lg transition-colors cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
-                  </span>
+                  </div>
                 ))}
               </div>
-            </div>
+            )}
+
+            {/* Batch Paste Text Menu Box */}
+            {showTextMenuInput && (
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2 animate-fadeIn">
+                <label className="block text-xs font-bold text-slate-700">
+                  貼上或輸入菜單文字（每行一道菜，系統會自動拆解）：
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="濃厚豚骨拉麵 240元\n辛味噌拉麵 260元\n日式煎餃 80元\n唐揚炸雞 120元"
+                  value={menuTextInput}
+                  onChange={(e) => setMenuTextInput(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white font-mono"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTextMenuInput(false)}
+                    className="px-3 py-1 text-xs text-slate-500 font-bold hover:bg-slate-200 rounded-lg"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleParseMenuText}
+                    className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-2xs cursor-pointer"
+                  >
+                    ✨ 自動解析為菜色列表
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 🍽️ Interactive Dishes Tagger List (With Inline Edit Correction) */}
+            {menuDishes.length > 0 ? (
+              <div className="space-y-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span>🍽️ 點擊標籤直接為菜色評分（可隨時修改菜名訂正）：</span>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomDish}
+                    className="text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>新增菜色</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {menuDishes.map((dish) => (
+                    <div
+                      key={dish.id}
+                      className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all hover:border-slate-300"
+                    >
+                      {/* Dish Name (Editable Input for instant typo correction) */}
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={dish.name}
+                          onChange={(e) => handleUpdateDishName(dish.id, e.target.value)}
+                          placeholder="菜色名稱 (點此修改訂正)"
+                          className="w-full text-xs font-bold text-slate-800 px-2 py-1 rounded-lg border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-indigo-50/30 transition-colors"
+                        />
+                        {dish.price && (
+                          <span className="text-[10px] font-mono text-slate-400 font-bold shrink-0">
+                            {dish.price}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 4-Level Dish Taste Rating Buttons */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSetDishRating(dish.id, 'must_eat')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            dish.rating === 'must_eat'
+                              ? 'bg-amber-500 text-white shadow-2xs ring-1 ring-amber-300'
+                              : 'bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
+                          }`}
+                        >
+                          🌟 必吃
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetDishRating(dish.id, 'tasty')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            dish.rating === 'tasty'
+                              ? 'bg-emerald-600 text-white shadow-2xs ring-1 ring-emerald-300'
+                              : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+                          }`}
+                        >
+                          👍 好吃
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetDishRating(dish.id, 'mediocre')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            dish.rating === 'mediocre'
+                              ? 'bg-slate-600 text-white shadow-2xs ring-1 ring-slate-300'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          😐 普通
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetDishRating(dish.id, 'avoid')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                            dish.rating === 'avoid'
+                              ? 'bg-rose-600 text-white shadow-2xs ring-1 ring-rose-300'
+                              : 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-700'
+                          }`}
+                        >
+                          ❌ 踩雷
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDishItem(dish.id)}
+                          className="p-1 text-slate-300 hover:text-rose-600 rounded-md transition-colors cursor-pointer ml-0.5"
+                          title="刪除此道菜"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Quick Manual Input Fallback */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-200">
+                {/* Must-Eat Dishes */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                    <span>{lang === 'zh-TW' ? '🌟 此店必點招牌' : '🌟 必食名物メニュー'}</span>
+                  </label>
+                  <div className="flex gap-1.5 mb-1.5">
+                    <input
+                      type="text"
+                      placeholder="手動新增必吃招牌"
+                      value={newMustEatInput}
+                      onChange={(e) => setNewMustEatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddMustEat();
+                        }
+                      }}
+                      className="flex-1 text-xs px-2.5 py-1.5 rounded-xl border border-amber-300 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddMustEat}
+                      className="px-2.5 py-1.5 bg-amber-600 text-white rounded-xl text-xs font-bold"
+                    >
+                      {t.btnAdd}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {mustEatDishes.map((dish, i) => (
+                      <span key={i} className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                        <span>🌟 {dish}</span>
+                        <button type="button" onClick={() => handleRemoveMustEat(i)}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Avoid Dishes */}
+                <div>
+                  <label className="block text-xs font-bold text-rose-900 mb-1 flex items-center gap-1">
+                    <ThumbsDown className="w-3.5 h-3.5 text-rose-600" />
+                    <span>{lang === 'zh-TW' ? '❌ 此店特定雷菜' : '❌ 避けるべき料理'}</span>
+                  </label>
+                  <div className="flex gap-1.5 mb-1.5">
+                    <input
+                      type="text"
+                      placeholder="手動新增特定雷菜"
+                      value={newAvoidInput}
+                      onChange={(e) => setNewAvoidInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddAvoidDish();
+                        }
+                      }}
+                      className="flex-1 text-xs px-2.5 py-1.5 rounded-xl border border-rose-300 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddAvoidDish}
+                      className="px-2.5 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold"
+                    >
+                      {t.btnAdd}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {avoidDishes.map((dish, i) => (
+                      <span key={i} className="bg-rose-100 text-rose-900 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                        <span>❌ {dish}</span>
+                        <button type="button" onClick={() => handleRemoveAvoidDish(i)}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
+          
           {/* Section 4: Short Videos */}
           <div className="space-y-3 pt-2">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">

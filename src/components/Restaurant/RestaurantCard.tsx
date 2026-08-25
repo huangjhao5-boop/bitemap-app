@@ -62,6 +62,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
 }) => {
   const t = translations[lang];
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showFullMenu, setShowFullMenu] = useState(false);
   const [translatedMustEat, setTranslatedMustEat] = useState<string[]>([]);
   const [translatedAvoid, setTranslatedAvoid] = useState<string[]>([]);
   const [translatedNotes, setTranslatedNotes] = useState<string>('');
@@ -490,6 +491,65 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          
+          {/* 📋 Evaluated Menu Dishes Drawer */}
+          {restaurant.menuDishes && restaurant.menuDishes.length > 0 && (
+            <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-slate-800 flex items-center gap-1">
+                  <span>📋</span>
+                  <span>{lang === 'zh-TW' ? `菜單品項評價 (${restaurant.menuDishes.length} 道)` : `メニュー評価 (${restaurant.menuDishes.length}品)`}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFullMenu(!showFullMenu)}
+                  className="text-indigo-600 hover:text-indigo-800 font-bold text-[11px] cursor-pointer"
+                >
+                  {showFullMenu ? '收合' : '展開完整菜單'}
+                </button>
+              </div>
+
+              {showFullMenu && (
+                <div className="space-y-1.5 pt-1 animate-fadeIn max-h-48 overflow-y-auto pr-1">
+                  {restaurant.menuDishes.map((dish) => (
+                    <div
+                      key={dish.id}
+                      className="bg-white p-2 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-bold text-slate-800 truncate">{dish.name}</span>
+                        {dish.price && <span className="text-[10px] text-slate-400 font-mono">{dish.price}</span>}
+                      </div>
+
+                      <div className="shrink-0">
+                        {dish.rating === 'must_eat' && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-black text-[10px]">
+                            🌟 必吃
+                          </span>
+                        )}
+                        {dish.rating === 'tasty' && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white font-black text-[10px]">
+                            👍 好吃
+                          </span>
+                        )}
+                        {dish.rating === 'mediocre' && (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-500 text-white font-black text-[10px]">
+                            😐 普通
+                          </span>
+                        )}
+                        {dish.rating === 'avoid' && (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white font-black text-[10px]">
+                            ❌ 踩雷
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
