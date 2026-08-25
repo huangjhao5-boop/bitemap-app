@@ -298,7 +298,7 @@ export async function publishPublicRestaurantToCloud(
   }
 }
 
-// 🌐 Real-Time WebSocket Listener for All Community Public Restaurants (onSnapshot)
+// 🌐 Real-Time WebSocket Listener for All Community Public Restaurants (onSnapshot from both public feed & accounts)
 export async function listenToCommunityPublicRestaurantsRealtime(
   onUpdate: (restaurants: Restaurant[]) => void
 ): Promise<() => void> {
@@ -306,19 +306,68 @@ export async function listenToCommunityPublicRestaurantsRealtime(
     const fb = await loadFirebaseModules();
     if (!fb) return () => {};
 
-    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_restaurants');
-    const unsub = fb.firestoreMod.onSnapshot(colRef, (snap: any) => {
-      const list: Restaurant[] = [];
-      snap.forEach((docSnap: any) => {
-        list.push(docSnap.data() as Restaurant);
-      });
-      console.log('🌐 Live community public restaurants updated:', list.length);
-      onUpdate(list);
-    }, (err: any) => {
-      console.warn('Realtime community public restaurant error', err);
-    });
+    const unsubs: (() => void)[] = [];
+    const directPublicMap = new Map<string, Restaurant>();
+    const accountPublicMap = new Map<string, Restaurant>();
 
-    return unsub;
+    const emitCombined = () => {
+      const mergedMap = new Map<string, Restaurant>();
+      // 1. Account public restaurants
+      accountPublicMap.forEach((r, k) => mergedMap.set(k, r));
+      // 2. Direct public collection (takes precedence)
+      directPublicMap.forEach((r, k) => mergedMap.set(k, r));
+
+      const list = Array.from(mergedMap.values());
+      console.log('🌐 Live combined community public restaurants count:', list.length);
+      onUpdate(list);
+    };
+
+    // 1. Listen to bitemap_public_restaurants collection
+    const pubColRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_restaurants');
+    const pubUnsub = fb.firestoreMod.onSnapshot(pubColRef, (snap: any) => {
+      directPublicMap.clear();
+      snap.forEach((docSnap: any) => {
+        const data = docSnap.data() as Restaurant;
+        directPublicMap.set(data.id, data);
+      });
+      emitCombined();
+    }, (err: any) => {
+      console.warn('Realtime public collection error', err);
+    });
+    unsubs.push(pubUnsub);
+
+    // 2. Listen to all bitemap_accounts to gather all public restaurants across all foodies
+    const accColRef = fb.firestoreMod.collection(fb.db, 'bitemap_accounts');
+    const accUnsub = fb.firestoreMod.onSnapshot(accColRef, (snap: any) => {
+      accountPublicMap.clear();
+      snap.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        const cleanId = docSnap.id;
+        const authorName = data.profile?.name || cleanId;
+        const authorAvatar = data.profile?.avatar || '🥢';
+        if (Array.isArray(data.restaurants)) {
+          data.restaurants.forEach((r: Restaurant) => {
+            // If visibility is explicitly public, or not private and not friends_only
+            if (r.visibility === 'public') {
+              accountPublicMap.set(r.id, {
+                ...r,
+                authorFoodieId: cleanId,
+                authorName,
+                authorAvatar,
+              });
+            }
+          });
+        }
+      });
+      emitCombined();
+    }, (err: any) => {
+      console.warn('Realtime accounts scan error', err);
+    });
+    unsubs.push(accUnsub);
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
   } catch (err) {
     console.error('Failed to setup realtime community listener', err);
     return () => {};
