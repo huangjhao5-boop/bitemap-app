@@ -331,92 +331,7 @@ export interface AccountRecord {
   meetups: DiningMeetup[];
 }
 
-export const INITIAL_ACCOUNT_REGISTRY: Record<string, AccountRecord> = {
-  'kaw_foodie': {
-    foodieId: 'kaw_foodie',
-    pinCode: '8888',
-    profile: {
-      foodieId: 'kaw_foodie',
-      pinCode: '8888',
-      name: '吃貨探險家 Kevin',
-      avatar: '🥢',
-      bio: '探索全城短影音美食，真心記錄必吃與避雷！',
-      defaultCity: '台北市',
-      instagramHandle: 'kaw_foodie',
-      favoriteTags: ['日式拉麵', '和牛燒肉', '手沖咖啡', '巴斯克乳酪'],
-      dislikedTags: ['不吃香菜', '怕辣'],
-      spicinessLevel: 'mild',
-      budgetPreference: '$$',
-      favoriteDrink: '無糖冰美式 / 熟成蜜香紅茶',
-    },
-    restaurants: INITIAL_RESTAURANTS,
-    friends: INITIAL_FRIENDS,
-    meetups: INITIAL_MEETUPS,
-  },
-  'annie_sweets': {
-    foodieId: 'annie_sweets',
-    pinCode: '1234',
-    profile: {
-      foodieId: 'annie_sweets',
-      pinCode: '1234',
-      name: '安妮 (日本甜點控)',
-      avatar: '🍮',
-      bio: '旅居東京3年，熱愛探訪隱藏版喫茶店！想加入你的吃貨朋友圈互相避雷！',
-      defaultCity: '東京',
-      instagramHandle: 'annie_sweets_tokyo',
-      favoriteTags: ['焦糖布丁', '抹茶聖代', '生吐司', '日式定食'],
-      dislikedTags: ['太甜死甜', '油炸物'],
-      spicinessLevel: 'none',
-      budgetPreference: '$$$',
-      favoriteDrink: '宇治抹茶拿鐵',
-    },
-    restaurants: [],
-    friends: [],
-    meetups: [],
-  },
-  'ming_ramen': {
-    foodieId: 'ming_ramen',
-    pinCode: '0000',
-    profile: {
-      foodieId: 'ming_ramen',
-      pinCode: '0000',
-      name: '小明 (拉麵狂人)',
-      avatar: '🍜',
-      bio: '全台拉麵百店巡禮中，重度豚骨愛好者。',
-      defaultCity: '台北市',
-      instagramHandle: 'ming_ramen_hunter',
-      favoriteTags: ['日式拉麵', '厚切叉燒', '濃厚豚骨', '辛味噌'],
-      dislikedTags: ['香菜', '生魚片'],
-      spicinessLevel: 'hot',
-      budgetPreference: '$$',
-      favoriteDrink: '冰涼可樂',
-    },
-    restaurants: [],
-    friends: [],
-    meetups: [],
-  },
-  'kevin_meat': {
-    foodieId: 'kevin_meat',
-    pinCode: '6666',
-    profile: {
-      foodieId: 'kevin_meat',
-      pinCode: '6666',
-      name: '凱文 (肉食聚餐王)',
-      avatar: '🥩',
-      bio: '無肉不歡！大口吃和牛大口喝酒！',
-      defaultCity: '台北市',
-      instagramHandle: 'kevin_meat_king',
-      favoriteTags: ['和牛燒肉', '麻辣鍋', '居酒屋', '精釀啤酒'],
-      dislikedTags: ['素食沙拉', '不吃辣'],
-      spicinessLevel: 'insane',
-      budgetPreference: '$$$$',
-      favoriteDrink: '精釀IPA生啤酒',
-    },
-    restaurants: [],
-    friends: [],
-    meetups: [],
-  }
-};
+export const INITIAL_ACCOUNT_REGISTRY: Record<string, AccountRecord> = {};
 
 export function loadAccountRegistry(): Record<string, AccountRecord> {
   try {
@@ -546,7 +461,6 @@ export function purgeMockTestData(): void {
     const raw = localStorage.getItem('bitemap_restaurants_v1');
     if (raw) {
       const list = JSON.parse(raw);
-      // Filter out dummy template ids (r1, r2, r3, r4)
       const realOnly = list.filter((r: any) => !['r1', 'r2', 'r3', 'r4'].includes(r.id));
       localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));
     }
@@ -555,6 +469,21 @@ export function purgeMockTestData(): void {
       const flist = JSON.parse(rawFriends);
       const realFriends = flist.filter((f: any) => !['f1', 'f2', 'f3', 'f4'].includes(f.id));
       localStorage.setItem('bitemap_friends_v1', JSON.stringify(realFriends));
+    }
+    const rawAcc = localStorage.getItem('bitemap_account_registry_v1');
+    if (rawAcc) {
+      const reg = JSON.parse(rawAcc);
+      const dummyKeys = ['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'];
+      let changed = false;
+      dummyKeys.forEach((k) => {
+        if (reg[k]) {
+          delete reg[k];
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem('bitemap_account_registry_v1', JSON.stringify(reg));
+      }
     }
   } catch (e) {
     console.error('Failed to purge mock data', e);
