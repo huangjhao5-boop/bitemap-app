@@ -357,38 +357,45 @@ export function App() {
       return { success: false, message: `⚠️ 您與【${cleanId}】已經是吃貨好友囉！無須重複添加。` };
     }
 
-    // 2. Cloud ID Verification: Check if this Foodie ID actually exists
+    // 2. Build request object
+    const newIncomingRequest: FriendRequest = {
+      id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      senderFoodieId: userProfile.foodieId || 'foodie',
+      senderName: userProfile.name || '吃貨好友',
+      senderAvatar: userProfile.avatar || '🥢',
+      favoriteTags: userProfile.favoriteTags || [],
+      dislikedTags: userProfile.dislikedTags || [],
+      bio: userProfile.bio || '透過吃貨 ID 互相加好友',
+      sentAt: new Date().toISOString().split('T')[0],
+      status: 'pending',
+    };
+
+    // 3. Optionally verify cloud account existence (non-blocking: if Firestore not enabled yet, skip)
+    let targetDisplayName = cleanId;
     try {
       const cloudCheck = await fetchFoodieAccountFromCloud(cleanId);
-      if (!cloudCheck.success || !cloudCheck.account) {
-        return { 
-          success: false, 
-          message: `❌ 查無吃貨 ID【${cleanId}】！請確認對方 ID 是否拼寫正確（對方需先在 BiteMap 註冊或設定過 ID）。` 
-        };
+      if (cloudCheck.success && cloudCheck.account) {
+        // Cloud confirmed: use real name
+        targetDisplayName = cloudCheck.account.profile?.name || cleanId;
+      } else {
+        // Cloud says not found — could be: Firestore not enabled, or account not yet synced
+        // We still allow sending the request (recipient may have different device/browser)
+        console.warn(`Cloud check: ID [${cleanId}] not found in cloud registry. Sending anyway.`);
       }
+    } catch {
+      // Cloud unreachable — skip verification, still send
+      console.warn('Cloud verification skipped (Firestore not available). Sending friend request directly.');
+    }
 
-      const targetAccount = cloudCheck.account;
-
-      const newIncomingRequest: FriendRequest = {
-        id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        senderFoodieId: userProfile.foodieId || 'foodie',
-        senderName: userProfile.name || '吃貨好友',
-        senderAvatar: userProfile.avatar || '🥢',
-        favoriteTags: userProfile.favoriteTags || [],
-        dislikedTags: userProfile.dislikedTags || [],
-        bio: userProfile.bio || '透過吃貨 ID 互相加好友',
-        sentAt: new Date().toISOString().split('T')[0],
-        status: 'pending',
-      };
-
+    // 4. Send to Firestore
+    try {
       const sendRes = await sendCloudFriendRequest(newIncomingRequest, cleanId);
       if (!sendRes.success) {
         return { success: false, message: sendRes.message };
       }
-
       return {
         success: true,
-        message: `🎉 已成功向【${targetAccount.profile?.name || cleanId}】發送好友邀請！對方將即時收到推播通知！`,
+        message: `🎉 已成功向【${targetDisplayName}】發送好友邀請！對方打開 BiteMap 即可即時看到！`,
       };
     } catch (err: any) {
       return { success: false, message: `發送失敗：${err.message || '請確認網路連線'}` };
