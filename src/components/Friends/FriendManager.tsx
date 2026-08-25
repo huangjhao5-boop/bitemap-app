@@ -229,9 +229,9 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
               <button
                 onClick={handleAddNewFriend}
                 className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs flex items-center justify-center gap-1 transition-all"
-                title="手動建立朋友口味備忘"
+                title="為長輩、小孩或未安裝 App 的家人朋友手動建立口味與避雷備忘"
               >
-                <span>📝 手動自建</span>
+                <span>📝 手動自建 (長輩/親友備忘)</span>
               </button>
             </div>
           </div>

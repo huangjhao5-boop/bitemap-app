@@ -121,6 +121,16 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+        {/* Warm Caring Explainer */}
+        <div className="px-5 py-2.5 bg-purple-50 border-b border-purple-100 flex items-start gap-2 text-[11px] text-purple-950">
+          <span className="text-sm shrink-0">💡</span>
+          <p className="leading-relaxed">
+            {lang === 'zh-TW' 
+              ? '貼心備忘：適合為長輩、小朋友或未安裝 App 的親友記錄飲食習慣（不吃牛、全素、少油軟食、怕辣等），在聚餐與挑選餐廳時自動為大家避雷！' 
+              : 'ご家族・お子様・アプリ未利用のお友達の苦手食材やアレルギーを登録しておくと、お店選びで自動回避できます！'}
+          </p>
+        </div>
+
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
           <div>
