@@ -20,7 +20,7 @@ interface FriendIdModalProps {
   userProfile: UserProfile;
   friends: Friend[];
   lang: Language;
-  onSendFriendRequest: (targetFoodieIdOrToken: string) => { success: boolean; message: string };
+  onSendFriendRequest: (targetFoodieIdOrToken: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export const FriendIdModal: React.FC<FriendIdModalProps> = ({
@@ -89,19 +89,30 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+    const [isSending, setIsSending] = useState(false);
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputCode.trim()) return;
 
-    const res = onSendFriendRequest(inputCode.trim());
-    if (res.success) {
-      setStatusMessage({ type: 'success', text: res.message });
-      setInputCode('');
-      setTimeout(() => {
-        onClose();
-      }, 1200);
-    } else {
-      setStatusMessage({ type: 'error', text: res.message });
+    setIsSending(true);
+    setStatusMessage({ type: 'success', text: '🔍 正在搜尋吃貨 ID 並發送即時邀請...' });
+
+    try {
+      const res = await onSendFriendRequest(inputCode.trim());
+      if (res.success) {
+        setStatusMessage({ type: 'success', text: res.message });
+        setInputCode('');
+        setTimeout(() => {
+          onClose();
+        }, 1800);
+      } else {
+        setStatusMessage({ type: 'error', text: res.message });
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || '發送失敗，請確認網路連線' });
+    } finally {
+      setIsSending(false);
     }
   };
 

@@ -45,13 +45,17 @@ export const FriendRequestsInbox: React.FC<FriendRequestsInboxProps> = ({
             className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-3 hover:border-amber-400 transition-all"
           >
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl shadow-2xs">
-                  {req.senderAvatar || '🥢'}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl shadow-2xs overflow-hidden shrink-0">
+                  {req.senderAvatar && (req.senderAvatar.startsWith('data:') || req.senderAvatar.startsWith('http') || req.senderAvatar.length > 20) ? (
+                    <img src={req.senderAvatar} alt={req.senderName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{req.senderAvatar || '🥢'}</span>
+                  )}
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900">{req.senderName}</h4>
-                  <p className="text-[10px] text-purple-700 font-mono font-bold">{req.senderFoodieId}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-black text-slate-900 truncate">{req.senderName}</h4>
+                  <p className="text-[10px] text-purple-700 font-mono font-bold truncate">@{req.senderFoodieId}</p>
                 </div>
               </div>
 

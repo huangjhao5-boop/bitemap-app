@@ -9,7 +9,8 @@ import {
   fetchCommunityPublicRestaurants, 
   checkAndHandleRedirectResult, 
   fetchUserDataFromCloud,
-  syncDataToCloud 
+  syncDataToCloud,
+  fetchFoodieAccountFromCloud,
 } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
@@ -341,40 +342,57 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-    const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
+      const handleSendFriendRequest = async (targetFoodieId: string): Promise<{ success: boolean; message: string }> => {
     const cleanId = targetFoodieId.trim().toLowerCase().replace(/[@#\s]/g, '');
     if (!cleanId) return { success: false, message: '請輸入好友的吃貨 ID！' };
 
-    if (cleanId === (userProfile.foodieId || '').toLowerCase()) {
+    const myCleanId = (userProfile.foodieId || '').trim().toLowerCase().replace(/[@#\s]/g, '');
+    if (cleanId === myCleanId) {
       return { success: false, message: '不能添加自己的吃貨 ID 唷！' };
     }
 
-    const alreadyFriend = friends.some((f) => f.foodieId?.toLowerCase() === cleanId);
+    // 1. Check if already friends
+    const alreadyFriend = friends.some((f) => (f.foodieId || '').toLowerCase().replace(/[@#\s]/g, '') === cleanId);
     if (alreadyFriend) {
-      return { success: false, message: '您們已經是吃貨好友囉！' };
+      return { success: false, message: `⚠️ 您與【${cleanId}】已經是吃貨好友囉！無須重複添加。` };
     }
 
-    const newIncomingRequest: FriendRequest = {
-      id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      senderFoodieId: userProfile.foodieId || 'foodie',
-      senderName: userProfile.name || '吃貨好友',
-      senderAvatar: userProfile.avatar || '🥢',
-      favoriteTags: userProfile.favoriteTags || [],
-      dislikedTags: userProfile.dislikedTags || [],
-      bio: userProfile.bio || '透過吃貨 ID 互相加好友',
-      sentAt: new Date().toISOString().split('T')[0],
-      status: 'pending',
-    };
+    // 2. Cloud ID Verification: Check if this Foodie ID actually exists
+    try {
+      const cloudCheck = await fetchFoodieAccountFromCloud(cleanId);
+      if (!cloudCheck.success || !cloudCheck.account) {
+        return { 
+          success: false, 
+          message: `❌ 查無吃貨 ID【${cleanId}】！請確認對方 ID 是否拼寫正確（對方需先在 BiteMap 註冊或設定過 ID）。` 
+        };
+      }
 
-    // Send to Google Cloud Firestore so target user's device receives notification
-    sendCloudFriendRequest(newIncomingRequest, cleanId).then((res) => {
-      console.log('Cloud Friend Request Sent:', res);
-    });
+      const targetAccount = cloudCheck.account;
 
-    return {
-      success: true,
-      message: `🚀 已向吃貨好友【${cleanId}】發送邀請！已即時送達對方的收件箱，等待對方確認同意！`,
-    };
+      const newIncomingRequest: FriendRequest = {
+        id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        senderFoodieId: userProfile.foodieId || 'foodie',
+        senderName: userProfile.name || '吃貨好友',
+        senderAvatar: userProfile.avatar || '🥢',
+        favoriteTags: userProfile.favoriteTags || [],
+        dislikedTags: userProfile.dislikedTags || [],
+        bio: userProfile.bio || '透過吃貨 ID 互相加好友',
+        sentAt: new Date().toISOString().split('T')[0],
+        status: 'pending',
+      };
+
+      const sendRes = await sendCloudFriendRequest(newIncomingRequest, cleanId);
+      if (!sendRes.success) {
+        return { success: false, message: sendRes.message };
+      }
+
+      return {
+        success: true,
+        message: `🎉 已成功向【${targetAccount.profile?.name || cleanId}】發送好友邀請！對方將即時收到推播通知！`,
+      };
+    } catch (err: any) {
+      return { success: false, message: `發送失敗：${err.message || '請確認網路連線'}` };
+    }
   };
 
   const handleSaveFriend = (friend: Friend) => {

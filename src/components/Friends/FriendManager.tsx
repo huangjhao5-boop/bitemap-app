@@ -39,7 +39,7 @@ interface FriendManagerProps {
 
   onAcceptFriendRequest: (request: FriendRequest) => void;
   onDeclineFriendRequest: (requestId: string) => void;
-  onSendFriendRequest: (targetCode: string) => { success: boolean; message: string };
+  onSendFriendRequest: (targetCode: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export const FriendManager: React.FC<FriendManagerProps> = ({
@@ -153,7 +153,10 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
       {/* 📬 Incoming Pending Friend Requests Box */}
       <FriendRequestsInbox
         requests={friendRequests}
-        onAcceptRequest={onAcceptFriendRequest}
+        onAcceptRequest={(req) => {
+          onAcceptFriendRequest(req);
+          setSubTab("friends");
+        }}
         onDeclineRequest={onDeclineFriendRequest}
       />
       {/* 📢 Sub-Tab 1: Meetup & Dining Calls Bulletin Board */}
@@ -249,8 +252,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-2xl shadow-2xs">
-                        {friend.avatar}
+                      <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-2xl shadow-2xs overflow-hidden shrink-0">
+                        {friend.avatar && (friend.avatar.startsWith('data:') || friend.avatar.startsWith('http') || friend.avatar.length > 20) ? (
+                          <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{friend.avatar || '🥢'}</span>
+                        )}
                       </div>
                       <div>
                         <h4 className="font-black text-sm text-slate-900">{friend.name}</h4>
