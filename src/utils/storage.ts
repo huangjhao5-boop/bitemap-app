@@ -241,9 +241,9 @@ export const INITIAL_MEETUPS: DiningMeetup[] = [];
 
 export function loadMeetups(): DiningMeetup[] {
   try {
-    const raw = localStorage.getItem('bitemap_meetups');
+    const raw = localStorage.getItem('bitemap_meetups_v1') || localStorage.getItem('bitemap_meetups');
     if (raw) return JSON.parse(raw);
-    localStorage.setItem('bitemap_meetups', JSON.stringify(INITIAL_MEETUPS));
+    localStorage.setItem('bitemap_meetups_v1', JSON.stringify(INITIAL_MEETUPS));
     return INITIAL_MEETUPS;
   } catch {
     return INITIAL_MEETUPS;
@@ -252,7 +252,8 @@ export function loadMeetups(): DiningMeetup[] {
 
 export function saveMeetups(meetups: DiningMeetup[]): void {
   try {
-    localStorage.setItem('bitemap_meetups', JSON.stringify(meetups));
+    localStorage.setItem('bitemap_meetups_v1', JSON.stringify(meetups));
+    localStorage.removeItem('bitemap_meetups');
     triggerAutoSync();
   } catch (err) {
     console.error('Failed to save meetups', err);
@@ -396,44 +397,78 @@ export function findFoodieProfileById(targetFoodieId: string): UserProfile | nul
 
 export function purgeMockTestData(): void {
   try {
-    const raw = localStorage.getItem('bitemap_restaurants_v1');
-    if (raw) {
-      const list = JSON.parse(raw);
-      const realOnly = list.filter((r: any) => !['r1', 'r2', 'r3', 'r4'].includes(r.id));
-      localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));
-    }
-    const rawFriends = localStorage.getItem('bitemap_friends_v1');
-    if (rawFriends) {
-      const flist = JSON.parse(rawFriends);
-      const realFriends = flist.filter((f: any) => !['f1', 'f2', 'f3', 'f4'].includes(f.id));
-      localStorage.setItem('bitemap_friends_v1', JSON.stringify(realFriends));
-    }
-    const rawMeetups = localStorage.getItem('bitemap_meetups_v1');
-    if (rawMeetups) {
-      const mlist = JSON.parse(rawMeetups);
-      const realMeetups = mlist.filter((m: any) => !['m1', 'm2'].includes(m.id));
-      localStorage.setItem('bitemap_meetups_v1', JSON.stringify(realMeetups));
-    }
+    // 1. Clean Restaurants
+    ['bitemap_restaurants_v1', 'bitemap_restaurants'].forEach((key) => {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const realOnly = list.filter((r: any) => !['r1', 'r2', 'r3', 'r4'].includes(r.id) && !r.id?.startsWith('mock_'));
+            localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));
+          }
+        } catch {}
+      }
+    });
+
+    // 2. Clean Friends
+    ['bitemap_friends_v1', 'bitemap_friends'].forEach((key) => {
+      const rawFriends = localStorage.getItem(key);
+      if (rawFriends) {
+        try {
+          const flist = JSON.parse(rawFriends);
+          if (Array.isArray(flist)) {
+            const realFriends = flist.filter((f: any) => !['f1', 'f2', 'f3', 'f4'].includes(f.id) && !f.id?.startsWith('mock_'));
+            localStorage.setItem('bitemap_friends_v1', JSON.stringify(realFriends));
+          }
+        } catch {}
+      }
+    });
+
+    // 3. Clean Meetups / Social Board (Purge m1, m2, mock_)
+    ['bitemap_meetups_v1', 'bitemap_meetups'].forEach((key) => {
+      const rawMeetups = localStorage.getItem(key);
+      if (rawMeetups) {
+        try {
+          const mlist = JSON.parse(rawMeetups);
+          if (Array.isArray(mlist)) {
+            const realMeetups = mlist.filter((m: any) => !['m1', 'm2'].includes(m.id) && !m.id?.startsWith('mock_'));
+            localStorage.setItem('bitemap_meetups_v1', JSON.stringify(realMeetups));
+            localStorage.removeItem('bitemap_meetups');
+          }
+        } catch {}
+      }
+    });
+
+    // 4. Clean Friend Requests
     const rawFreq = localStorage.getItem('bitemap_friend_requests_v1');
     if (rawFreq) {
-      const reqList = JSON.parse(rawFreq);
-      const realReqs = reqList.filter((r: any) => !r.id.startsWith('mock_') && !['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'].includes(r.senderFoodieId));
-      localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(realReqs));
+      try {
+        const reqList = JSON.parse(rawFreq);
+        if (Array.isArray(reqList)) {
+          const realReqs = reqList.filter((r: any) => !r.id?.startsWith('mock_') && !['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'].includes(r.senderFoodieId));
+          localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(realReqs));
+        }
+      } catch {}
     }
+
+    // 5. Clean Account Registry
     const rawAcc = localStorage.getItem('bitemap_account_registry_v1');
     if (rawAcc) {
-      const reg = JSON.parse(rawAcc);
-      const dummyKeys = ['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'];
-      let changed = false;
-      dummyKeys.forEach((k) => {
-        if (reg[k]) {
-          delete reg[k];
-          changed = true;
+      try {
+        const reg = JSON.parse(rawAcc);
+        const dummyKeys = ['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'];
+        let changed = false;
+        dummyKeys.forEach((k) => {
+          if (reg[k]) {
+            delete reg[k];
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem('bitemap_account_registry_v1', JSON.stringify(reg));
         }
-      });
-      if (changed) {
-        localStorage.setItem('bitemap_account_registry_v1', JSON.stringify(reg));
-      }
+      } catch {}
     }
   } catch (e) {
     console.error('Failed to purge mock data', e);
