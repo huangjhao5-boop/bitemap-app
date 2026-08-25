@@ -3,6 +3,7 @@ import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, Restau
 import type { Language } from './utils/i18n';
 import { 
   sendCloudFriendRequest,
+  listenToIncomingFriendRequests,
   fetchCloudIncomingFriendRequests,
   respondToCloudFriendRequest,
   publishPublicRestaurantToCloud, 
@@ -80,33 +81,31 @@ export function App() {
   
   
   
-  // 📬 Auto-Fetch Incoming Cloud Friend Requests from Other Devices
+  // ⚡ 0-Second Real-Time WebSocket onSnapshot Listener for Cloud Friend Requests
   useEffect(() => {
     if (!userProfile.foodieId || userProfile.foodieId === 'guest') return;
 
-    const checkIncoming = async () => {
-      try {
-        const cloudReqs = await fetchCloudIncomingFriendRequests(userProfile.foodieId);
-        if (cloudReqs && cloudReqs.length > 0) {
-          setFriendRequests((prev) => {
-            const existingIds = new Set(prev.map((r) => r.id));
-            const newOnes = cloudReqs.filter((r) => !existingIds.has(r.id));
-            if (newOnes.length > 0) {
-              const merged = [...newOnes, ...prev];
-              saveFriendRequests(merged);
-              return merged;
-            }
-            return prev;
-          });
-        }
-      } catch (err) {
-        console.error('Cloud friend request check error', err);
+    let unsub: (() => void) | null = null;
+    listenToIncomingFriendRequests(userProfile.foodieId, (incoming) => {
+      if (incoming && incoming.length > 0) {
+        setFriendRequests((prev) => {
+          const existingIds = new Set(prev.map((r) => r.id));
+          const newOnes = incoming.filter((r) => !existingIds.has(r.id));
+          if (newOnes.length > 0) {
+            const merged = [...newOnes, ...prev];
+            saveFriendRequests(merged);
+            return merged;
+          }
+          return prev;
+        });
       }
-    };
+    }).then((unsubscriber) => {
+      unsub = unsubscriber;
+    });
 
-    checkIncoming();
-    const interval = setInterval(checkIncoming, 15000); // Check every 15s
-    return () => clearInterval(interval);
+    return () => {
+      if (unsub) unsub();
+    };
   }, [userProfile.foodieId]);
 
   // 📲 Check for PWA Google Redirect Login on Mount

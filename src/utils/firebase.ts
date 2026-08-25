@@ -368,6 +368,41 @@ export async function fetchCloudIncomingFriendRequests(myFoodieId: string): Prom
   }
 }
 
+
+// ⚡ Real-Time WebSocket Listener for Incoming Friend Requests (0-second instant notification!)
+export async function listenToIncomingFriendRequests(
+  myFoodieId: string,
+  onUpdate: (requests: FriendRequest[]) => void
+): Promise<() => void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || !myFoodieId || myFoodieId === 'guest') return () => {};
+
+    const cleanMyId = myFoodieId.toLowerCase().trim();
+    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+    const q = fb.firestoreMod.query(
+      colRef,
+      fb.firestoreMod.where('targetFoodieId', '==', cleanMyId),
+      fb.firestoreMod.where('status', '==', 'pending')
+    );
+
+    const unsubscribe = fb.firestoreMod.onSnapshot(q, (snapshot: any) => {
+      const list: FriendRequest[] = [];
+      snapshot.forEach((docSnap: any) => {
+        list.push(docSnap.data() as FriendRequest);
+      });
+      onUpdate(list);
+    }, (err: any) => {
+      console.error('onSnapshot friend requests error', err);
+    });
+
+    return unsubscribe;
+  } catch (err) {
+    console.error('Failed to setup real-time friend request listener', err);
+    return () => {};
+  }
+}
+
 // 🤝 Respond to Cloud Friend Request (Accept or Decline)
 export async function respondToCloudFriendRequest(
   requestId: string,
