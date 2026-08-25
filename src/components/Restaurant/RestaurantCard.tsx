@@ -123,6 +123,21 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                       <span>{lang === 'zh-TW' ? '☠️ 黑名單' : '☠️ NG店'}</span>
                     </span>
                   )}
+
+                  {/* Visibility Badge */}
+                  {restaurant.visibility === 'private' ? (
+                    <span className="px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold" title="僅自己可見">
+                      🔒 私密
+                    </span>
+                  ) : restaurant.visibility === 'friends_only' ? (
+                    <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold" title="僅吃貨好友可見">
+                      👥 好友
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold" title="全公開（遊客與社群可見）">
+                      🌐 公開
+                    </span>
+                  )}
                 </div>
 
                 {/* Subtitle: Category & Price & City */}

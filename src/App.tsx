@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
+import { publishPublicRestaurantToCloud, fetchCommunityPublicRestaurants } from './utils/firebase';
+import { purgeMockTestData } from './utils/storage';
 import { 
   loadRestaurants, 
   saveRestaurants, 
@@ -65,6 +67,32 @@ export function App() {
       isGps: false,
     };
   });
+
+  
+  // 🌐 Fetch Community Public Restaurants & Purge Dummy Mock Templates
+  useEffect(() => {
+    purgeMockTestData();
+    const loadCommunity = async () => {
+      try {
+        const publicList = await fetchCommunityPublicRestaurants();
+        if (publicList && publicList.length > 0) {
+          setRestaurants((prev) => {
+            const existingIds = new Set(prev.map((r) => r.id));
+            const merged = [...prev];
+            publicList.forEach((pub) => {
+              if (!existingIds.has(pub.id)) {
+                merged.push(pub);
+              }
+            });
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load community public restaurants', err);
+      }
+    };
+    loadCommunity();
+  }, []);
 
   // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');

@@ -207,3 +207,54 @@ export async function fetchUserDataFromCloud(userId: string): Promise<{
     return { success: false, message: `讀取雲端資料失敗：${err.message}` };
   }
 }
+
+
+// 🌐 Publish or Update a Public Restaurant to Firestore Community Feed
+export async function publishPublicRestaurantToCloud(
+  restaurant: Restaurant,
+  authorProfile?: UserProfile
+): Promise<void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return;
+
+    const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_restaurants', restaurant.id);
+    if (restaurant.visibility === 'private' || restaurant.visibility === 'friends_only') {
+      // If changed to non-public, remove from public feed
+      try {
+        await fb.firestoreMod.deleteDoc(docRef);
+      } catch {}
+      return;
+    }
+
+    await fb.firestoreMod.setDoc(docRef, {
+      ...restaurant,
+      visibility: 'public',
+      authorFoodieId: authorProfile?.foodieId || 'foodie',
+      authorName: authorProfile?.name || '熱心吃貨',
+      authorAvatar: authorProfile?.avatar || '🥢',
+      publishedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (err) {
+    console.error('Failed to publish public restaurant', err);
+  }
+}
+
+// 🌐 Fetch all Community Public Restaurants from Firestore
+export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return [];
+
+    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_restaurants');
+    const snap = await fb.firestoreMod.getDocs(colRef);
+    const list: Restaurant[] = [];
+    snap.forEach((docSnap: any) => {
+      list.push(docSnap.data() as Restaurant);
+    });
+    return list;
+  } catch (err) {
+    console.error('Failed to fetch community public restaurants', err);
+    return [];
+  }
+}

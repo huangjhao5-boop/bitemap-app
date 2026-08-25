@@ -50,6 +50,10 @@ export interface Restaurant {
   recommendedByFriendIds?: string[];
   dinedWithFriendIds?: string[];
   coverImage?: string;
+  visibility?: 'public' | 'friends_only' | 'private';
+  authorFoodieId?: string;
+  authorName?: string;
+  authorAvatar?: string;
   createdAt: string;
   updatedAt: string;
 }

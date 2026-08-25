@@ -170,15 +170,26 @@ export const Header: React.FC<HeaderProps> = ({
             {lang === 'zh-TW' ? '🇯🇵 日' : '🇹🇼 中'}
           </button>
 
-          {/* Account Login / Switch Button */}
-          <button
-            onClick={onOpenAuthModal}
-            className="px-2.5 py-1.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95"
-            title="登入、註冊或切換吃貨帳號"
-          >
-            <span>🔑</span>
-            <span className="font-mono text-[11px]">{profile.foodieId || '登入'}</span>
-          </button>
+          {/* Account Login / Guest Mode Indicator */}
+          {profile.googleEmail ? (
+            <button
+              onClick={onOpenAuthModal}
+              className="px-2.5 py-1.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95"
+              title="Google 帳號已連線雲端同步"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-bold text-[11px] truncate max-w-[90px]">{profile.googleEmail.split('@')[0]}</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              className="px-2.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-rose-500 hover:from-amber-500 hover:to-rose-600 text-white font-black text-xs flex items-center gap-1 shadow-md shadow-amber-500/20 transition-all active:scale-95 cursor-pointer animate-pulse"
+              title="目前為遊客探索模式 · 點此登入 / 註冊儲存資料"
+            >
+              <span>👀 遊客模式</span>
+              <span className="text-[10px] underline font-normal">(點此登入)</span>
+            </button>
+          )}
 
           {/* User Profile Button with IG Story Gradient Ring! */}
           <button

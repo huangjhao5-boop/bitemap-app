@@ -15,6 +15,9 @@ import {
   Sparkles,
   Wand2,
   Check,
+  Globe,
+  Users,
+  Lock,
   Camera,
 } from 'lucide-react';
 
@@ -66,6 +69,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [priceRange, setPriceRange] = useState<Restaurant['priceRange']>('$$');
   const [ratingTag, setRatingTag] = useState<RestaurantRatingTag>('must_eat');
+  const [visibility, setVisibility] = useState<'public' | 'friends_only' | 'private'>('public');
   const [visitCount, setVisitCount] = useState<number>(1);
   const [lastVisitedDate, setLastVisitedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -119,6 +123,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setGoogleMapsUrl('');
       setPriceRange('$$');
       setRatingTag('must_eat');
+      setVisibility('public');
       setVisitCount(1);
       setLastVisitedDate(new Date().toISOString().split('T')[0]);
       setCoverImage('');
