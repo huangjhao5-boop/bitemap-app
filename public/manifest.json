@@ -1,0 +1,19 @@
+{
+  "name": "BiteMap 吃貨避雷地圖",
+  "short_name": "BiteMap",
+  "description": "吃貨專屬避雷手冊與朋友圈系統 · 跨裝置雲端同步",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#e11d48",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
