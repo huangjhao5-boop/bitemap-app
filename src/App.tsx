@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
-import { publishPublicRestaurantToCloud, fetchCommunityPublicRestaurants, checkAndHandleRedirectResult, fetchUserDataFromCloud } from './utils/firebase';
+import { 
+  publishPublicRestaurantToCloud, 
+  fetchCommunityPublicRestaurants, 
+  checkAndHandleRedirectResult, 
+  fetchUserDataFromCloud,
+  syncDataToCloud 
+} from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
   loadRestaurants, 
@@ -474,6 +480,15 @@ export function App() {
   };
 
   const handleSaveUserProfile = (profile: UserProfile) => {
+    if (profile.googleUid) {
+      syncDataToCloud(profile.googleUid, {
+        profile,
+        restaurants,
+        friends,
+        meetups,
+        friendRequests,
+      }).catch((e: any) => console.log('Background cloud profile sync', e));
+    }
     setUserProfile(profile);
     saveUserProfile(profile);
     setLastSyncTime(triggerAutoSync());

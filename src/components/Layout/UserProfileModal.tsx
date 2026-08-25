@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
@@ -56,6 +56,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [budgetPreference, setBudgetPreference] = useState<UserProfile['budgetPreference']>(profile.budgetPreference || '$$');
   const [favoriteDrink, setFavoriteDrink] = useState(profile.favoriteDrink || '');
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 🔄 Sync modal internal form state whenever profile prop updates or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFoodieId(profile.foodieId || 'guest');
+      setPinCode(profile.pinCode || '8888');
+      setName(profile.name || '吃貨探險家');
+      setAvatar(profile.avatar || '🥢');
+      setBio(profile.bio || '');
+      setDefaultCity(profile.defaultCity || '台北市');
+      setInstagramHandle(profile.instagramHandle || '');
+      setFavoriteTags(profile.favoriteTags || []);
+      setDislikedTags(profile.dislikedTags || []);
+      setSpicinessLevel(profile.spicinessLevel || 'mild');
+      setBudgetPreference(profile.budgetPreference || '$');
+      setFavoriteDrink(profile.favoriteDrink || '');
+    }
+  }, [profile, isOpen]);
+
 
   if (!isOpen) return null;
 

@@ -146,7 +146,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ...cloudRes.data.profile,
           googleEmail: gUser.email || undefined,
           googleUid: gUser.uid,
-          avatar: currentProfile.avatar?.startsWith('data:') ? currentProfile.avatar : (gUser.photoURL || currentProfile.avatar),
+          avatar: cloudRes.data.profile?.avatar || gUser.photoURL || currentProfile.avatar || '🥢',
+          name: cloudRes.data.profile?.name || gUser.displayName || currentProfile.name,
         };
 
         onLoginSuccess({
