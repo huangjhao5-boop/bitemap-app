@@ -39,6 +39,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [restoreId, setRestoreId] = useState('');
   const [restorePin, setRestorePin] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -88,8 +89,6 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
 
     window.open(`https://line.me/R/msg/text/?${encodeURIComponent(msg)}`, '_blank');
   };
-
-    const [isSending, setIsSending] = useState(false);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
