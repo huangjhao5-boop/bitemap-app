@@ -122,8 +122,15 @@ export const RestaurantCompactRow: React.FC<RestaurantCompactRowProps> = ({
               </span>
             ))}
             {recommender && (
-              <span className="text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 font-bold">
-                {recommender.avatar} {recommender.name}
+              <span className="text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-100 font-bold flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                  {recommender.avatar && (recommender.avatar.startsWith('data:') || recommender.avatar.startsWith('http') || recommender.avatar.length > 20) ? (
+                    <img src={recommender.avatar} alt={recommender.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{recommender.avatar || '🥢'}</span>
+                  )}
+                </div>
+                <span>{recommender.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender.name}</span>
               </span>
             )}
             {matchHighlight && (

@@ -164,27 +164,40 @@ export const MysteryBoxModal: React.FC<MysteryBoxModalProps> = ({
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1">
-                <span>{userProfile.avatar || '👑'}</span>
+                        <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                  {userProfile.avatar && (userProfile.avatar.startsWith('data:') || userProfile.avatar.startsWith('http') || userProfile.avatar.length > 20) ? (
+                    <img src={userProfile.avatar} alt="Me" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs">{userProfile.avatar || '👑'}</span>
+                  )}
+                </div>
                 <span>{userProfile.name || (lang === 'zh-TW' ? '自己' : '自分')}</span>
               </span>
 
               {friends.map((f) => {
                 const isSelected = selectedFriendIds.includes(f.id);
+                const displayName = f.customNickname ? `${f.customNickname} (${f.name})` : f.name;
                 return (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => toggleFriend(f.id)}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-bold border flex items-center gap-1 transition-all ${
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span>{f.avatar}</span>
-                    <span>{f.name}</span>
+                    <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                      {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                        <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs">{f.avatar || '🥢'}</span>
+                      )}
+                    </div>
+                    <span>{displayName}</span>
                   </button>
                 );
               })}

@@ -241,8 +241,15 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
             {/* Friend Recommendation Badge */}
             {recommender && (
-              <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
-                {recommender.avatar} {recommender.name} 推薦
+              <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100 flex items-center gap-1">
+                <div className="w-3.5 h-3.5 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                  {recommender.avatar && (recommender.avatar.startsWith('data:') || recommender.avatar.startsWith('http') || recommender.avatar.length > 20) ? (
+                    <img src={recommender.avatar} alt={recommender.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{recommender.avatar || '🥢'}</span>
+                  )}
+                </div>
+                <span>{recommender.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender.name} 推薦</span>
               </span>
             )}
           </div>

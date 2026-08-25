@@ -348,7 +348,13 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
                 {userProfile && (
                   <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[11px] font-bold text-slate-200">
-                    <span>{userProfile.avatar}</span>
+                    <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                      {userProfile.avatar && (userProfile.avatar.startsWith('data:') || userProfile.avatar.startsWith('http') || userProfile.avatar.length > 20) ? (
+                        <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{userProfile.avatar || '🥢'}</span>
+                      )}
+                    </div>
                     <span>@{userProfile.name}</span>
                   </div>
                 )}

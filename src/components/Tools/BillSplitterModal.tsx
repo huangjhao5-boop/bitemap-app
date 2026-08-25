@@ -46,7 +46,7 @@ export const BillSplitterModal: React.FC<BillSplitterModalProps> = ({
   };
 
   const handleSpinPayer = () => {
-    const candidates = ['你 (Me)', ...friends.filter(f => selectedFriendIds.includes(f.id)).map(f => f.name)];
+    const candidates = ['你 (Me)', ...friends.filter(f => selectedFriendIds.includes(f.id)).map(f => f.customNickname ? `${f.customNickname} (${f.name})` : f.name)];
     if (candidates.length === 0) return;
 
     setIsSpinning(true);
@@ -134,27 +134,34 @@ export const BillSplitterModal: React.FC<BillSplitterModalProps> = ({
               </span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
+                        <div className="flex flex-wrap gap-2 items-center">
+              <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
                 <span>👑</span>
                 <span>{lang === 'zh-TW' ? '自己' : '自分'}</span>
               </span>
 
               {friends.map((f) => {
                 const isSelected = selectedFriendIds.includes(f.id);
+                const displayName = f.customNickname ? `${f.customNickname} (${f.name})` : f.name;
                 return (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => toggleFriend(f.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <span>{f.avatar}</span>
-                    <span>{f.name}</span>
+                    <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                      {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                        <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs">{f.avatar || '🥢'}</span>
+                      )}
+                    </div>
+                    <span>{displayName}</span>
                   </button>
                 );
               })}
