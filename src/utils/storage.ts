@@ -42,7 +42,7 @@ export function saveFriendRequests(requests: FriendRequest[]): void {
 export function generateFriendInviteToken(profile: UserProfile): string {
   try {
     const payload = {
-      foodieId: profile?.foodieId || 'kaw_foodie',
+      foodieId: profile?.foodieId || 'my_id',
       name: profile?.name || '吃貨好友',
       avatar: profile?.avatar || '🥢',
       favoriteTags: profile?.favoriteTags || [],
