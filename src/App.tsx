@@ -333,7 +333,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
+    const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
     const cleanId = targetFoodieId.trim().toLowerCase();
     if (!cleanId) return { success: false, message: '請輸入好友的吃貨 ID！' };
 
@@ -358,55 +358,14 @@ export function App() {
       status: 'pending',
     };
 
-    // Send to Google Cloud Firestore so target device receives notification immediately
+    // Send to Google Cloud Firestore so target user's device receives notification
     sendCloudFriendRequest(newIncomingRequest, cleanId).then((res) => {
       console.log('Cloud Friend Request Sent:', res);
     });
 
-    // Look up in account registry or mock database
-    const foundProfile = findFoodieProfileById(cleanId);
-    if (foundProfile) {
-      const newIncomingRequest: FriendRequest = {
-        id: 'req_' + Date.now(),
-        senderFoodieId: foundProfile.foodieId,
-        senderName: foundProfile.name,
-        senderAvatar: foundProfile.avatar,
-        favoriteTags: foundProfile.favoriteTags,
-        dislikedTags: foundProfile.dislikedTags,
-        bio: foundProfile.bio,
-        sentAt: new Date().toISOString().split('T')[0],
-        status: 'pending',
-      };
-
-      const updatedReqs = [newIncomingRequest, ...friendRequests.filter((r) => r.senderFoodieId !== foundProfile.foodieId)];
-      setFriendRequests(updatedReqs);
-      saveFriendRequests(updatedReqs);
-
-      return {
-        success: true,
-        message: `🎉 已向【${foundProfile.name} (${foundProfile.foodieId})】發送好友邀請！已在「待審核信箱」中收到對方的吃貨名片！`,
-      };
-    }
-
-    // Fallback for custom unlisted IDs
-    const mockRequest: FriendRequest = {
-      id: 'req_' + Date.now(),
-      senderFoodieId: cleanId,
-      senderName: cleanId,
-      senderAvatar: '🥢',
-      favoriteTags: ['拉麵', '美食探店'],
-      dislikedTags: [],
-      bio: '吃貨好友',
-      sentAt: new Date().toISOString().split('T')[0],
-      status: 'pending',
-    };
-    const updatedReqs = [mockRequest, ...friendRequests];
-    setFriendRequests(updatedReqs);
-    saveFriendRequests(updatedReqs);
-
     return {
       success: true,
-      message: `🚀 已送出好友申請給【${cleanId}】！待審核同意後即可同步口味！`,
+      message: `🚀 已向吃貨好友【${cleanId}】發送邀請！已即時送達對方的收件箱，等待對方確認同意！`,
     };
   };
 

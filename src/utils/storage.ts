@@ -414,6 +414,12 @@ export function purgeMockTestData(): void {
       const realMeetups = mlist.filter((m: any) => !['m1', 'm2'].includes(m.id));
       localStorage.setItem('bitemap_meetups_v1', JSON.stringify(realMeetups));
     }
+    const rawFreq = localStorage.getItem('bitemap_friend_requests_v1');
+    if (rawFreq) {
+      const reqList = JSON.parse(rawFreq);
+      const realReqs = reqList.filter((r: any) => !r.id.startsWith('mock_') && !['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'].includes(r.senderFoodieId));
+      localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(realReqs));
+    }
     const rawAcc = localStorage.getItem('bitemap_account_registry_v1');
     if (rawAcc) {
       const reg = JSON.parse(rawAcc);
