@@ -12,6 +12,8 @@ import {
   syncDataToCloud,
   fetchFoodieAccountFromCloud,
   saveFoodieAccountToCloud,
+  deleteFoodieAccountFromCloud,
+  signOutGoogle,
   deleteCloudFriendship,
   syncFriendsWithLatestProfiles,
   syncFriendsRestaurantsFromCloud,
@@ -338,7 +340,90 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-    const handleSaveRestaurant = (restaurant: Restaurant) => {
+      // 🔴 Sign Out / Logout
+  const handleLogout = async () => {
+    try {
+      await signOutGoogle();
+    } catch {}
+
+    const guestProfile: UserProfile = {
+      foodieId: 'guest',
+      pinCode: '8888',
+      name: '吃貨遊客',
+      avatar: '🥢',
+      bio: '',
+      defaultCity: '台北市',
+      favoriteTags: [],
+      dislikedTags: [],
+      spicinessLevel: 'mild',
+      budgetPreference: '$',
+    };
+
+    setUserProfile(guestProfile);
+    saveUserProfile(guestProfile);
+    setRestaurants([]);
+    saveRestaurants([]);
+    setFriends([]);
+    saveFriends([]);
+    setFriendRequests([]);
+    saveFriendRequests([]);
+    setMeetups([]);
+    saveMeetups([]);
+
+    // Clear local registry session
+    localStorage.removeItem('bitemap_active_account');
+
+    alert(lang === 'zh-TW' ? '👋 已安全登出帳號！目前已切換為遊客模式。' : '👋 ログアウトしました。ゲストモードに切り替わりました。');
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  // ☠️ Permanently Delete Account
+  const handleDeleteAccountPermanently = async () => {
+    const currentId = userProfile.foodieId;
+    if (!currentId || currentId === 'guest') return;
+
+    try {
+      await deleteFoodieAccountFromCloud(currentId);
+    } catch (e) {
+      console.warn('Cloud account delete error', e);
+    }
+
+    const guestProfile: UserProfile = {
+      foodieId: 'guest',
+      pinCode: '8888',
+      name: '吃貨遊客',
+      avatar: '🥢',
+      bio: '',
+      defaultCity: '台北市',
+      favoriteTags: [],
+      dislikedTags: [],
+      spicinessLevel: 'mild',
+      budgetPreference: '$',
+    };
+
+    setUserProfile(guestProfile);
+    saveUserProfile(guestProfile);
+    setRestaurants([]);
+    saveRestaurants([]);
+    setFriends([]);
+    saveFriends([]);
+    setFriendRequests([]);
+    saveFriendRequests([]);
+    setMeetups([]);
+    saveMeetups([]);
+
+    // Clear all accounts from local storage
+    localStorage.clear();
+    saveUserProfile(guestProfile);
+
+    alert(lang === 'zh-TW' 
+      ? `🗑️ 吃貨帳號【@${currentId}】及其所有雲端與本機資料已永久刪除完畢！` 
+      : `🗑️ アカウント @${currentId} の全データを完全に削除しました。`);
+    
+    setLastSyncTime(triggerAutoSync());
+  };
+
+  const handleSaveRestaurant = (restaurant: Restaurant) => {
     let updated: Restaurant[];
     const exists = restaurants.some((r) => r.id === restaurant.id);
     if (exists) {

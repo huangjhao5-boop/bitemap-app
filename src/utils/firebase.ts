@@ -511,6 +511,43 @@ export async function saveFoodieAccountToCloud(
   }
 }
 
+// 🗑️ Cloud Account: Permanently Delete Foodie ID Account & Public Profile from Firestore
+export async function deleteFoodieAccountFromCloud(
+  foodieId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || !foodieId || foodieId === 'guest') {
+      return { success: true, message: '已完成刪除' };
+    }
+
+    const cleanId = foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+
+    // 1. Delete bitemap_accounts/{cleanId}
+    const accRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+    try {
+      await fb.firestoreMod.deleteDoc(accRef);
+    } catch {}
+
+    // 2. Delete bitemap_public_profiles/{cleanId}
+    const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
+    try {
+      await fb.firestoreMod.deleteDoc(pubRef);
+    } catch {}
+
+    // 3. Sign out Google auth if logged in
+    try {
+      await signOutGoogle();
+    } catch {}
+
+    console.log('🗑️ Cloud account permanently wiped from Firestore:', cleanId);
+    return { success: true, message: '🎉 雲端帳號及所有公開檔案已永久刪除完畢！' };
+  } catch (err: any) {
+    console.error('Failed to delete account from cloud', err);
+    return { success: false, message: `刪除失敗：${err.message}` };
+  }
+}
+
 // 📥 Cloud Account: Fetch Foodie ID Account Record from Firestore
 export async function fetchFoodieAccountFromCloud(foodieId: string): Promise<{
   success: boolean;

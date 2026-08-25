@@ -3,7 +3,9 @@ import type { UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { 
-  X, 
+  X,
+  LogOut,
+  AlertTriangle, 
   Check, 
   Flame, 
   DollarSign, 
@@ -21,6 +23,8 @@ interface UserProfileModalProps {
   onClose: () => void;
   profile: UserProfile;
   onSaveProfile: (profile: UserProfile) => void;
+  onLogout?: () => void;
+  onDeleteAccount?: () => void;
   lang: Language;
 }
 
@@ -33,6 +37,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onClose,
   profile,
   onSaveProfile,
+  onLogout,
+  onDeleteAccount,
   lang,
 }) => {
   const t = translations[lang];
@@ -596,6 +602,73 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
           </div>
+
+                      {/* ⚠️ 帳號管理與安全區域 (Account & Danger Zone) */}
+            <div className="pt-4 border-t-2 border-slate-100 space-y-3">
+              <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <span>{lang === 'zh-TW' ? '帳號管理與安全區域' : 'アカウント管理・危険ゾーン'}</span>
+              </h4>
+
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      {lang === 'zh-TW' ? '當前登入狀態：' : 'ログイン状態：'}
+                    </span>
+                    <span className="text-[11px] font-mono font-black text-purple-700">
+                      {profile.foodieId && profile.foodieId !== 'guest' ? `@${profile.foodieId}` : '👀 遊客探索模式'}
+                    </span>
+                  </div>
+
+                  {onLogout && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(lang === 'zh-TW' ? '確定要登出目前帳號並切換為遊客模式嗎？' : 'ログアウトしてゲストモードに切り替えますか？')) {
+                          onLogout();
+                          onClose();
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 border border-slate-300 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-slate-600" />
+                      <span>{lang === 'zh-TW' ? '🔴 登出帳號' : 'ログアウト'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Permanent Account Deletion */}
+                {onDeleteAccount && profile.foodieId && profile.foodieId !== 'guest' && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-rose-700 block">
+                        {lang === 'zh-TW' ? '永久刪除此帳號：' : 'アカウントの完全削除：'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {lang === 'zh-TW' ? '抹除雲端資料庫與本機中的所有資料，無法復原' : 'クラウドと端末の全データを完全に削除します'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(lang === 'zh-TW' 
+                          ? `⚠️ 嚴重警告：確定要永久刪除吃貨帳號【@${profile.foodieId}】嗎？\n\n此動作將永久抹除雲端資料庫中的所有資料（包含美食名單、好友與個人紀錄），且無法復原！` 
+                          : 'アカウントを完全に削除しますか？この操作は取り消せません。')) {
+                          onDeleteAccount();
+                          onClose();
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{lang === 'zh-TW' ? '☠️ 永久刪除帳號' : 'アカウント削除'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
 
           {/* Footer Submit Button */}
           <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
