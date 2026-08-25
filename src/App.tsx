@@ -82,22 +82,32 @@ export function App() {
   
   // ⚡ 0-Second Real-Time WebSocket onSnapshot Listener for Cloud Friend Requests
   useEffect(() => {
-    if (!userProfile.foodieId || userProfile.foodieId === 'guest') return;
+    const myId = userProfile.foodieId;
+    if (!myId || myId === 'guest' || myId.trim() === '') return;
 
     let unsub: (() => void) | null = null;
-    listenToIncomingFriendRequests(userProfile.foodieId, (incoming) => {
-      if (incoming && incoming.length > 0) {
-        setFriendRequests((prev) => {
-          const existingIds = new Set(prev.map((r) => r.id));
-          const newOnes = incoming.filter((r) => !existingIds.has(r.id));
-          if (newOnes.length > 0) {
-            const merged = [...newOnes, ...prev];
-            saveFriendRequests(merged);
-            return merged;
-          }
-          return prev;
+    listenToIncomingFriendRequests(myId, (incoming) => {
+      // Always update state from cloud snapshot (even empty — means no pending)
+      setFriendRequests((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newOnes = incoming.filter((r) => !existingIds.has(r.id));
+        if (newOnes.length > 0) {
+          const merged = [...newOnes, ...prev];
+          saveFriendRequests(merged);
+          return merged;
+        }
+        // Sync status updates (e.g. accepted → remove from pending view)
+        const hasChange = incoming.some((r) => {
+          const old = prev.find((p) => p.id === r.id);
+          return !old || old.status !== r.status;
         });
-      }
+        if (hasChange) {
+          const merged = [...incoming, ...prev.filter((p) => !incoming.find((i) => i.id === p.id))];
+          saveFriendRequests(merged);
+          return merged;
+        }
+        return prev;
+      });
     }).then((unsubscriber) => {
       unsub = unsubscriber;
     });

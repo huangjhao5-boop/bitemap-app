@@ -130,48 +130,33 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
 }
 
 
-// 📍 Real-Time GPS Locate Me Control Button (100% Click Responsive)
+// 📍 GPS Locate Me Button — pure HTML button, OUTSIDE MapContainer, always clickable
 function LocateMeControl({ 
   userLocation, 
-  lang 
+  lang,
+  onLocate,
 }: { 
   userLocation: UserLocation; 
-  lang: Language; 
+  lang: Language;
+  onLocate: (pos: [number, number]) => void;
 }) {
-  const map = useMap();
   const [isLocating, setIsLocating] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    if (containerRef.current) {
-      L.DomEvent.disableClickPropagation(containerRef.current);
-      L.DomEvent.disableScrollPropagation(containerRef.current);
-    }
-  }, []);
-
-  const handleLocateMe = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const handleLocateMe = () => {
     setIsLocating(true);
-    // Instant Fly to known location
-    map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 0.7 });
+    // Immediately fly to cached location for instant response
+    onLocate([userLocation.lat, userLocation.lng]);
 
-    // Query fresh GPS coordinates in background
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setIsLocating(false);
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          map.flyTo([lat, lng], 16, { duration: 0.7 });
+          onLocate([pos.coords.latitude, pos.coords.longitude]);
         },
-        (err) => {
+        () => {
           setIsLocating(false);
-          console.log('GPS lookup error, stayed at known location', err);
         },
-        { enableHighAccuracy: true, timeout: 6000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
       setIsLocating(false);
@@ -179,31 +164,32 @@ function LocateMeControl({
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className="leaflet-top leaflet-right !top-3 !right-3 !z-[1000] pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
+    <button
+      type="button"
+      onClick={handleLocateMe}
+      disabled={isLocating}
+      className="absolute top-3 right-3 z-[1000] bg-white hover:bg-blue-50 text-slate-800 hover:text-blue-700 px-3 py-2 rounded-2xl shadow-xl border-2 border-slate-200 hover:border-blue-400 font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+      title="定位至我的現在位置"
     >
-      <button
-        type="button"
-        onClick={handleLocateMe}
-        disabled={isLocating}
-        className="bg-white hover:bg-slate-50 text-slate-800 hover:text-blue-600 px-3.5 py-2.5 rounded-2xl shadow-xl border border-slate-300/90 font-black text-xs flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition-all cursor-pointer group"
-        title="定位至我的現在位置"
-      >
-        <div className="relative">
-          {isLocating ? (
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-            <LocateFixed className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
-          )}
-        </div>
-        <span className="font-extrabold">
-          {isLocating ? '定位中...' : (lang === 'zh-TW' ? '現在位置' : '現在地')}
-        </span>
-      </button>
-    </div>
+      {isLocating ? (
+        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <LocateFixed className="w-4 h-4 text-blue-600" />
+      )}
+      <span>{isLocating ? 'GPS 定位中...' : (lang === 'zh-TW' ? '現在位置' : '現在地')}</span>
+    </button>
   );
+}
+
+// Inner Leaflet component — flies to position whenever flyToPosition changes
+function FlyToLocation({ position, onDone }: { position: [number, number]; onDone: () => void }) {
+  const map = useMap();
+  React.useEffect(() => {
+    map.flyTo(position, 16, { duration: 0.8 });
+    const t = setTimeout(onDone, 1200);
+    return () => clearTimeout(t);
+  }, [position, map, onDone]);
+  return null;
 }
 
 function MapViewController({ 
@@ -267,6 +253,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     if (targetRestaurant) {
@@ -466,10 +453,10 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             </Popup>
           </Marker>
 
-          <LocateMeControl userLocation={userLocation} lang={lang} />
-
-
-          {restaurants.map((restaurant) => {
+          {/* FlyTo executor — inside MapContainer so useMap() works */}
+          {flyToPosition && (
+            <FlyToLocation position={flyToPosition} onDone={() => setFlyToPosition(null)} />
+          )}          {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
             const googleMapsSearchUrl =
               restaurant.googleMapsUrl ||
@@ -592,6 +579,9 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             );
           })}
         </MapContainer>
+
+        {/* 📍 GPS Locate Me button - absolute overlay on top of map, outside MapContainer */}
+        <LocateMeControl userLocation={userLocation} lang={lang} onLocate={setFlyToPosition} />
 
         {/* 📱 Mobile Floating Bottom Quick Card */}
         <div className="lg:hidden absolute bottom-3 inset-x-3 z-30 space-y-2">
