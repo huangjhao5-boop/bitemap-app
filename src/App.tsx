@@ -240,6 +240,40 @@ export function App() {
     };
   }, []);
 
+  // 🗺️ 0.1-Second Real-Time WebSocket Stream for Friends Shared Food Maps
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    if (friends && friends.length > 0) {
+      listenToFriendsRestaurantsRealtime(friends, (sharedList) => {
+        console.log('🗺️ Received friends shared restaurants update:', sharedList.length);
+        setFriendsRestaurants(sharedList);
+      }).then((cleanup) => {
+        unsub = cleanup;
+      });
+    } else {
+      setFriendsRestaurants([]);
+    }
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [friends]);
+
+  // 🔄 Continuous Auto-Sync to Cloud Firestore (Guarantees Friends always see latest public/shared spots)
+  useEffect(() => {
+    if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
+      const cleanId = userProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+      saveFoodieAccountToCloud({
+        foodieId: cleanId,
+        pinCode: userProfile.pinCode || '8888',
+        profile: userProfile,
+        restaurants,
+        friends,
+        meetups,
+      }).catch(() => {});
+    }
+  }, [restaurants, friends, meetups, userProfile.foodieId, userProfile.name, userProfile.avatar]);
+
   // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<RestaurantRatingTag | 'all'>('all');
