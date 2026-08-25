@@ -448,10 +448,11 @@ export async function sendCloudFriendRequest(
   }
 }
 
-// ⚡ Real-Time WebSocket Listener for Incoming Friend Requests (0-second instant notification!)
-export async function listenToIncomingFriendRequests(
+// ⚡ Real-Time Instant 2-Way WebSocket Listener (Bidirectional Mutual Friend Sync!)
+export async function listenToMutualFriendSync(
   myFoodieId: string,
-  onUpdate: (requests: FriendRequest[]) => void
+  onIncomingRequests: (requests: FriendRequest[]) => void,
+  onFriendAccepted: (newFriend: Friend) => void
 ): Promise<() => void> {
   try {
     const fb = await loadFirebaseModules();
@@ -459,14 +460,14 @@ export async function listenToIncomingFriendRequests(
 
     const cleanMyId = myFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
-    
-    // Single field index query for 100% Firestore reliability
-    const q = fb.firestoreMod.query(
+
+    // 1. Listen for INCOMING pending friend requests (where target == my ID)
+    const qIncoming = fb.firestoreMod.query(
       colRef,
       fb.firestoreMod.where('targetFoodieId', '==', cleanMyId)
     );
 
-    const unsubscribe = fb.firestoreMod.onSnapshot(q, (snapshot: any) => {
+    const unsubIncoming = fb.firestoreMod.onSnapshot(qIncoming, (snapshot: any) => {
       const list: FriendRequest[] = [];
       snapshot.forEach((docSnap: any) => {
         const data = docSnap.data() as FriendRequest;
@@ -474,23 +475,56 @@ export async function listenToIncomingFriendRequests(
           list.push(data);
         }
       });
-      console.log('📬 Live friend requests snapshot received for', cleanMyId, list);
-      onUpdate(list);
+      console.log('📬 [Incoming] Live pending requests for', cleanMyId, list);
+      onIncomingRequests(list);
     }, (err: any) => {
-      console.error('onSnapshot friend requests error', err);
+      console.error('onSnapshot incoming friend requests error', err);
     });
 
-    return unsubscribe;
+    // 2. Listen for OUTGOING requests accepted by the other party (where sender == my ID)
+    const qOutgoing = fb.firestoreMod.query(
+      colRef,
+      fb.firestoreMod.where('senderFoodieId', '==', cleanMyId)
+    );
+
+    const unsubOutgoing = fb.firestoreMod.onSnapshot(qOutgoing, (snapshot: any) => {
+      snapshot.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        if (data.status === 'accepted' && data.targetFoodieId) {
+          const acceptedFriend: Friend = {
+            id: 'f_' + data.targetFoodieId.replace(/[^a-zA-Z0-9_]/g, '_'),
+            foodieId: data.targetFoodieId,
+            name: data.receiverName || data.targetFoodieId,
+            avatar: data.receiverAvatar || '🥢',
+            favoriteTags: Array.isArray(data.receiverFavoriteTags) ? data.receiverFavoriteTags : [],
+            dislikedTags: Array.isArray(data.receiverDislikedTags) ? data.receiverDislikedTags : [],
+            notes: data.receiverBio || '透過吃貨 ID 互相綁定好友',
+          };
+          console.log('🎉 [Outgoing Accepted] Mutual friend sync triggered for:', acceptedFriend.foodieId);
+          onFriendAccepted(acceptedFriend);
+        }
+      });
+    }, (err: any) => {
+      console.error('onSnapshot outgoing friend requests error', err);
+    });
+
+    return () => {
+      try {
+        unsubIncoming();
+        unsubOutgoing();
+      } catch {}
+    };
   } catch (err) {
-    console.error('Failed to setup real-time friend request listener', err);
+    console.error('Failed to setup mutual friend sync listener', err);
     return () => {};
   }
 }
 
-// 🤝 Respond to Cloud Friend Request (Accept or Decline)
+// 🤝 Respond to Cloud Friend Request (Accept or Decline with full profile payload for 2-way sync)
 export async function respondToCloudFriendRequest(
   requestId: string,
-  status: 'accepted' | 'declined'
+  status: 'accepted' | 'declined',
+  responderProfile?: UserProfile
 ): Promise<void> {
   try {
     const fb = await loadFirebaseModules();
@@ -500,7 +534,14 @@ export async function respondToCloudFriendRequest(
     await fb.firestoreMod.updateDoc(docRef, {
       status,
       respondedAt: new Date().toISOString(),
+      receiverName: responderProfile?.name || '吃貨好友',
+      receiverAvatar: responderProfile?.avatar || '🥢',
+      receiverFavoriteTags: responderProfile?.favoriteTags || [],
+      receiverDislikedTags: responderProfile?.dislikedTags || [],
+      receiverBio: responderProfile?.bio || '',
+      receiverCity: responderProfile?.defaultCity || '',
     });
+    console.log('✅ Friend request response sent to Firestore:', requestId, status);
   } catch (err) {
     console.error('Failed to respond to cloud friend request', err);
   }
