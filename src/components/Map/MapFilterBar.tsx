@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RestaurantRatingTag, SortOption } from '../../types';
+import type { RestaurantRatingTag, SortOption, Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { 
@@ -9,7 +9,11 @@ import {
   ThumbsDown, 
   Bookmark, 
   X, 
-  Sparkles 
+  Sparkles,
+  Globe,
+  Users,
+  User,
+  SlidersHorizontal
 } from 'lucide-react';
 
 interface MapFilterBarProps {
@@ -22,8 +26,13 @@ interface MapFilterBarProps {
   selectedCity: string;
   onCitySelect: (city: string) => void;
   cities: string[];
+  friends?: Friend[];
   selectedFriendId: string;
   onFriendSelect: (id: string) => void;
+  scopeFilter: 'all' | 'mine' | 'friends';
+  onScopeChange: (scope: 'all' | 'mine' | 'friends') => void;
+  myCount: number;
+  friendsCount: number;
   sortOption: SortOption;
   onSortChange: (sort: SortOption) => void;
   lang: Language;
@@ -39,6 +48,13 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
   selectedCity,
   onCitySelect,
   cities,
+  friends = [],
+  selectedFriendId,
+  onFriendSelect,
+  scopeFilter,
+  onScopeChange,
+  myCount,
+  friendsCount,
   sortOption,
   onSortChange,
   lang,
@@ -48,18 +64,85 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
   const hasActiveFilters =
     searchQuery ||
     selectedTag !== 'all' ||
-    selectedCity !== 'all';
+    selectedCity !== 'all' ||
+    selectedFriendId !== 'all' ||
+    scopeFilter !== 'all';
 
   const clearFilters = () => {
     onSearchChange('');
     onTagSelect('all');
     onCitySelect('all');
+    onFriendSelect('all');
+    onScopeChange('all');
     onSortChange('distance');
   };
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-2xs space-y-2.5">
-      {/* 🔍 Row 1: Search Bar + City Selector + Sort Selector */}
+    <div className="bg-white border border-slate-200/80 rounded-3xl p-3 sm:p-4 shadow-2xs space-y-3">
+      {/* 🗺️ Row 1: Source Scope Toggle (All / My Spots / Friends Shared) */}
+      <div className="flex flex-col sm:flex-row gap-2 items-center justify-between border-b border-slate-100 pb-2.5">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
+          <button
+            onClick={() => { onScopeChange('all'); onFriendSelect('all'); }}
+            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              scopeFilter === 'all'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-600" />
+            <span>🌟 全部地圖 ({myCount + friendsCount})</span>
+          </button>
+
+          <button
+            onClick={() => { onScopeChange('mine'); onFriendSelect('all'); }}
+            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              scopeFilter === 'mine'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <User className="w-3.5 h-3.5 text-amber-500" />
+            <span>👑 我的口袋 ({myCount})</span>
+          </button>
+
+          <button
+            onClick={() => onScopeChange('friends')}
+            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              scopeFilter === 'friends'
+                ? 'bg-white text-purple-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-purple-600" />
+            <span>👥 好友私藏 ({friendsCount})</span>
+          </button>
+        </div>
+
+        {/* Filter by Specific Friend if in Friends Scope or has Friends */}
+        {friends.length > 0 && (
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <span className="text-[11px] font-bold text-slate-500 shrink-0">指定好友：</span>
+            <select
+              value={selectedFriendId}
+              onChange={(e) => {
+                onFriendSelect(e.target.value);
+                if (e.target.value !== 'all') onScopeChange('friends');
+              }}
+              className="flex-1 sm:flex-none text-xs px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-900 font-bold rounded-xl focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">👥 全體好友名冊</option>
+              {friends.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.customNickname ? `${f.customNickname} (${f.name})` : f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* 🔍 Row 2: Search Bar + City Selector + Sort Selector */}
       <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
         {/* Main Search Input */}
         <div className="relative flex-1 w-full">
@@ -95,24 +178,24 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
             ))}
           </select>
 
-          {/* 🎯 Multi-Mode Sort Selector (距離優先 / 推薦星星優先 / 價錢優先) */}
+          {/* 🎯 Multi-Mode Sort Selector */}
           <div className="flex-1 sm:flex-none relative">
             <select
               value={sortOption}
               onChange={(e) => onSortChange(e.target.value as SortOption)}
               className="w-full text-xs pl-3 pr-8 py-2 bg-amber-50 border border-amber-200 text-amber-950 font-black rounded-2xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
             >
-              <option value="distance">📍 距離最近 (Nearest)</option>
-              <option value="rating">👑 推薦度 & 星星優先 (Rating)</option>
-              <option value="price_asc">💰 平價優先 ($ ➔ $$$$)</option>
-              <option value="price_desc">💎 高級犒賞 ($$$$ ➔ $)</option>
-              <option value="visits">🔄 最常造訪 (Most Visited)</option>
+              <option value="distance">📍 距離最近</option>
+              <option value="rating">👑 推薦度最高</option>
+              <option value="price_asc">💰 平價優先</option>
+              <option value="price_desc">💎 高級犒賞</option>
+              <option value="visits">🔄 最常造訪</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* 🧋 Row 2: Popular Food & Drink Quick Search Tags */}
+      {/* 🧋 Row 3: Popular Food & Drink Quick Search Tags */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[11px]">
         <span className="text-slate-400 font-bold shrink-0 flex items-center gap-1 mr-0.5">
           <Sparkles className="w-3 h-3 text-amber-500" />
@@ -126,7 +209,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
             <button
               key={food}
               onClick={() => onSearchChange(isSelected ? '' : cleanName)}
-              className={`px-2.5 py-1 rounded-xl font-bold shrink-0 transition-all ${
+              className={`px-2.5 py-1 rounded-xl font-bold shrink-0 transition-all cursor-pointer ${
                 isSelected
                   ? 'bg-amber-500 text-white shadow-2xs scale-105'
                   : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-900 border border-slate-200/60'
@@ -138,11 +221,11 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
         })}
       </div>
 
-      {/* 🏷️ Row 3: Rating Tag Pills */}
+      {/* 🏷️ Row 4: Rating Tag Pills */}
       <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100 scrollbar-none text-xs">
         <button
           onClick={() => onTagSelect('all')}
-          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 transition-all ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 transition-all cursor-pointer ${
             selectedTag === 'all'
               ? 'bg-slate-900 text-white shadow-2xs'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -153,7 +236,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
 
         <button
           onClick={() => onTagSelect('must_eat')}
-          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
             selectedTag === 'must_eat'
               ? 'bg-amber-500 text-white shadow-2xs'
               : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
@@ -165,7 +248,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
 
         <button
           onClick={() => onTagSelect('frequent_visit')}
-          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
             selectedTag === 'frequent_visit'
               ? 'bg-emerald-600 text-white shadow-2xs'
               : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
@@ -177,7 +260,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
 
         <button
           onClick={() => onTagSelect('wishlist')}
-          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
             selectedTag === 'wishlist'
               ? 'bg-blue-600 text-white shadow-2xs'
               : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
@@ -189,7 +272,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
 
         <button
           onClick={() => onTagSelect('avoid_again')}
-          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all ${
+          className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 flex items-center gap-1 transition-all cursor-pointer ${
             selectedTag === 'avoid_again'
               ? 'bg-slate-900 text-rose-300 shadow-2xs'
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -202,7 +285,7 @@ export const MapFilterBar: React.FC<MapFilterBarProps> = ({
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs font-bold underline shrink-0 ml-auto"
+            className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs font-bold underline shrink-0 ml-auto cursor-pointer"
           >
             {lang === 'zh-TW' ? '清除篩選' : 'リセット'}
           </button>

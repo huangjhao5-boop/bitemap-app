@@ -14,6 +14,7 @@ import {
   saveFoodieAccountToCloud,
   deleteCloudFriendship,
   syncFriendsWithLatestProfiles,
+  syncFriendsRestaurantsFromCloud,
 } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
@@ -253,6 +254,8 @@ export function App() {
   const [selectedFriendId, setSelectedFriendId] = useState('all');
   const [listViewMode, setListViewMode] = useState<'cards' | 'compact'>('compact');
   const [sortOption, setSortOption] = useState<SortOption>('distance'); // Default Nearest
+  const [friendsRestaurants, setFriendsRestaurants] = useState<Restaurant[]>([]);
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'mine' | 'friends'>('all');
 
   // Modal States
   const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
@@ -677,25 +680,44 @@ export function App() {
     });
   }, [friendRequests, friends]);
 
+  // 🗺️ Auto-Sync Friends Shared Food Maps from Cloud
+  useEffect(() => {
+    if (friends.length === 0) {
+      setFriendsRestaurants([]);
+      return;
+    }
+    syncFriendsRestaurantsFromCloud(friends).then((sharedList) => {
+      setFriendsRestaurants(sharedList);
+    });
+  }, [friends]);
+
+  // Combined Restaurants (My Spots + Friends Shared Spots based on Scope)
+  const allCombinedRestaurants = useMemo(() => {
+    if (scopeFilter === 'mine') return restaurants;
+    if (scopeFilter === 'friends') return friendsRestaurants;
+    return [...restaurants, ...friendsRestaurants];
+  }, [restaurants, friendsRestaurants, scopeFilter]);
+
   const cities = useMemo(() => {
-    const set = new Set(restaurants.map((r) => r.city).filter(Boolean));
+    const set = new Set(allCombinedRestaurants.map((r) => r.city).filter(Boolean));
     return Array.from(set);
-  }, [restaurants]);
+  }, [allCombinedRestaurants]);
 
   // Deep Filtered & Multi-Mode Sorted Restaurants
   const filteredAndSortedRestaurants = useMemo(() => {
     // 1. Filter
-    const filtered = restaurants.filter((r) => {
+    const filtered = allCombinedRestaurants.filter((r) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = r.name.toLowerCase().includes(q);
         const matchesCategory = r.category.toLowerCase().includes(q);
         const matchesCity = r.city.toLowerCase().includes(q);
         const matchesAddress = r.address.toLowerCase().includes(q);
-        const matchesMustEat = r.mustEatDishes.some((d) => d.toLowerCase().includes(q));
-        const matchesAvoid = r.avoidDishes.some((d) => d.toLowerCase().includes(q));
+        const matchesMustEat = (r.mustEatDishes || []).some((d) => d.toLowerCase().includes(q));
+        const matchesAvoid = (r.avoidDishes || []).some((d) => d.toLowerCase().includes(q));
         const matchesNotes = r.personalNotes?.toLowerCase().includes(q);
-        const matchesVideo = r.videos.some(
+        const matchesAuthor = (r.authorName || '').toLowerCase().includes(q);
+        const matchesVideo = (r.videos || []).some(
           (v) => (v.title && v.title.toLowerCase().includes(q)) || (v.creatorName && v.creatorName.toLowerCase().includes(q))
         );
 
@@ -707,6 +729,7 @@ export function App() {
           !matchesMustEat &&
           !matchesAvoid &&
           !matchesNotes &&
+          !matchesAuthor &&
           !matchesVideo
         ) {
           return false;
@@ -728,7 +751,8 @@ export function App() {
       if (selectedFriendId !== 'all') {
         const isRecommended = r.recommendedByFriendIds?.includes(selectedFriendId);
         const isDined = r.dinedWithFriendIds?.includes(selectedFriendId);
-        if (!isRecommended && !isDined) {
+        const isAuthored = r.authorFoodieId && friends.find((f) => f.id === selectedFriendId)?.foodieId === r.authorFoodieId;
+        if (!isRecommended && !isDined && !isAuthored) {
           return false;
         }
       }
@@ -860,8 +884,13 @@ export function App() {
               selectedCity={selectedCity}
               onCitySelect={handleCitySelectWithCoords}
               cities={cities}
+              friends={friends}
               selectedFriendId={selectedFriendId}
               onFriendSelect={setSelectedFriendId}
+              scopeFilter={scopeFilter}
+              onScopeChange={setScopeFilter}
+              myCount={restaurants.length}
+              friendsCount={friendsRestaurants.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}
@@ -896,8 +925,13 @@ export function App() {
               selectedCity={selectedCity}
               onCitySelect={handleCitySelectWithCoords}
               cities={cities}
+              friends={friends}
               selectedFriendId={selectedFriendId}
               onFriendSelect={setSelectedFriendId}
+              scopeFilter={scopeFilter}
+              onScopeChange={setScopeFilter}
+              myCount={restaurants.length}
+              friendsCount={friendsRestaurants.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}

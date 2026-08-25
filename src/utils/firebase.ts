@@ -319,6 +319,52 @@ export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
 
 
 
+// 🗺️ Cloud Food Map Sync: Fetch All Friends' Shared / Public Restaurants from Firestore!
+export async function syncFriendsRestaurantsFromCloud(
+  friends: Friend[]
+): Promise<Restaurant[]> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || friends.length === 0) return [];
+
+    const results = await Promise.all(
+      friends.map(async (friend) => {
+        if (!friend.foodieId || friend.foodieId === 'guest') return [];
+        try {
+          const cleanId = friend.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+          const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+          const snap = await fb.firestoreMod.getDoc(docRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            const friendRestaurants = Array.isArray(data.restaurants) ? data.restaurants : [];
+            // Filter: Only include restaurants that are NOT private (public or friends_only)
+            return friendRestaurants
+              .filter((r: Restaurant) => r.visibility !== 'private')
+              .map((r: Restaurant) => ({
+                ...r,
+                id: 'friend_' + cleanId + '_' + r.id,
+                authorFoodieId: cleanId,
+                authorName: friend.customNickname || friend.name || cleanId,
+                authorAvatar: friend.avatar || '🥢',
+                recommendedByFriendIds: [friend.id],
+              }));
+          }
+        } catch (e) {
+          console.warn('Failed to load restaurants for friend:', friend.foodieId, e);
+        }
+        return [];
+      })
+    );
+
+    const merged = results.flat();
+    console.log('🗺️ Live friends shared restaurants loaded from cloud:', merged.length);
+    return merged;
+  } catch (err) {
+    console.error('Failed to sync friends restaurants from cloud', err);
+    return [];
+  }
+}
+
 // 🆔 Cloud Account: Save Foodie ID Account Record to Firestore (Cross-Device Registry)
 export async function saveFoodieAccountToCloud(
   account: {

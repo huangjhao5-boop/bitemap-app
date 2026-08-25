@@ -121,6 +121,25 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             : 'bg-blue-500'
         }`} />
 
+        {/* 👥 Friend Shared Spot Banner */}
+        {restaurant.authorFoodieId && (
+          <div className="bg-gradient-to-r from-purple-500/15 to-indigo-500/15 border-b border-purple-200/60 px-4 py-1.5 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 font-black text-purple-900">
+              <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                {restaurant.authorAvatar && (restaurant.authorAvatar.startsWith('data:') || restaurant.authorAvatar.startsWith('http') || restaurant.authorAvatar.length > 20) ? (
+                  <img src={restaurant.authorAvatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{restaurant.authorAvatar || '🥢'}</span>
+                )}
+              </div>
+              <span>👥 來自好友【{restaurant.authorName}】的私房口袋名單</span>
+            </div>
+            <span className="text-[10px] bg-purple-200/80 text-purple-900 font-bold px-2 py-0.5 rounded-full">
+              @{restaurant.authorFoodieId}
+            </span>
+          </div>
+        )}
+
         <div className="space-y-2.5">
           {/* Header Row: Emoji + Name + Badges + Action Buttons */}
           <div className="flex items-start justify-between gap-2">
