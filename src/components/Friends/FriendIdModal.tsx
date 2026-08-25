@@ -57,7 +57,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
 
   const handleCopyId = async () => {
     try {
-      await navigator.clipboard.writeText(userProfile.foodieId || 'kaw_foodie');
+      await navigator.clipboard.writeText(userProfile.foodieId || 'my_id');
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2500);
     } catch (err) {
@@ -77,7 +77,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
 
   const handleLineShareId = () => {
     let msg = `🥢 【加我為 BiteMap 吃貨好友！】\n`;
-    msg += `🪪 我的吃貨 ID：${userProfile.foodieId || 'kaw_foodie'}\n`;
+    msg += `🪪 我的吃貨 ID：${userProfile.foodieId || 'my_id'}\n`;
     msg += `👤 名稱：${userProfile.name}\n`;
     if (favList.length > 0) msg += `❤️ 喜愛美食：${favList.join('、')}\n`;
     if (dislikeList.length > 0) {
@@ -175,7 +175,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
                       <h3 className="font-black text-base text-white">{userProfile.name}</h3>
 
                       <p className="text-[10px] text-amber-400 font-mono font-bold tracking-wider">
-                        {userProfile.foodieId || 'kaw_foodie'} · PIN: {userProfile.pinCode || '8888'}
+                        {userProfile.foodieId || 'my_id'} · PIN: {userProfile.pinCode || '8888'}
                       </p>
                     </div>
                   </div>
@@ -214,7 +214,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
                   className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                 >
                   {copiedId ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-amber-600" />}
-                  <span>{copiedId ? '已複製 ID：' + (userProfile.foodieId || 'kaw_foodie') : '📋 複製我的吃貨 ID'}</span>
+                  <span>{copiedId ? '已複製 ID：' + (userProfile.foodieId || 'my_id') : '📋 複製我的吃貨 ID'}</span>
                 </button>
 
                 <button
@@ -256,7 +256,7 @@ export const FriendIdModal: React.FC<FriendIdModalProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="例如：kaw_foodie"
+                    placeholder="例如：my_id"
                     value={restoreId}
                     onChange={(e) => setRestoreId(e.target.value.toLowerCase().trim())}
                     className="w-full text-xs px-3.5 py-2.5 rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono font-bold"

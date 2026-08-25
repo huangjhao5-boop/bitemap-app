@@ -61,6 +61,12 @@ async function loadFirebaseModules() {
     const googleProvider = new authMod.GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+    // Enable anonymous auth session if not already logged in so Firestore read/write rules never fail
+    if (!auth.currentUser && authMod.signInAnonymously) {
+      authMod.signInAnonymously(auth).catch((e: any) => console.log('Firebase anonymous session', e));
+    }
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
+
     firebaseModules = {
       app,
       auth,
@@ -319,55 +325,34 @@ export async function sendCloudFriendRequest(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const fb = await loadFirebaseModules();
-    if (!fb) return { success: false, message: '未連線至 Firebase' };
+    if (!fb) return { success: false, message: '未連線至 Firebase 伺服器' };
 
-    const cleanTarget = targetFoodieId.toLowerCase().trim();
+    // Clean target ID (strip @, #, whitespace)
+    const cleanTarget = targetFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+    const cleanSender = (req.senderFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+
     const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_friend_requests', req.id);
 
     await fb.firestoreMod.setDoc(docRef, {
       ...req,
       targetFoodieId: cleanTarget,
-      senderFoodieId: req.senderFoodieId.toLowerCase().trim(),
+      senderFoodieId: cleanSender,
+      status: 'pending',
       updatedAt: new Date().toISOString(),
       serverTimestamp: fb.firestoreMod.serverTimestamp(),
     });
 
+    console.log('✅ Friend Request Delivered to Firestore for:', cleanTarget, req.id);
+
     return {
       success: true,
-      message: `🎉 好友邀請已即時發送至【${targetFoodieId}】的雲端收件箱！對方打開 App 即可看到通知！`,
+      message: `🎉 好友邀請已即時發送至【${cleanTarget}】！對方手機打開即可看到！`,
     };
   } catch (err: any) {
     console.error('Failed to send cloud friend request', err);
-    return { success: false, message: `發送失敗：${err.message}` };
+    return { success: false, message: `發送失敗：${err.message || '請確認網路連線'}` };
   }
 }
-
-// 📬 Fetch Incoming Cloud Friend Requests for My Foodie ID
-export async function fetchCloudIncomingFriendRequests(myFoodieId: string): Promise<FriendRequest[]> {
-  try {
-    const fb = await loadFirebaseModules();
-    if (!fb || !myFoodieId || myFoodieId === 'guest') return [];
-
-    const cleanMyId = myFoodieId.toLowerCase().trim();
-    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
-    const q = fb.firestoreMod.query(
-      colRef,
-      fb.firestoreMod.where('targetFoodieId', '==', cleanMyId),
-      fb.firestoreMod.where('status', '==', 'pending')
-    );
-
-    const snap = await fb.firestoreMod.getDocs(q);
-    const list: FriendRequest[] = [];
-    snap.forEach((docSnap: any) => {
-      list.push(docSnap.data() as FriendRequest);
-    });
-    return list;
-  } catch (err) {
-    console.error('Failed to fetch cloud incoming friend requests', err);
-    return [];
-  }
-}
-
 
 // ⚡ Real-Time WebSocket Listener for Incoming Friend Requests (0-second instant notification!)
 export async function listenToIncomingFriendRequests(
@@ -378,19 +363,24 @@ export async function listenToIncomingFriendRequests(
     const fb = await loadFirebaseModules();
     if (!fb || !myFoodieId || myFoodieId === 'guest') return () => {};
 
-    const cleanMyId = myFoodieId.toLowerCase().trim();
+    const cleanMyId = myFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+    
+    // Single field index query for 100% Firestore reliability
     const q = fb.firestoreMod.query(
       colRef,
-      fb.firestoreMod.where('targetFoodieId', '==', cleanMyId),
-      fb.firestoreMod.where('status', '==', 'pending')
+      fb.firestoreMod.where('targetFoodieId', '==', cleanMyId)
     );
 
     const unsubscribe = fb.firestoreMod.onSnapshot(q, (snapshot: any) => {
       const list: FriendRequest[] = [];
       snapshot.forEach((docSnap: any) => {
-        list.push(docSnap.data() as FriendRequest);
+        const data = docSnap.data() as FriendRequest;
+        if (data.status === 'pending') {
+          list.push(data);
+        }
       });
+      console.log('📬 Live friend requests snapshot received for', cleanMyId, list);
       onUpdate(list);
     }, (err: any) => {
       console.error('onSnapshot friend requests error', err);

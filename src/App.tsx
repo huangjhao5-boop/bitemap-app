@@ -4,7 +4,6 @@ import type { Language } from './utils/i18n';
 import { 
   sendCloudFriendRequest,
   listenToIncomingFriendRequests,
-  fetchCloudIncomingFriendRequests,
   respondToCloudFriendRequest,
   publishPublicRestaurantToCloud, 
   fetchCommunityPublicRestaurants, 
@@ -333,7 +332,7 @@ export function App() {
   };
 
     const handleSendFriendRequest = (targetFoodieId: string): { success: boolean; message: string } => {
-    const cleanId = targetFoodieId.trim().toLowerCase();
+    const cleanId = targetFoodieId.trim().toLowerCase().replace(/[@#\s]/g, '');
     if (!cleanId) return { success: false, message: '請輸入好友的吃貨 ID！' };
 
     if (cleanId === (userProfile.foodieId || '').toLowerCase()) {
