@@ -124,14 +124,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 700);
   };
 
-  const handleGoogleAuth = async () => {
+    const handleGoogleAuth = async () => {
     setIsGoogleLoading(true);
     setStatusMessage(null);
     try {
       const res = await signInWithGoogle();
-      if (!res.success || !res.user) {
+      if (!res.success) {
         setStatusMessage({ type: 'error', text: res.message });
         setIsGoogleLoading(false);
+        return;
+      }
+
+      if (!res.user) {
+        // Redirecting...
+        setStatusMessage({ type: 'success', text: res.message });
         return;
       }
 

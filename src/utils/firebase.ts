@@ -76,6 +76,12 @@ async function loadFirebaseModules() {
   }
 }
 
+
+// Pre-warm Firebase modules immediately so popups are never blocked by async click delay
+if (typeof window !== 'undefined') {
+  loadFirebaseModules().catch((e) => console.log('Firebase prewarm', e));
+}
+
 export interface GoogleUser {
   uid: string;
   email?: string | null;
@@ -83,7 +89,7 @@ export interface GoogleUser {
   photoURL?: string | null;
 }
 
-// 🔵 1-Click Google Sign-In & Account Linking (PWA & Mobile Standalone Compatible)
+// 🔵 1-Click Google Sign-In & Account Linking (Instant Direct Popup)
 export async function signInWithGoogle(): Promise<{
   success: boolean;
   user?: GoogleUser;
@@ -94,24 +100,11 @@ export async function signInWithGoogle(): Promise<{
     if (!fb) {
       return {
         success: false,
-        message: 'Firebase 初始化中，請檢查網路連線後重試！',
+        message: 'Firebase 初始化中，請稍候重試！',
       };
     }
 
-    const isStandalone = 
-      (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
-      (typeof window !== 'undefined' && (window.navigator as any).standalone === true);
-
-    // On PWA Standalone (Installed on Home Screen), Popups are blocked by iOS/Android webviews.
-    // Use signInWithRedirect for 100% reliability in standalone mode.
-    if (isStandalone) {
-      await fb.authMod.signInWithRedirect(fb.auth, fb.googleProvider);
-      return {
-        success: true,
-        message: '正在跳轉至 Google 官方安全登入頁面...',
-      };
-    }
-
+    // Try popup first (instant responsive window)
     try {
       const result = await fb.authMod.signInWithPopup(fb.auth, fb.googleProvider);
       const u = result.user;
@@ -126,30 +119,41 @@ export async function signInWithGoogle(): Promise<{
         message: `🎉 成功登入 Google 帳號：${u.displayName || u.email}！`,
       };
     } catch (popupErr: any) {
-      // If browser blocked popup, fallback immediately to redirect
-      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/cancelled-popup-request') {
+      console.warn('Popup attempt failed, trying redirect fallback...', popupErr);
+      if (popupErr.code === 'auth/popup-closed-by-user') {
+        return { success: false, message: '已關閉 Google 登入視窗。' };
+      }
+      // If popup is blocked by browser/PWA, fallback to redirect
+      if (
+        popupErr.code === 'auth/popup-blocked' ||
+        popupErr.code === 'auth/cancelled-popup-request' ||
+        popupErr.code === 'auth/operation-not-supported-in-this-environment'
+      ) {
         await fb.authMod.signInWithRedirect(fb.auth, fb.googleProvider);
         return {
           success: true,
-          message: '彈跳視窗受限，正在為您切換至 Google 安全跳轉登入...',
+          message: '正在為您切換至 Google 安全跳轉授權頁面...',
         };
       }
       throw popupErr;
     }
   } catch (err: any) {
     console.error('Google Sign-In Error:', err);
-    if (err.code === 'auth/popup-closed-by-user') {
-      return { success: false, message: '已取消 Google 登入。' };
-    }
     if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
       return { 
         success: false, 
         message: 'Google 登入尚未在 Firebase Console 中啟用，請至「Authentication ➔ 登入方式 ➔ Google」點選啟用！' 
       };
     }
+    if (err.code === 'auth/unauthorized-domain') {
+      return {
+        success: false,
+        message: '此網域尚未加入 Firebase 已授權網域，請至 Firebase 控制台 ➔ Authentication ➔ 設定 ➔ 新增已授權網域！',
+      };
+    }
     return {
       success: false,
-      message: `Google 登入失敗：${err.message || '請確認已將網域加入 Firebase 已授權網域'}`,
+      message: `Google 登入失敗：${err.message || '請確認網路連線'}`,
     };
   }
 }
