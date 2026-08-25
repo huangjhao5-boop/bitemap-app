@@ -166,6 +166,9 @@ export function loadFriends(): Friend[] {
           avatar: f.avatar || '🥢',
           favoriteTags: Array.isArray(f.favoriteTags) ? f.favoriteTags : [],
           dislikedTags: Array.isArray(f.dislikedTags) ? f.dislikedTags : [],
+          myObservedFavorites: Array.isArray(f.myObservedFavorites) ? f.myObservedFavorites : [],
+          myObservedDislikes: Array.isArray(f.myObservedDislikes) ? f.myObservedDislikes : [],
+          customNickname: f.customNickname || undefined,
         }));
       }
     }

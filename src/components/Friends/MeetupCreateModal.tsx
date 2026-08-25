@@ -228,7 +228,13 @@ export const MeetupCreateModal: React.FC<MeetupCreateModalProps> = ({
                             : 'bg-white text-slate-700 hover:bg-purple-100/60 border border-purple-200/60'
                         }`}
                       >
-                        <span>{f.avatar}</span>
+                        <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                          {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                            <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{f.avatar || '🥢'}</span>
+                          )}
+                        </div>
                         <span className="truncate">{f.name}</span>
                       </button>
                     );

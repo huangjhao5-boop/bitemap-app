@@ -169,7 +169,7 @@ export function App() {
                 avatar: updatedProfile.avatar || f.avatar,
                 favoriteTags: Array.isArray(updatedProfile.favoriteTags) && updatedProfile.favoriteTags.length > 0 ? updatedProfile.favoriteTags : f.favoriteTags,
                 dislikedTags: Array.isArray(updatedProfile.dislikedTags) && updatedProfile.dislikedTags.length > 0 ? updatedProfile.dislikedTags : f.dislikedTags,
-                notes: updatedProfile.notes || f.notes,
+                notes: f.notes || updatedProfile.notes,
               };
             }
             return f;

@@ -18,15 +18,21 @@ export type RestaurantRatingTag =
   | 'wishlist';      // 📌 待吃口袋名單
 
 export interface Friend {
+  id: string;
   foodieId?: string;
+  name: string; // 對方公開暱稱 (雲端動態同步)
+  avatar: string; // 對方公開頭像 (雲端動態同步)
+  favoriteTags: string[]; // 對方公開喜好 (雲端動態同步)
+  dislikedTags: string[]; // 對方公開忌口 (雲端動態同步)
+  
+  // 📝 自身私房觀察與專屬備忘 (本機專屬，雲端更新不會被覆蓋！)
+  customNickname?: string; // 我的專屬備註外號
+  myObservedFavorites?: string[]; // 我觀察到的愛吃美食
+  myObservedDislikes?: string[]; // 我觀察到的忌口避雷
+  notes?: string; // 私房備忘筆記
+  
   status?: 'accepted' | 'pending';
   boundAt?: string;
-  id: string;
-  name: string;
-  avatar: string;
-  favoriteTags: string[];
-  dislikedTags: string[];
-  notes?: string;
 }
 
 export type DishRating = 'must_eat' | 'tasty' | 'mediocre' | 'avoid';

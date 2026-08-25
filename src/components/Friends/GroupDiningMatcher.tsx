@@ -57,7 +57,8 @@ export const GroupDiningMatcher: React.FC<GroupDiningMatcherProps> = ({
   const allFavorites = useMemo(() => {
     const list: string[] = [];
     selectedFriends.forEach((f) => {
-      f.favoriteTags.forEach((t) => {
+      const combined = [...(f.favoriteTags || []), ...(f.myObservedFavorites || [])];
+      combined.forEach((t) => {
         if (!list.includes(t)) list.push(t);
       });
     });
@@ -67,7 +68,8 @@ export const GroupDiningMatcher: React.FC<GroupDiningMatcherProps> = ({
   const allDislikes = useMemo(() => {
     const list: string[] = [];
     selectedFriends.forEach((f) => {
-      f.dislikedTags.forEach((t) => {
+      const combined = [...(f.dislikedTags || []), ...(f.myObservedDislikes || [])];
+      combined.forEach((t) => {
         if (!list.includes(t)) list.push(t);
       });
     });
@@ -192,14 +194,20 @@ export const GroupDiningMatcher: React.FC<GroupDiningMatcherProps> = ({
                 key={f.id}
                 type="button"
                 onClick={() => toggleFriend(f.id)}
-                className={`px-4 py-2 rounded-2xl text-xs font-bold border flex items-center gap-2 transition-all ${
+                className={`px-3.5 py-2 rounded-2xl text-xs font-bold border flex items-center gap-2 transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300'
                     : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <span className="text-base">{f.avatar}</span>
-                <span>{f.name}</span>
+                <div className="w-5 h-5 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                  {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                    <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm">{f.avatar || '🥢'}</span>
+                  )}
+                </div>
+                <span>{f.customNickname ? `${f.customNickname} (${f.name})` : f.name}</span>
                 {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
               </button>
             );

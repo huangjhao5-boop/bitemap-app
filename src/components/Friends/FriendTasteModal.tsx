@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
-import { X, Heart, AlertOctagon } from 'lucide-react';
+import { X, Heart, AlertOctagon, Sparkles, BookOpen, ShieldCheck, Plus } from 'lucide-react';
 
 interface FriendTasteModalProps {
   isOpen: boolean;
@@ -15,9 +15,6 @@ interface FriendTasteModalProps {
 const COMMON_FAVORITES_ZH = ['日式拉麵', '和牛燒肉', '麻辣火鍋', '手沖咖啡', '甜點蛋糕', '義大利麵', '早午餐', '居酒屋串燒', '泰式料理', '平價小吃'];
 const COMMON_DISLIKES_ZH = ['不吃香菜', '怕辣 / 完全不吃辣', '生魚片 / 生食', '乳糖不耐', '不吃牛肉', '不吃海鮮', '素食主義', '太甜', '油膩重口味', '內臟類'];
 
-const COMMON_FAVORITES_JA = ['ラーメン', '和牛焼肉', '麻辣火鍋', 'ハンドドリップ珈琲', 'スイーツ・ケーキ', 'パスタ', 'ブランチ', '焼き鳥居酒屋', 'タイ料理', '町中華'];
-const COMMON_DISLIKES_JA = ['パクチー不可', '激辛NG・辛いもの苦手', '生魚・刺身NG', '乳糖不耐症', '牛肉NG', '海鮮アレルギー', 'ベジタリアン', '甘すぎるもの', '脂っこいもの', 'ホルモン・内臓系'];
-
 const EMOJI_AVATARS = ['🍜', '🍰', '🥩', '🥗', '🍣', '🍔', '🍺', '🥑', '🍕', '🍢', '🍩', '🥐', '🍦', '🍷'];
 
 export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
@@ -28,316 +25,343 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
   lang,
 }) => {
   const t = translations[lang];
-  const COMMON_FAVORITES = lang === 'zh-TW' ? COMMON_FAVORITES_ZH : COMMON_FAVORITES_JA;
-  const COMMON_DISLIKES = lang === 'zh-TW' ? COMMON_DISLIKES_ZH : COMMON_DISLIKES_JA;
 
+  // ☁️ Cloud Profile (From Friend - Readonly or manual friend fallback)
   const [foodieId, setFoodieId] = useState('');
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('🍜');
-  const [favoriteTags, setFavoriteTags] = useState<string[]>([]);
-  const [newFavInput, setNewFavInput] = useState('');
-  const [dislikedTags, setDislikedTags] = useState<string[]>([]);
-  const [newDislikeInput, setNewDislikeInput] = useState('');
+  const [cloudFavorites, setCloudFavorites] = useState<string[]>([]);
+  const [cloudDislikes, setCloudDislikes] = useState<string[]>([]);
+
+  // 📝 My Personal Observation (Isolated - Local only!)
+  const [customNickname, setCustomNickname] = useState('');
+  const [myObservedFavorites, setMyObservedFavorites] = useState<string[]>([]);
+  const [newObservedFavInput, setNewObservedFavInput] = useState('');
+  const [myObservedDislikes, setMyObservedDislikes] = useState<string[]>([]);
+  const [newObservedDislikeInput, setNewObservedDislikeInput] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (editingFriend) {
       setFoodieId(editingFriend.foodieId || '');
-      setName(editingFriend.name);
-      setAvatar(editingFriend.avatar);
-      setFavoriteTags(editingFriend.favoriteTags || []);
-      setDislikedTags(editingFriend.dislikedTags || []);
+      setName(editingFriend.name || '');
+      setAvatar(editingFriend.avatar || '🍜');
+      setCloudFavorites(editingFriend.favoriteTags || []);
+      setCloudDislikes(editingFriend.dislikedTags || []);
+
+      setCustomNickname(editingFriend.customNickname || '');
+      setMyObservedFavorites(editingFriend.myObservedFavorites || []);
+      setMyObservedDislikes(editingFriend.myObservedDislikes || []);
       setNotes(editingFriend.notes || '');
     } else {
       setFoodieId('');
       setName('');
       setAvatar('🍜');
-      setFavoriteTags(lang === 'zh-TW' ? ['拉麵', '燒肉'] : ['ラーメン', '焼肉']);
-      setDislikedTags(lang === 'zh-TW' ? ['不吃香菜'] : ['パクチー不可']);
+      setCloudFavorites(['日式拉麵', '和牛燒肉']);
+      setCloudDislikes(['不吃香菜']);
+
+      setCustomNickname('');
+      setMyObservedFavorites([]);
+      setMyObservedDislikes([]);
       setNotes('');
     }
-  }, [editingFriend, isOpen, lang]);
+  }, [editingFriend, isOpen]);
 
-  const handleAddFavorite = (tagToAdd?: string) => {
-    const val = tagToAdd || newFavInput.trim();
-    if (!val || favoriteTags.includes(val)) return;
-    setFavoriteTags([...favoriteTags, val]);
-    if (!tagToAdd) setNewFavInput('');
+  if (!isOpen) return null;
+
+  const handleAddObservedFavorite = (tagToAdd?: string) => {
+    const val = tagToAdd || newObservedFavInput.trim();
+    if (!val || myObservedFavorites.includes(val)) return;
+    setMyObservedFavorites([...myObservedFavorites, val]);
+    if (!tagToAdd) setNewObservedFavInput('');
   };
 
-  const handleRemoveFavorite = (tag: string) => {
-    setFavoriteTags(favoriteTags.filter((t) => t !== tag));
+  const handleRemoveObservedFavorite = (tag: string) => {
+    setMyObservedFavorites(myObservedFavorites.filter((t) => t !== tag));
   };
 
-  const handleAddDislike = (tagToAdd?: string) => {
-    const val = tagToAdd || newDislikeInput.trim();
-    if (!val || dislikedTags.includes(val)) return;
-    setDislikedTags([...dislikedTags, val]);
-    if (!tagToAdd) setNewDislikeInput('');
+  const handleAddObservedDislike = (tagToAdd?: string) => {
+    const val = tagToAdd || newObservedDislikeInput.trim();
+    if (!val || myObservedDislikes.includes(val)) return;
+    setMyObservedDislikes([...myObservedDislikes, val]);
+    if (!tagToAdd) setNewObservedDislikeInput('');
   };
 
-  const handleRemoveDislike = (tag: string) => {
-    setDislikedTags(dislikedTags.filter((t) => t !== tag));
+  const handleRemoveObservedDislike = (tag: string) => {
+    setMyObservedDislikes(myObservedDislikes.filter((t) => t !== tag));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      alert(lang === 'zh-TW' ? '請填寫朋友暱稱！' : 'ニックネームを入力してください！');
+    if (!name.trim() && !customNickname.trim()) {
+      alert('請填寫好友名稱或專屬備註！');
       return;
     }
 
     const friendData: Friend = {
       id: editingFriend ? editingFriend.id : 'f_' + Date.now(),
       foodieId: foodieId.trim() || undefined,
-      name: name.trim(),
+      name: name.trim() || customNickname.trim(),
       avatar,
-      favoriteTags,
-      dislikedTags,
+      favoriteTags: cloudFavorites,
+      dislikedTags: cloudDislikes,
+
+      // 📝 Isolated Observations (Preserved locally, never overwritten by cloud)
+      customNickname: customNickname.trim() || undefined,
+      myObservedFavorites,
+      myObservedDislikes,
       notes: notes.trim(),
     };
-
 
     onSave(friendData);
     onClose();
   };
 
-  if (!isOpen) return null;
+  const isCloudBound = Boolean(foodieId && foodieId !== 'guest');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
       <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 m-auto">
+        {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-purple-900 to-indigo-900 text-white">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl overflow-hidden flex items-center justify-center bg-white/20 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl overflow-hidden flex items-center justify-center bg-white/20 shrink-0 border border-white/30 shadow-xs">
               {avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20) ? (
                 <img src={avatar} alt={name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-xl">{avatar || '🥢'}</span>
+                <span className="text-2xl">{avatar || '🥢'}</span>
               )}
             </div>
-            <h2 className="text-lg font-bold text-white">
-              {editingFriend ? t.modalEditFriend : t.modalAddFriend}
-            </h2>
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+                <span>{customNickname ? `${customNickname} (${name})` : name || '好友資料與觀察手冊'}</span>
+              </h2>
+              <p className="text-[10px] text-purple-200">
+                {isCloudBound ? `🪪 雲端已綁定 @${foodieId}` : '📝 手動自建備忘名冊'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        {/* Warm Caring Explainer */}
-        <div className="px-5 py-2.5 bg-purple-50 border-b border-purple-100 flex items-start gap-2 text-[11px] text-purple-950">
-          <span className="text-sm shrink-0">💡</span>
-          <p className="leading-relaxed">
-            {lang === 'zh-TW' 
-              ? '貼心備忘：適合為長輩、小朋友或未安裝 App 的親友記錄飲食習慣（不吃牛、全素、少油軟食、怕辣等），在聚餐與挑選餐廳時自動為大家避雷！' 
-              : 'ご家族・お子様・アプリ未利用のお友達の苦手食材やアレルギーを登録しておくと、お店選びで自動回避できます！'}
-          </p>
-        </div>
 
-
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
-                    <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              {t.labelAvatarEmoji}
-            </label>
-            <div className="flex flex-wrap gap-2 items-center">
-              {avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20) && (
-                <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-purple-500 ring-2 ring-purple-300 shrink-0">
-                  <img src={avatar} alt="custom avatar" className="w-full h-full object-cover" />
-                </div>
-              )}
-              {EMOJI_AVATARS.map((emo) => (
-                <button
-                  key={emo}
-                  type="button"
-                  onClick={() => setAvatar(emo)}
-                  className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition-all ${
-                    avatar === emo
-                      ? 'bg-purple-100 border-purple-500 ring-2 ring-purple-300 scale-110'
-                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {emo}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              {t.labelFriendName}
-            </label>
-            <input
-              type="text"
-              required
-              placeholder={lang === 'zh-TW' ? '例如：小明 (拉麵狂人)' : '例：田中 (ラーメン部)'}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-purple-500 font-semibold"
-            />
-          </div>
-
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-5 flex-1">
+          {/* Section 1: ☁️ 对方的公开自订资料 (云端同步) */}
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-                <Heart className="w-3.5 h-3.5 text-emerald-600 fill-emerald-500" />
-                <span>{t.labelFriendLikes}</span>
-              </label>
+              <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                <span className="text-sm">☁️</span> 好友公開自訂資料 {isCloudBound && <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">雲端即時同步</span>}
+              </span>
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">公開暱稱</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isCloudBound}
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 disabled:bg-slate-100/70"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">吃貨 ID</label>
+                <input
+                  type="text"
+                  value={foodieId || '手動建立'}
+                  disabled
+                  className="w-full px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-100/70 font-mono font-bold text-purple-700"
+                />
+              </div>
+            </div>
+
+            {/* Cloud Favorite Tags */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                <Heart className="w-3 h-3 text-emerald-600 fill-emerald-500" />
+                <span>對方公開喜好 ({cloudFavorites.length})</span>
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {cloudFavorites.length === 0 ? (
+                  <span className="text-[10px] text-slate-400">尚無填寫</span>
+                ) : (
+                  cloudFavorites.map((tag, i) => (
+                    <span key={i} className="text-[11px] font-medium bg-white text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-200">
+                      {tag}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Cloud Disliked Tags */}
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-rose-800 flex items-center gap-1">
+                <AlertOctagon className="w-3 h-3 text-rose-500" />
+                <span>對方公開忌口 ({cloudDislikes.length})</span>
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {cloudDislikes.length === 0 ? (
+                  <span className="text-[10px] text-slate-400">尚無填寫</span>
+                ) : (
+                  cloudDislikes.map((tag, i) => (
+                    <span key={i} className="text-[11px] font-medium bg-white text-rose-800 px-2 py-0.5 rounded-lg border border-rose-200 line-through">
+                      {tag}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: 📝 我個人的私房觀察與專屬備忘 (完全隔離、本機專屬、絕不衝突！) */}
+          <div className="p-4 bg-purple-50/60 rounded-2xl border-2 border-purple-200/80 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                <span className="text-sm">📝</span> 我對好友的私房觀察與備忘
+              </span>
+              <span className="text-[10px] font-bold text-purple-600 bg-white px-2 py-0.5 rounded-full border border-purple-200 shadow-2xs">
+                本機專屬 · 絕不覆蓋
+              </span>
+            </div>
+
+            {/* Custom Nickname */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                📌 我的專屬備註暱稱 / 外號（例：老弟、拉麵狂魔小王）
+              </label>
               <input
                 type="text"
-                placeholder={lang === 'zh-TW' ? '輸入喜歡的美食，例如：厚切牛舌、巴斯克乳酪' : '好きなメニュー、例：厚切り牛タン、バスクチーズケーキ'}
-                value={newFavInput}
-                onChange={(e) => setNewFavInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddFavorite();
-                  }
-                }}
-                className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-emerald-50/40"
+                placeholder={name ? `自訂備註（留空則顯示對方原名「${name}」）` : '輸入好友備註'}
+                value={customNickname}
+                onChange={(e) => setCustomNickname(e.target.value)}
+                className="w-full text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-purple-300 focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white font-bold text-slate-900"
               />
-              <button
-                type="button"
-                onClick={() => handleAddFavorite()}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors"
-              >
-                {t.btnAdd}
-              </button>
             </div>
 
-            <div className="flex flex-wrap gap-1 items-center pt-1">
-              <span className="text-[10px] text-slate-400 font-medium mr-1">{t.labelQuickAdd}</span>
-              {COMMON_FAVORITES.map((fav) => (
+            {/* My Observed Favorites */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>我觀察到的愛吃偏好（每次聚餐選店自動納入計算）</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="輸入我觀察到的喜好，例：厚切牛舌、超愛冰美式"
+                  value={newObservedFavInput}
+                  onChange={(e) => setNewObservedFavInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddObservedFavorite();
+                    }
+                  }}
+                  className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-emerald-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
+                />
                 <button
-                  key={fav}
                   type="button"
-                  onClick={() => handleAddFavorite(fav)}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 transition-colors"
+                  onClick={() => handleAddObservedFavorite()}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
-                  + {fav}
+                  <Plus className="w-3.5 h-3.5 inline mr-0.5" /> 新增
                 </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {favoriteTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200"
-                >
-                  <span>{tag}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveFavorite(tag)}
-                    className="text-emerald-700 hover:text-rose-600"
+              </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {myObservedFavorites.map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-emerald-100 text-emerald-900 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 border border-emerald-200"
                   >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
+                    <span>📝 {tag}</span>
+                    <button type="button" onClick={() => handleRemoveObservedFavorite(tag)} className="hover:text-rose-600">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-rose-800 flex items-center gap-1">
+            {/* My Observed Dislikes */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-rose-900 flex items-center gap-1">
                 <AlertOctagon className="w-3.5 h-3.5 text-rose-600" />
-                <span>{t.labelFriendDislikes}</span>
+                <span>我觀察到的忌口避雷（聚餐自動嚴格避雷）</span>
               </label>
-            </div>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder={lang === 'zh-TW' ? '輸入忌口或討厭食物，例如：不吃香菜、乳糖不耐' : '苦手な食材、例：パクチー、辛すぎるもの'}
-                value={newDislikeInput}
-                onChange={(e) => setNewDislikeInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddDislike();
-                  }
-                }}
-                className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 bg-rose-50/40"
-              />
-              <button
-                type="button"
-                onClick={() => handleAddDislike()}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors"
-              >
-                {t.btnAdd}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-1 items-center pt-1">
-              <span className="text-[10px] text-slate-400 font-medium mr-1">{t.labelQuickAdd}</span>
-              {COMMON_DISLIKES.map((dis) => (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="輸入我觀察到的忌口，例：不能吃花生、甲殼類微過敏"
+                  value={newObservedDislikeInput}
+                  onChange={(e) => setNewObservedDislikeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddObservedDislike();
+                    }
+                  }}
+                  className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-rose-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 bg-white"
+                />
                 <button
-                  key={dis}
                   type="button"
-                  onClick={() => handleAddDislike(dis)}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200 transition-colors"
+                  onClick={() => handleAddObservedDislike()}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
-                  + {dis}
+                  <Plus className="w-3.5 h-3.5 inline mr-0.5" /> 新增
                 </button>
-              ))}
+              </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {myObservedDislikes.map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-rose-100 text-rose-900 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 border border-rose-200"
+                  >
+                    <span>🚫 {tag}</span>
+                    <button type="button" onClick={() => handleRemoveObservedDislike(tag)} className="hover:text-rose-600">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {dislikedTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 text-xs font-medium bg-rose-100 text-rose-900 px-2.5 py-1 rounded-lg border border-rose-200"
-                >
-                  <span>⚠️ {tag}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveDislike(tag)}
-                    className="text-rose-700 hover:text-rose-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                📝 私房備忘筆記
+              </label>
+              <textarea
+                rows={2}
+                placeholder="記錄他的聚餐習慣、常喝的飲料或特別紀念日..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full text-xs px-3.5 py-2 rounded-xl border border-purple-300 focus:outline-hidden focus:ring-2 focus:ring-purple-500 bg-white"
+              />
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100">
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              {t.labelFriendNotes}
-            </label>
-            <textarea
-              rows={2}
-              placeholder={lang === 'zh-TW' ? '例如：每次聚餐都要喝一杯生啤酒、不能吃太晚...' : '例：生ビール好き、遅い時間はNGなど...'}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="pt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-2xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              {t.btnCancel}
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-purple-600/25 active:scale-95 transition-all cursor-pointer"
+            >
+              {t.btnSave}
+            </button>
           </div>
         </form>
-
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
-          >
-            {t.btnCancel}
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-6 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-200 transition-all active:scale-95"
-          >
-            {editingFriend ? t.btnSave : t.btnAdd}
-          </button>
-        </div>
       </div>
     </div>
   );

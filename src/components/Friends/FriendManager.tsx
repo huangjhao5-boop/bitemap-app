@@ -260,7 +260,10 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                         )}
                       </div>
                       <div>
-                        <h4 className="font-black text-sm text-slate-900">{friend.name}</h4>
+                        <h4 className="font-black text-sm text-slate-900 flex items-center gap-1.5">
+                          <span>{friend.customNickname ? `${friend.customNickname} (${friend.name})` : friend.name}</span>
+                          {friend.foodieId && <span className="text-[10px] text-purple-600 font-mono">@{friend.foodieId}</span>}
+                        </h4>
                         <button
                           onClick={() => onViewFriendRestaurants(friend.id)}
                           className="text-[11px] text-purple-600 hover:underline font-bold"
@@ -288,7 +291,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Favorite Tags */}
+                                    {/* Favorite Tags */}
                   <div className="space-y-1">
                     <span className="text-[10px] font-extrabold text-emerald-800 flex items-center gap-1">
                       <Heart className="w-3 h-3 text-emerald-600 fill-emerald-600" />
@@ -297,7 +300,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                     <div className="flex flex-wrap gap-1">
                       {(friend.favoriteTags || []).map((tag, i) => (
                         <span key={i} className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-100">
-                          {tag}
+                          ☁️ {tag}
+                        </span>
+                      ))}
+                      {(friend.myObservedFavorites || []).map((tag, i) => (
+                        <span key={'obs_' + i} className="text-[11px] font-bold bg-emerald-100 text-emerald-950 px-2 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
+                          📝 {tag}
                         </span>
                       ))}
                     </div>
@@ -312,7 +320,12 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                     <div className="flex flex-wrap gap-1">
                       {(friend.dislikedTags || []).map((tag, i) => (
                         <span key={i} className="text-[11px] font-semibold bg-rose-50 text-rose-800 px-2 py-0.5 rounded-lg border border-rose-100 line-through">
-                          {tag}
+                          ☁️ {tag}
+                        </span>
+                      ))}
+                      {(friend.myObservedDislikes || []).map((tag, i) => (
+                        <span key={'obs_d_' + i} className="text-[11px] font-bold bg-rose-100 text-rose-950 px-2 py-0.5 rounded-lg border border-rose-300 shadow-2xs line-through">
+                          📝 {tag}
                         </span>
                       ))}
                     </div>

@@ -1093,7 +1093,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      <span>{f.avatar}</span>
+                      <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                        {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                          <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{f.avatar || '🥢'}</span>
+                        )}
+                      </div>
                       <span>{f.name}</span>
                     </button>
                   );
@@ -1125,7 +1131,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      <span>{f.avatar}</span>
+                      <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+                        {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
+                          <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{f.avatar || '🥢'}</span>
+                        )}
+                      </div>
                       <span>{f.name}</span>
                     </button>
                   );
