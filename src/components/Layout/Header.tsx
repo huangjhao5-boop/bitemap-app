@@ -170,15 +170,24 @@ export const Header: React.FC<HeaderProps> = ({
             {lang === 'zh-TW' ? '🇯🇵' : '🇹🇼'}
           </button>
 
-          {/* Account Login / Guest Mode Indicator (Ultra-Safe Responsive Width) */}
+          {/* Account Login / Member Status / Guest Mode Indicator */}
           {profile.googleEmail ? (
             <button
               onClick={onOpenAuthModal}
-              className="px-2 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[110px]"
-              title="Google 帳號已連線雲端同步"
+              className="px-2 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[120px]"
+              title="Google 帳號已連線雲端同步 (點擊切換/管理)"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
               <span className="font-bold text-[11px] truncate">{profile.googleEmail.split('@')[0]}</span>
+            </button>
+          ) : (profile.foodieId && profile.foodieId !== 'guest' && profile.foodieId !== 'kaw_foodie') ? (
+            <button
+              onClick={onOpenAuthModal}
+              className="px-2 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[120px]"
+              title={`吃貨帳號【${profile.foodieId}】已登入 (點擊切換/管理)`}
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+              <span className="font-bold text-[11px] truncate">@{profile.foodieId}</span>
             </button>
           ) : (
             <button

@@ -2,7 +2,7 @@
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, UserProfile } from '../types';
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
-  foodieId: 'kaw_foodie',
+  foodieId: 'guest',
   pinCode: '8888',
   name: '吃貨探險家',
   avatar: '🥢',
