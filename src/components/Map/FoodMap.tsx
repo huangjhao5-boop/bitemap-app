@@ -8,6 +8,8 @@ import { calculateDistanceKm, formatDistance, type UserLocation } from '../../ut
 import { extractSearchMatch } from '../../utils/searchHelper';
 import { 
   Navigation, 
+  LocateFixed,
+  Crosshair,
   Star, 
   AlertTriangle,
   Share2,
@@ -125,6 +127,64 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
     iconAnchor: [40, 48],
     popupAnchor: [0, -48],
   });
+}
+
+
+// 📍 Real-Time GPS Locate Me Control Button
+function LocateMeControl({ 
+  userLocation, 
+  lang 
+}: { 
+  userLocation: UserLocation; 
+  lang: Language; 
+}) {
+  const map = useMap();
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleLocateMe = () => {
+    setIsLocating(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setIsLocating(false);
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          map.flyTo([lat, lng], 16, { duration: 1 });
+        },
+        (err) => {
+          setIsLocating(false);
+          console.log('GPS error, flying to stored userLocation', err);
+          map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1 });
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      setIsLocating(false);
+      map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 1 });
+    }
+  };
+
+  return (
+    <div className="leaflet-top leaflet-right !top-3 !right-3 !z-[1000] pointer-events-auto">
+      <button
+        onClick={handleLocateMe}
+        disabled={isLocating}
+        className="bg-white/95 hover:bg-white text-slate-800 hover:text-blue-600 px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200/90 font-black text-xs flex items-center gap-1.5 backdrop-blur-md active:scale-95 transition-all cursor-pointer group"
+        title="定位至我的現在位置"
+      >
+        <div className="relative">
+          {isLocating ? (
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <LocateFixed className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
+          )}
+        </div>
+        <span className="hidden sm:inline">
+          {isLocating ? 'GPS 定位中...' : (lang === 'zh-TW' ? '現在位置' : '現在地')}
+        </span>
+      </button>
+    </div>
+  );
 }
 
 function MapViewController({ 
@@ -364,6 +424,31 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           />
 
           <MapViewController selectedSpot={selectedRestaurant} isSidebarOpen={isSidebarOpen} />
+
+          {/* 🔵 User Current GPS Pulsing Location Radar */}
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={L.divIcon({
+              html: `
+                <div class="relative flex items-center justify-center">
+                  <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-blue-400 opacity-75"></span>
+                  <div class="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg ring-2 ring-blue-300"></div>
+                </div>
+              `,
+              className: '',
+              iconSize: [32, 32],
+              iconAnchor: [16, 16],
+            })}
+          >
+            <Popup>
+              <div className="p-1 text-center font-black text-xs text-slate-800">
+                📍 您的現在位置
+              </div>
+            </Popup>
+          </Marker>
+
+          <LocateMeControl userLocation={userLocation} lang={lang} />
+
 
           {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
