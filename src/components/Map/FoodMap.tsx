@@ -128,11 +128,36 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
 }
 
 function MapViewController({ 
-  selectedSpot 
+  selectedSpot,
+  isSidebarOpen,
 }: { 
   selectedSpot?: Restaurant | null;
+  isSidebarOpen: boolean;
 }) {
   const map = useMap();
+
+  // 📱 Fix Mobile & Responsive Viewport Alignment & Proportions
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 50);
+    const t2 = setTimeout(() => map.invalidateSize(), 250);
+    const t3 = setTimeout(() => map.invalidateSize(), 600);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, [map, isSidebarOpen]);
 
   useEffect(() => {
     if (selectedSpot) {
@@ -326,19 +351,19 @@ export const FoodMap: React.FC<FoodMapProps> = ({
       )}
 
       {/* 🗺️ Main Full-Viewport Leaflet Map */}
-      <div className="flex-1 h-full w-full relative z-10">
+      <div className="flex-1 h-full w-full min-w-0 relative z-10 overflow-hidden">
         <MapContainer
           center={defaultCenter}
           zoom={13}
           scrollWheelZoom={true}
-          className="w-full h-full"
+          className="w-full h-full" style={{ width: '100%', height: '100%' }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <MapViewController selectedSpot={selectedRestaurant} />
+          <MapViewController selectedSpot={selectedRestaurant} isSidebarOpen={isSidebarOpen} />
 
           {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
