@@ -448,11 +448,12 @@ export async function sendCloudFriendRequest(
   }
 }
 
-// ⚡ Real-Time Instant 2-Way WebSocket Listener (Bidirectional Mutual Friend Sync!)
+// ⚡ Real-Time Instant 2-Way WebSocket Listener (Mutual Friend Sync + Deletion Sync + Dynamic Profile Updates!)
 export async function listenToMutualFriendSync(
   myFoodieId: string,
   onIncomingRequests: (requests: FriendRequest[]) => void,
-  onFriendAccepted: (newFriend: Friend) => void
+  onFriendAccepted: (newFriend: Friend) => void,
+  onFriendUnfriended: (unfriendedFoodieId: string) => void
 ): Promise<() => void> {
   try {
     const fb = await loadFirebaseModules();
@@ -461,7 +462,7 @@ export async function listenToMutualFriendSync(
     const cleanMyId = myFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
 
-    // 1. Listen for INCOMING pending friend requests (where target == my ID)
+    // 1. Listen for INCOMING friend requests (where target == my ID)
     const qIncoming = fb.firestoreMod.query(
       colRef,
       fb.firestoreMod.where('targetFoodieId', '==', cleanMyId)
@@ -473,15 +474,16 @@ export async function listenToMutualFriendSync(
         const data = docSnap.data() as FriendRequest;
         if (data.status === 'pending') {
           list.push(data);
+        } else if (data.status === 'unfriended' && data.senderFoodieId) {
+          onFriendUnfriended(data.senderFoodieId);
         }
       });
-      console.log('📬 [Incoming] Live pending requests for', cleanMyId, list);
       onIncomingRequests(list);
     }, (err: any) => {
       console.error('onSnapshot incoming friend requests error', err);
     });
 
-    // 2. Listen for OUTGOING requests accepted by the other party (where sender == my ID)
+    // 2. Listen for OUTGOING requests (where sender == my ID)
     const qOutgoing = fb.firestoreMod.query(
       colRef,
       fb.firestoreMod.where('senderFoodieId', '==', cleanMyId)
@@ -500,8 +502,9 @@ export async function listenToMutualFriendSync(
             dislikedTags: Array.isArray(data.receiverDislikedTags) ? data.receiverDislikedTags : [],
             notes: data.receiverBio || '透過吃貨 ID 互相綁定好友',
           };
-          console.log('🎉 [Outgoing Accepted] Mutual friend sync triggered for:', acceptedFriend.foodieId);
           onFriendAccepted(acceptedFriend);
+        } else if (data.status === 'unfriended' && data.targetFoodieId) {
+          onFriendUnfriended(data.targetFoodieId);
         }
       });
     }, (err: any) => {
@@ -517,6 +520,99 @@ export async function listenToMutualFriendSync(
   } catch (err) {
     console.error('Failed to setup mutual friend sync listener', err);
     return () => {};
+  }
+}
+
+// 🗑️ Cloud Unfriend: Sync Friend Deletion to Both Parties
+export async function deleteCloudFriendship(
+  myFoodieId: string,
+  friendFoodieId: string
+): Promise<void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || !myFoodieId || !friendFoodieId) return;
+
+    const cleanMy = myFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+    const cleanFriend = friendFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+    const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
+
+    // Query both directions
+    const q1 = fb.firestoreMod.query(
+      colRef,
+      fb.firestoreMod.where('senderFoodieId', '==', cleanMy),
+      fb.firestoreMod.where('targetFoodieId', '==', cleanFriend)
+    );
+    const q2 = fb.firestoreMod.query(
+      colRef,
+      fb.firestoreMod.where('senderFoodieId', '==', cleanFriend),
+      fb.firestoreMod.where('targetFoodieId', '==', cleanMy)
+    );
+
+    const [snap1, snap2] = await Promise.all([
+      fb.firestoreMod.getDocs(q1).catch(() => null),
+      fb.firestoreMod.getDocs(q2).catch(() => null),
+    ]);
+
+    const batch = fb.firestoreMod.writeBatch(fb.db);
+    let count = 0;
+
+    if (snap1) {
+      snap1.forEach((d: any) => {
+        batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
+        count++;
+      });
+    }
+    if (snap2) {
+      snap2.forEach((d: any) => {
+        batch.update(d.ref, { status: 'unfriended', unfriendedAt: new Date().toISOString() });
+        count++;
+      });
+    }
+
+    if (count > 0) {
+      await batch.commit();
+      console.log('✅ Cloud friendship removed for:', cleanMy, '<->', cleanFriend);
+    }
+  } catch (err) {
+    console.error('Failed to delete cloud friendship', err);
+  }
+}
+
+// 🔄 Auto-Sync Friends with Latest Public Profiles (Dynamic Nicknames, Avatars, and Taste Tags!)
+export async function syncFriendsWithLatestProfiles(
+  currentFriends: Friend[]
+): Promise<Friend[]> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || currentFriends.length === 0) return currentFriends;
+
+    const updatedFriends = await Promise.all(
+      currentFriends.map(async (friend) => {
+        if (!friend.foodieId || friend.foodieId === 'guest') return friend;
+        try {
+          const cleanId = friend.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+          const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
+          const snap = await fb.firestoreMod.getDoc(pubRef);
+          if (snap.exists()) {
+            const pub = snap.data();
+            return {
+              ...friend,
+              name: pub.name || friend.name,
+              avatar: pub.avatar || friend.avatar,
+              favoriteTags: Array.isArray(pub.favoriteTags) && pub.favoriteTags.length > 0 ? pub.favoriteTags : friend.favoriteTags,
+              dislikedTags: Array.isArray(pub.dislikedTags) && pub.dislikedTags.length > 0 ? pub.dislikedTags : friend.dislikedTags,
+              notes: pub.bio || friend.notes,
+            };
+          }
+        } catch {}
+        return friend;
+      })
+    );
+
+    return updatedFriends;
+  } catch (err) {
+    console.error('Failed to sync friends latest profiles', err);
+    return currentFriends;
   }
 }
 

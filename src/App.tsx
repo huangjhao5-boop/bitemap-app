@@ -11,6 +11,9 @@ import {
   fetchUserDataFromCloud,
   syncDataToCloud,
   fetchFoodieAccountFromCloud,
+  saveFoodieAccountToCloud,
+  deleteCloudFriendship,
+  syncFriendsWithLatestProfiles,
 } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
@@ -81,10 +84,18 @@ export function App() {
   
   
   
-    // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync
+      // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync & Dynamic Nickname Updates
   useEffect(() => {
     const myId = userProfile.foodieId;
     if (!myId || myId === 'guest' || myId.trim() === '') return;
+
+    // Refresh friends' latest nicknames and taste tags from cloud on mount
+    syncFriendsWithLatestProfiles(friends).then((latestFriends) => {
+      if (latestFriends && latestFriends.length > 0) {
+        setFriends(latestFriends);
+        saveFriends(latestFriends);
+      }
+    });
 
     let unsub: (() => void) | null = null;
     listenToMutualFriendSync(
@@ -111,7 +122,7 @@ export function App() {
           return prev;
         });
       },
-      // 2. Outgoing Request Accepted handler (Auto-add target to sender's friend list in 0 seconds!)
+      // 2. Outgoing Request Accepted handler (Auto-add target to sender's friend list with real nickname)
       (acceptedFriend) => {
         setFriends((prevFriends) => {
           const alreadyInList = prevFriends.some(
@@ -120,8 +131,26 @@ export function App() {
           if (!alreadyInList) {
             const updatedFriends = [...prevFriends, acceptedFriend];
             saveFriends(updatedFriends);
-            console.log('🎉 Added mutual friend to local list:', acceptedFriend.name);
+            console.log('🎉 Added mutual friend to local list with real nickname:', acceptedFriend.name);
             return updatedFriends;
+          }
+          return prevFriends;
+        });
+      },
+      // 3. Cloud Unfriend Sync (Auto-remove friend if either party unfriend)
+      (unfriendedFoodieId) => {
+        const cleanUnfriend = unfriendedFoodieId.toLowerCase().trim();
+        setFriends((prevFriends) => {
+          const hasFriend = prevFriends.some(
+            (f) => (f.foodieId || '').toLowerCase().trim() === cleanUnfriend
+          );
+          if (hasFriend) {
+            const updated = prevFriends.filter(
+              (f) => (f.foodieId || '').toLowerCase().trim() !== cleanUnfriend
+            );
+            saveFriends(updated);
+            console.log('🗑️ Real-time unfriend sync removed:', cleanUnfriend);
+            return updated;
           }
           return prevFriends;
         });
@@ -432,11 +461,23 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleDeleteFriend = (id: string) => {
-    const updated = friends.filter((f) => f.id !== id);
-    setFriends(updated);
-    saveFriends(updated);
-    setLastSyncTime(triggerAutoSync());
+    const handleDeleteFriend = (id: string) => {
+    const targetFriend = friends.find((f) => f.id === id);
+    const confirmMsg = lang === 'zh-TW' 
+      ? `確定要刪除好友【${targetFriend?.name || '此好友'}】嗎？雙方好友名冊將自動解除綁定。` 
+      : 'フレンドを解除しますか？';
+
+    if (confirm(confirmMsg)) {
+      const updated = friends.filter((f) => f.id !== id);
+      setFriends(updated);
+      saveFriends(updated);
+      setLastSyncTime(triggerAutoSync());
+
+      // Sync deletion to cloud so other party's phone also removes this friendship
+      if (userProfile.foodieId && targetFriend?.foodieId) {
+        deleteCloudFriendship(userProfile.foodieId, targetFriend.foodieId);
+      }
+    }
   };
 
 
@@ -537,7 +578,21 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleSaveUserProfile = (profile: UserProfile) => {
+    const handleSaveUserProfile = (profile: UserProfile) => {
+    setUserProfile(profile);
+    saveUserProfile(profile);
+    setLastSyncTime(triggerAutoSync());
+
+    // 🌐 Automatically sync latest Nickname, Avatar, and Taste Tags to Cloud Public Profile!
+    saveFoodieAccountToCloud({
+      foodieId: profile.foodieId || 'my_id',
+      pinCode: profile.pinCode || '8888',
+      profile,
+      restaurants,
+      friends,
+      meetups,
+    }).catch(() => {});
+
     if (profile.googleUid) {
       syncDataToCloud(profile.googleUid, {
         profile,
@@ -547,9 +602,6 @@ export function App() {
         friendRequests,
       }).catch((e: any) => console.log('Background cloud profile sync', e));
     }
-    setUserProfile(profile);
-    saveUserProfile(profile);
-    setLastSyncTime(triggerAutoSync());
   };
 
 

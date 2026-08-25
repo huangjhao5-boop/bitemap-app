@@ -80,7 +80,7 @@ export interface FriendRequest {
   dislikedTags: string[];
   bio?: string;
   sentAt: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'declined' | 'unfriended';
 }
 
 export interface UserProfile {
