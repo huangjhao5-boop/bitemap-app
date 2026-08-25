@@ -1237,6 +1237,8 @@ export function App() {
         onClose={() => setIsProfileModalOpen(false)}
         profile={userProfile}
         onSaveProfile={handleSaveUserProfile}
+        onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccountPermanently}
         lang={lang}
       />
 
