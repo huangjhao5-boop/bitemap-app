@@ -259,6 +259,34 @@ export function App() {
     };
   }, [friends]);
 
+    // 🚀 Immediate Startup Sync: If local restaurants exist and user is logged in, immediately push to cloud
+  useEffect(() => {
+    if (userProfile.foodieId && userProfile.foodieId !== 'guest' && restaurants.length > 0) {
+      const cleanId = userProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+      const cleanList = restaurants.map((r) => ({
+        ...r,
+        visibility: r.visibility || 'public',
+      }));
+      saveFoodieAccountToCloud({
+        foodieId: cleanId,
+        pinCode: userProfile.pinCode || '8888',
+        profile: userProfile,
+        restaurants: cleanList,
+        friends,
+        meetups,
+      }).then(() => {
+        console.log('🚀 Successfully auto-uploaded all local restaurants to cloud Firestore!');
+      }).catch(() => {});
+
+      // Publish all public restaurants to global community collection
+      cleanList.forEach((r) => {
+        if (r.visibility === 'public') {
+          publishPublicRestaurantToCloud(r, userProfile).catch(() => {});
+        }
+      });
+    }
+  }, [userProfile.foodieId, restaurants.length]);
+
   // 🔄 Continuous Auto-Sync to Cloud Firestore (Guarantees Friends always see latest public/shared spots)
   useEffect(() => {
     if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
