@@ -342,7 +342,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-  const handleSaveRestaurant = (restaurant: Restaurant) => {
+    const handleSaveRestaurant = (restaurant: Restaurant) => {
     let updated: Restaurant[];
     const exists = restaurants.some((r) => r.id === restaurant.id);
     if (exists) {
@@ -353,6 +353,13 @@ export function App() {
     setRestaurants(updated);
     saveRestaurants(updated);
     setLastSyncTime(triggerAutoSync());
+
+    // 🌐 If public visibility, push to Community Discovery Cloud!
+    if (restaurant.visibility === 'public') {
+      publishPublicRestaurantToCloud(restaurant, userProfile).catch((e: any) =>
+        console.log('Publish public restaurant failed', e)
+      );
+    }
   };
 
   const handleDeleteRestaurant = (id: string) => {

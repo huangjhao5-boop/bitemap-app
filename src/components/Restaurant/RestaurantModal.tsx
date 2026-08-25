@@ -118,6 +118,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setPersonalNotes(editingRestaurant.personalNotes || '');
       setMustEatDishes(editingRestaurant.mustEatDishes || []);
       setAvoidDishes(editingRestaurant.avoidDishes || []);
+      setVisibility(editingRestaurant.visibility || 'public');
+      setMenuImages(editingRestaurant.menuImages || []);
+      setMenuDishes(editingRestaurant.menuDishes || []);
       setVideos(editingRestaurant.videos || []);
       setRecommendedByFriendIds(editingRestaurant.recommendedByFriendIds || []);
       setDinedWithFriendIds(editingRestaurant.dinedWithFriendIds || []);
