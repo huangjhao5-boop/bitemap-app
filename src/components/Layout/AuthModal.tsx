@@ -3,7 +3,6 @@ import type { UserProfile, Restaurant, Friend, DiningMeetup } from '../../types'
 import type { Language } from '../../utils/i18n';
 import { 
   signInWithGoogle,
-  signOutGoogle,
   syncDataToCloud,
   fetchUserDataFromCloud,
 } from '../../utils/firebase';

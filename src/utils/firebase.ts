@@ -1,19 +1,3 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut as fbSignOut, 
-  onAuthStateChanged,
-  type User
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  doc, 
-  setDoc, 
-  getDoc,
-  serverTimestamp 
-} from 'firebase/firestore';
 import type { UserProfile, Restaurant, Friend, DiningMeetup, FriendRequest } from '../types';
 
 export interface FirebaseConfigType {
@@ -26,7 +10,6 @@ export interface FirebaseConfigType {
   measurementId?: string;
 }
 
-// User's configured Firebase Project
 export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
   apiKey: "AIzaSyC4q6Yjitywklgz3zbpA24n5-8IRWb7dxc",
   authDomain: "bitemap-app.firebaseapp.com",
@@ -42,11 +25,9 @@ const STORAGE_KEY_FIREBASE_CONFIG = 'bitemap_firebase_config_v1';
 export function loadSavedFirebaseConfig(): FirebaseConfigType {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_FIREBASE_CONFIG);
-    if (saved) {
-      return JSON.parse(saved);
-    }
+    if (saved) return JSON.parse(saved);
   } catch (err) {
-    console.error('Failed to load firebase config from storage', err);
+    console.error('Failed to load firebase config', err);
   }
   return DEFAULT_FIREBASE_CONFIG;
 }
@@ -59,43 +40,75 @@ export function saveFirebaseConfig(config: FirebaseConfigType): void {
   }
 }
 
-// Initialize Firebase App
-export function getFirebaseInstance() {
-  const config = loadSavedFirebaseConfig();
+// Dynamic Firebase Loader to ensure 100% build compatibility on any CI/CD environment
+let firebaseModules: any = null;
+
+async function loadFirebaseModules() {
+  if (firebaseModules) return firebaseModules;
+
   try {
-    const app = getApps().length === 0 ? initializeApp(config) : getApp();
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const googleProvider = new GoogleAuthProvider();
+    // Dynamically load Firebase SDK via ESM CDN
+    const [appMod, authMod, firestoreMod] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js' as any),
+      import('https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js' as any),
+      import('https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js' as any),
+    ]);
+
+    const config = loadSavedFirebaseConfig();
+    const app = appMod.getApps().length === 0 ? appMod.initializeApp(config) : appMod.getApp();
+    const auth = authMod.getAuth(app);
+    const db = firestoreMod.getFirestore(app);
+    const googleProvider = new authMod.GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-    return { app, auth, db, googleProvider };
+    firebaseModules = {
+      app,
+      auth,
+      db,
+      googleProvider,
+      authMod,
+      firestoreMod,
+    };
+    return firebaseModules;
   } catch (err) {
-    console.error('Failed to initialize Firebase instance', err);
+    console.error('Failed to load Firebase modules', err);
     return null;
   }
+}
+
+export interface GoogleUser {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
 }
 
 // 🔵 1-Click Google Sign-In & Account Linking
 export async function signInWithGoogle(): Promise<{
   success: boolean;
-  user?: User;
+  user?: GoogleUser;
   message: string;
 }> {
-  const fb = getFirebaseInstance();
-  if (!fb) {
-    return {
-      success: false,
-      message: 'Firebase 初始化失敗，請檢查設定！',
-    };
-  }
-
   try {
-    const result = await signInWithPopup(fb.auth, fb.googleProvider);
+    const fb = await loadFirebaseModules();
+    if (!fb) {
+      return {
+        success: false,
+        message: 'Firebase 初始化中，請檢查網路連線後重試！',
+      };
+    }
+
+    const result = await fb.authMod.signInWithPopup(fb.auth, fb.googleProvider);
+    const u = result.user;
     return {
       success: true,
-      user: result.user,
-      message: `🎉 成功登入 Google 帳號：${result.user.displayName || result.user.email}！`,
+      user: {
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        photoURL: u.photoURL,
+      },
+      message: `🎉 成功登入 Google 帳號：${u.displayName || u.email}！`,
     };
   } catch (err: any) {
     console.error('Google Sign-In Error:', err);
@@ -117,10 +130,10 @@ export async function signInWithGoogle(): Promise<{
 
 // 🔴 Sign Out
 export async function signOutGoogle(): Promise<void> {
-  const fb = getFirebaseInstance();
+  const fb = await loadFirebaseModules();
   if (fb) {
     try {
-      await fbSignOut(fb.auth);
+      await fb.authMod.signOut(fb.auth);
     } catch (err) {
       console.error('Failed to sign out', err);
     }
@@ -138,15 +151,15 @@ export async function syncDataToCloud(
     friendRequests: FriendRequest[];
   }
 ): Promise<{ success: boolean; message: string }> {
-  const fb = getFirebaseInstance();
-  if (!fb) return { success: false, message: '未連線至 Firebase' };
-
   try {
-    const userDocRef = doc(fb.db, 'bitemap_users', userId);
-    await setDoc(userDocRef, {
+    const fb = await loadFirebaseModules();
+    if (!fb) return { success: false, message: '未連線至 Firebase' };
+
+    const userDocRef = fb.firestoreMod.doc(fb.db, 'bitemap_users', userId);
+    await fb.firestoreMod.setDoc(userDocRef, {
       ...payload,
       updatedAt: new Date().toISOString(),
-      serverTimestamp: serverTimestamp(),
+      serverTimestamp: fb.firestoreMod.serverTimestamp(),
     }, { merge: true });
 
     return { success: true, message: '☁️ 全站美食地圖與好友資料已成功備份至 Google 雲端！' };
@@ -168,12 +181,12 @@ export async function fetchUserDataFromCloud(userId: string): Promise<{
   };
   message: string;
 }> {
-  const fb = getFirebaseInstance();
-  if (!fb) return { success: false, message: '未連線至 Firebase' };
-
   try {
-    const userDocRef = doc(fb.db, 'bitemap_users', userId);
-    const snap = await getDoc(userDocRef);
+    const fb = await loadFirebaseModules();
+    if (!fb) return { success: false, message: '未連線至 Firebase' };
+
+    const userDocRef = fb.firestoreMod.doc(fb.db, 'bitemap_users', userId);
+    const snap = await fb.firestoreMod.getDoc(userDocRef);
     if (!snap.exists()) {
       return { success: false, message: '此 Google 帳號在雲端尚未有任何備份紀錄。' };
     }
@@ -193,14 +206,4 @@ export async function fetchUserDataFromCloud(userId: string): Promise<{
     console.error('Failed to fetch from cloud', err);
     return { success: false, message: `讀取雲端資料失敗：${err.message}` };
   }
-}
-
-// 👂 Listen to Auth State
-export function onAuthChange(callback: (user: User | null) => void) {
-  const fb = getFirebaseInstance();
-  if (!fb) {
-    callback(null);
-    return () => {};
-  }
-  return onAuthStateChanged(fb.auth, callback);
 }

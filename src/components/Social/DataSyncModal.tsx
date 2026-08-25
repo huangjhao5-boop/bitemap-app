@@ -175,6 +175,118 @@ export const DataSyncModal: React.FC<DataSyncModalProps> = ({
         </div>
 
         <div className="p-6 space-y-5 overflow-y-auto max-h-[80vh]">
+
+          {/* ☁️ Google Cloud One-Click Backup & Cross-Device Sync */}
+          <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white p-5 rounded-3xl shadow-xl space-y-3.5 border border-indigo-500/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-xl border border-white/20">
+                  ☁️
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-white">Google 雲端自動同步 & 跨裝置轉移</h3>
+                  <p className="text-[10px] text-indigo-200">免傳檔案，登入 Google 即時上傳 / 下載全站吃貨資料</p>
+                </div>
+              </div>
+
+              {userProfile?.googleEmail && (
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-bold">
+                  {userProfile.googleEmail}
+                </span>
+              )}
+            </div>
+
+            {cloudSyncStatus && (
+              <div className="p-2.5 bg-white/10 rounded-2xl text-xs font-bold text-indigo-100 border border-white/15 animate-fadeIn">
+                {cloudSyncStatus}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isSyncing}
+                onClick={async () => {
+                  setIsSyncing(true);
+                  setCloudSyncStatus('正在連接 Google 帳號...');
+                  try {
+                    let uid = userProfile?.googleUid;
+                    if (!uid) {
+                      const authRes = await signInWithGoogle();
+                      if (!authRes.success || !authRes.user) {
+                        setCloudSyncStatus(authRes.message);
+                        setIsSyncing(false);
+                        return;
+                      }
+                      uid = authRes.user.uid;
+                    }
+
+                    if (!uid) {
+                      setCloudSyncStatus('請先登入 Google 帳號！');
+                      setIsSyncing(false);
+                      return;
+                    }
+                    setCloudSyncStatus('正在上傳備份至 Google 雲端...');
+                    const syncRes = await syncDataToCloud(uid, {
+                      profile: userProfile || { foodieId: 'kaw_foodie', pinCode: '8888', name: '吃貨探險家', avatar: '🥢', bio: '', defaultCity: '台北市', favoriteTags: [], dislikedTags: [], spicinessLevel: 'mild', budgetPreference: '$' },
+                      restaurants,
+                      friends,
+                      meetups,
+                      friendRequests,
+                    });
+                    setCloudSyncStatus(syncRes.message);
+                  } catch (e: any) {
+                    setCloudSyncStatus('雲端上傳失敗：' + e.message);
+                  } finally {
+                    setIsSyncing(false);
+                  }
+                }}
+                className="py-2.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <span>☁️ 備份上傳雲端</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSyncing}
+                onClick={async () => {
+                  setIsSyncing(true);
+                  setCloudSyncStatus('正在連接 Google 帳號...');
+                  try {
+                    const authRes = await signInWithGoogle();
+                    if (!authRes.success || !authRes.user) {
+                      setCloudSyncStatus(authRes.message);
+                      setIsSyncing(false);
+                      return;
+                    }
+
+                    setCloudSyncStatus('正在從 Google 雲端下載最新資料...');
+                    const cloudRes = await fetchUserDataFromCloud(authRes.user.uid);
+                    if (cloudRes.success && cloudRes.data) {
+                      if (onCloudRestored) {
+                        onCloudRestored(cloudRes.data);
+                      }
+                      setCloudSyncStatus(`🎉 成功還原！已載入 ${(cloudRes.data.restaurants || []).length} 間店家！`);
+                      setTimeout(() => {
+                        onDataImported();
+                        onClose();
+                      }, 1200);
+                    } else {
+                      setCloudSyncStatus(cloudRes.message);
+                    }
+                  } catch (e: any) {
+                    setCloudSyncStatus('載入失敗：' + e.message);
+                  } finally {
+                    setIsSyncing(false);
+                  }
+                }}
+                className="py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <span>📥 從雲端下載還原</span>
+              </button>
+            </div>
+          </div>
+
           {/* Privacy Note Alert */}
           <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900 leading-relaxed">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
