@@ -109,7 +109,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
             onClick={() => { setIdModalTab('my_id'); setIsIdModalOpen(true); }}
             className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <span>🪪 我的吃貨 ID：{userProfile.foodieId || 'kaw_foodie'}</span>
+            <span>🪪 我的吃貨 ID：{userProfile.foodieId || '未設定'}</span>
           </button>
 
           <button

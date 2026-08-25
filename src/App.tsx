@@ -386,26 +386,32 @@ export function App() {
 
   const handleAcceptFriendRequest = (req: FriendRequest) => {
     respondToCloudFriendRequest(req.id, 'accepted', userProfile);
+    
     const newFriend: Friend = {
-      id: 'f_' + Date.now(),
+      id: 'f_' + req.senderFoodieId.replace(/[^a-zA-Z0-9_]/g, '_'),
       foodieId: req.senderFoodieId,
-      name: req.senderName,
+      name: req.senderName || req.senderFoodieId,
       avatar: req.senderAvatar || '🥢',
       favoriteTags: req.favoriteTags || [],
       dislikedTags: req.dislikedTags || [],
       notes: req.bio || '透過吃貨 ID 互相綁定好友',
+      myObservedFavorites: [],
+      myObservedDislikes: [],
     };
 
     handleSaveFriend(newFriend);
 
-    const updatedRequests = friendRequests.filter((r) => r.id !== req.id);
-    setFriendRequests(updatedRequests);
-    saveFriendRequests(updatedRequests);
+    setFriendRequests((prev) => {
+      const updatedRequests = prev.filter((r) => r.id !== req.id);
+      saveFriendRequests(updatedRequests);
+      return updatedRequests;
+    });
+
     setLastSyncTime(triggerAutoSync());
 
     alert(lang === 'zh-TW' 
-      ? `🎉 成功同意添加【${req.senderName}】為吃貨好友！彼此的喜好與忌口已自動同步到您的朋友圈！` 
-      : `🎉 ${req.senderName} とフレンド連携が完了しました！`);
+      ? `🎉 成功同意添加【${req.senderName || req.senderFoodieId}】為吃貨好友！彼此的喜好與忌口已自動同步到您的朋友圈！` 
+      : `🎉 ${req.senderName || req.senderFoodieId} とフレンド連携が完了しました！`);
   };
 
   const handleDeclineFriendRequest = (requestId: string) => {
@@ -476,28 +482,45 @@ export function App() {
   };
 
   const handleSaveFriend = (friend: Friend) => {
-    let updated: Friend[];
-    const exists = friends.some((f) => f.id === friend.id);
-    if (exists) {
-      updated = friends.map((f) => (f.id === friend.id ? friend : f));
-    } else {
-      updated = [...friends, friend];
-    }
-    setFriends(updated);
-    saveFriends(updated);
+    setFriends((prevFriends) => {
+      const cleanTargetId = (friend.foodieId || '').toLowerCase().trim();
+      const existingIdx = prevFriends.findIndex(
+        (f) => f.id === friend.id || (cleanTargetId && (f.foodieId || '').toLowerCase().trim() === cleanTargetId)
+      );
+
+      let updated: Friend[];
+      if (existingIdx !== -1) {
+        updated = [...prevFriends];
+        updated[existingIdx] = {
+          ...prevFriends[existingIdx],
+          ...friend,
+          customNickname: prevFriends[existingIdx].customNickname || friend.customNickname,
+          myObservedFavorites: prevFriends[existingIdx].myObservedFavorites || friend.myObservedFavorites || [],
+          myObservedDislikes: prevFriends[existingIdx].myObservedDislikes || friend.myObservedDislikes || [],
+          notes: prevFriends[existingIdx].notes || friend.notes || '',
+        };
+      } else {
+        updated = [friend, ...prevFriends];
+      }
+
+      saveFriends(updated);
+      return updated;
+    });
     setLastSyncTime(triggerAutoSync());
   };
 
-    const handleDeleteFriend = (id: string) => {
+  const handleDeleteFriend = (id: string) => {
     const targetFriend = friends.find((f) => f.id === id);
     const confirmMsg = lang === 'zh-TW' 
-      ? `確定要刪除好友【${targetFriend?.name || '此好友'}】嗎？雙方好友名冊將自動解除綁定。` 
+      ? `確定要刪除好友【${targetFriend?.customNickname || targetFriend?.name || '此好友'}】嗎？雙方好友名冊將自動解除綁定。` 
       : 'フレンドを解除しますか？';
 
     if (confirm(confirmMsg)) {
-      const updated = friends.filter((f) => f.id !== id);
-      setFriends(updated);
-      saveFriends(updated);
+      setFriends((prevFriends) => {
+        const updated = prevFriends.filter((f) => f.id !== id);
+        saveFriends(updated);
+        return updated;
+      });
       setLastSyncTime(triggerAutoSync());
 
       // Sync deletion to cloud so other party's phone also removes this friendship
