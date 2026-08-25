@@ -479,6 +479,48 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               <span>🏪</span> {t.secBasicInfo}
             </h3>
 
+            {/* 🌐 公開範圍設定 (Visibility Scope) */}
+            <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-amber-500/10 p-4 rounded-2xl border-2 border-indigo-300/80 shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Globe className="w-4 h-4 text-indigo-600 animate-pulse" />
+                  <span>{lang === 'zh-TW' ? '🎯 這間店的公開範圍設定：' : '🎯 店舗の公開範囲設定：'}</span>
+                </label>
+                <span className="text-[11px] font-extrabold text-indigo-800 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+                  {visibility === 'public' ? '🌐 全公開 (社群與好友皆可見)' : visibility === 'friends_only' ? '👥 好友限定 (僅吃貨好友可見)' : '🔒 僅自己私密備忘'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVisibility('public')}
+                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'public' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>🌐 全公開</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVisibility('friends_only')}
+                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'friends_only' ? 'bg-purple-600 text-white border-purple-600 shadow-md ring-2 ring-purple-300 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>👥 好友限定</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVisibility('private')}
+                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'private' ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>🔒 私密</span>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
