@@ -500,6 +500,70 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+          {/* 👥 多吃貨評論合體切換器 */}
+          {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
+            <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3 rounded-2xl border border-purple-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-purple-600" />
+                  {lang === 'zh-TW'
+                    ? `👥 共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：`
+                    : `👥 ${editingRestaurant.contributions.length} 人の口コミ：`}
+                </span>
+                <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
+                  {lang === 'zh-TW' ? '點擊切換心得' : 'タップして切り替え'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {editingRestaurant.contributions.map((c, idx) => (
+                  <button
+                    key={c.restaurantId + '_' + idx}
+                    type="button"
+                    onClick={() => handleSelectReview(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                      activeReviewIndex === idx
+                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300'
+                        : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
+                    }`}
+                  >
+                    <span>{c.authorAvatar || '🥢'}</span>
+                    <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記' : '👑 自分') : c.authorName}</span>
+                    <span className="text-[9px] opacity-75">
+                      {c.ratingTag === 'must_eat' ? '🔥' : c.ratingTag === 'frequent_visit' ? '🔄' : c.ratingTag === 'avoid_again' ? '☠️' : '📌'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 🔒 唯讀瀏覽提示與一鍵複製 */}
+          {isReadOnlyMode && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-slate-800">
+                <div className="w-8 h-8 rounded-full bg-white border border-amber-300 flex items-center justify-center text-base shrink-0">
+                  {currentAuthorInfo.avatar || '🥢'}
+                </div>
+                <div>
+                  <span className="text-xs font-black text-slate-900 block">
+                    {lang === 'zh-TW' ? `這是吃貨【${currentAuthorInfo.name}】的美食筆記（唯讀模式）` : `${currentAuthorInfo.name} さんの口コミ（閲覧モード）`}
+                  </span>
+                  <span className="text-[11px] text-slate-600">
+                    {lang === 'zh-TW' ? '無法直接修改對方紀錄，可複製為您自己的口袋名單！' : 'この記録をコピーして自分のリストに追加できます！'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloneToMyPocket}
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                {lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}
+              </button>
+            </div>
+          )}
+
           {/* 🪄 Smart Auto-Fill Banner */}
           {!editingRestaurant && (
             <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
@@ -512,6 +576,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   {lang === 'zh-TW' ? '省時極速' : '時短'}
                 </span>
               </div>
+
 
               <div className="flex gap-2">
                 <input

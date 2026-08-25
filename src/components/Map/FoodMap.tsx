@@ -248,20 +248,29 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 }) => {
   const t = translations[lang];
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(
-    targetRestaurant || (restaurants.length > 0 ? restaurants[0] : null)
+    targetRestaurant || null
   );
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
+  // When targetRestaurant changes, fly to it
   useEffect(() => {
     if (targetRestaurant) {
       setSelectedRestaurant(targetRestaurant);
     }
   }, [targetRestaurant]);
 
+  // When restaurants list changes (async load), auto-select first if none selected
+  useEffect(() => {
+    if (!selectedRestaurant && restaurants.length > 0) {
+      setSelectedRestaurant(restaurants[0]);
+    }
+  }, [restaurants]);
+
   const defaultCenter: [number, number] = [userLocation.lat, userLocation.lng];
+
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
@@ -372,11 +381,20 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             {restaurant.name}
                           </h4>
                           {/* Author / Recommender Badge */}
-                          {restaurant.authorName && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
-                              <span>👥 來自 @{restaurant.authorName}</span>
-                            </span>
-                          )}
+                          {restaurant.authorName && (() => {
+                            const isFriend = friends.some(
+                              (f) => (f.foodieId || '').toLowerCase() === (restaurant.authorFoodieId || '').toLowerCase()
+                            );
+                            return (
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border ${
+                                isFriend
+                                  ? 'text-purple-800 bg-purple-50 border-purple-100'
+                                  : 'text-indigo-700 bg-indigo-50 border-indigo-100'
+                              }`}>
+                                <span>{isFriend ? '👥 好友' : '🌐 社群'} @{restaurant.authorName}</span>
+                              </span>
+                            );
+                          })()}
 
                           {/* 🎯 Deep Search Match Snippet Highlight */}
                           {matchHighlight && (

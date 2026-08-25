@@ -122,24 +122,33 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             : 'bg-blue-500'
         }`} />
 
-        {/* 👥 Friend Shared Spot Banner */}
-        {restaurant.authorFoodieId && (
-          <div className="bg-gradient-to-r from-purple-500/15 to-indigo-500/15 border-b border-purple-200/60 px-4 py-1.5 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 font-black text-purple-900">
-              <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                {restaurant.authorAvatar && (restaurant.authorAvatar.startsWith('data:') || restaurant.authorAvatar.startsWith('http') || restaurant.authorAvatar.length > 20) ? (
-                  <img src={restaurant.authorAvatar} alt="avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{restaurant.authorAvatar || '🥢'}</span>
-                )}
+        {/* 👥 Friend / 🌐 Community Shared Spot Banner */}
+        {restaurant.authorFoodieId && (() => {
+          const isFriend = friends.some(
+            (f) => (f.foodieId || '').toLowerCase() === (restaurant.authorFoodieId || '').toLowerCase()
+          );
+          return (
+            <div className={`border-b px-4 py-1.5 flex items-center justify-between text-xs ${
+              isFriend
+                ? 'bg-gradient-to-r from-purple-500/15 to-indigo-500/15 border-purple-200/60'
+                : 'bg-gradient-to-r from-indigo-500/10 to-blue-500/10 border-indigo-200/60'
+            }`}>
+              <div className="flex items-center gap-1.5 font-black text-purple-900">
+                <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                  {restaurant.authorAvatar && (restaurant.authorAvatar.startsWith('data:') || restaurant.authorAvatar.startsWith('http') || restaurant.authorAvatar.length > 20) ? (
+                    <img src={restaurant.authorAvatar} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{restaurant.authorAvatar || '🥢'}</span>
+                  )}
+                </div>
+                <span>{isFriend ? '👥 好友' : '🌐 社群吃貨'}【{restaurant.authorName}】的私房口袋</span>
               </div>
-              <span>👥 來自好友【{restaurant.authorName}】的私房口袋名單</span>
+              <span className="text-[10px] bg-purple-200/80 text-purple-900 font-bold px-2 py-0.5 rounded-full">
+                @{restaurant.authorFoodieId}
+              </span>
             </div>
-            <span className="text-[10px] bg-purple-200/80 text-purple-900 font-bold px-2 py-0.5 rounded-full">
-              @{restaurant.authorFoodieId}
-            </span>
-          </div>
-        )}
+          );
+        })()}
 
         <div className="space-y-2.5">
           {/* Header Row: Emoji + Name + Badges + Action Buttons */}
