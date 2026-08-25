@@ -5,11 +5,14 @@ import {
   signInWithGoogle,
   syncDataToCloud,
   fetchUserDataFromCloud,
+  saveFoodieAccountToCloud,
+  fetchFoodieAccountFromCloud,
 } from '../../utils/firebase';
 import { 
   authenticateAndLoginAccount, 
   registerOrUpdateAccount, 
   loadAccountRegistry,
+  saveAccountRegistry,
 } from '../../utils/storage';
 import type { AccountRecord } from '../../utils/storage';
 import { 
@@ -58,9 +61,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const id = loginId.trim();
+    const id = loginId.trim().toLowerCase().replace(/[@#\s]/g, '');
     const pin = loginPin.trim();
 
     if (!id) {
@@ -68,16 +71,54 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    setStatusMessage({ type: 'success', text: '🔍 正在驗證吃貨帳號與安全 PIN...' });
+
+    // 1. Check local registry first
     const res = authenticateAndLoginAccount(id, pin);
     if (res.success && res.account) {
       setStatusMessage({ type: 'success', text: res.message });
+      // Sync latest to cloud in background
+      saveFoodieAccountToCloud(res.account).catch(() => {});
       setTimeout(() => {
         onLoginSuccess(res.account!);
         onClose();
       }, 500);
-    } else {
-      setStatusMessage({ type: 'error', text: res.message });
+      return;
     }
+
+    // 2. If not found locally or failed, check Cloud Firestore (Cross-Device Support!)
+    try {
+      const cloudRes = await fetchFoodieAccountFromCloud(id);
+      if (cloudRes.success && cloudRes.account) {
+        const cloudAcc = cloudRes.account;
+        const storedPin = String(cloudAcc.pinCode || '8888').trim();
+        
+        if (pin && storedPin && storedPin !== pin) {
+          setStatusMessage({ type: 'error', text: `4 碼安全 PIN 密碼錯誤！請確認後重新輸入。` });
+          return;
+        }
+
+        // Save downloaded cloud account to local registry
+        const registry = loadAccountRegistry();
+        registry[id] = cloudAcc;
+        saveAccountRegistry(registry);
+
+        setStatusMessage({ type: 'success', text: `🎉 跨裝置驗證成功！歡迎回來【${cloudAcc.profile?.name || id}】！` });
+        setTimeout(() => {
+          onLoginSuccess(cloudAcc);
+          onClose();
+        }, 500);
+        return;
+      }
+    } catch (cloudErr) {
+      console.log('Cloud account check error', cloudErr);
+    }
+
+    // 3. Neither local nor cloud found
+    setStatusMessage({ 
+      type: 'error', 
+      text: `查無吃貨 ID【${id}】！若這是新帳號，請切換至上方「註冊新 ID」即可跨裝置使用！` 
+    });
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {

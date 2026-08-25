@@ -446,7 +446,7 @@ export function purgeMockTestData(): void {
       try {
         const reqList = JSON.parse(rawFreq);
         if (Array.isArray(reqList)) {
-          const realReqs = reqList.filter((r: any) => !r.id?.startsWith('mock_') && !['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'].includes(r.senderFoodieId));
+          const realReqs = reqList.filter((r: any) => !r.id?.startsWith('mock_') && !r.id?.startsWith('m_') && !['kaw_foodie', 'annie_sweets', 'ming_ramen', 'kevin_meat'].includes(r.senderFoodieId));
           localStorage.setItem('bitemap_friend_requests_v1', JSON.stringify(realReqs));
         }
       } catch {}

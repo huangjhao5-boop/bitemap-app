@@ -318,6 +318,100 @@ export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
 }
 
 
+
+// 🆔 Cloud Account: Save Foodie ID Account Record to Firestore (Cross-Device Registry)
+export async function saveFoodieAccountToCloud(
+  account: {
+    foodieId: string;
+    pinCode: string;
+    profile: UserProfile;
+    restaurants: Restaurant[];
+    friends: Friend[];
+    meetups: DiningMeetup[];
+  }
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return { success: false, message: '未連線至 Firebase' };
+
+    const cleanId = account.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+    const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+
+    await fb.firestoreMod.setDoc(docRef, {
+      foodieId: cleanId,
+      pinCode: String(account.pinCode || '8888').trim(),
+      profile: account.profile,
+      restaurants: account.restaurants || [],
+      friends: account.friends || [],
+      meetups: account.meetups || [],
+      updatedAt: new Date().toISOString(),
+      serverTimestamp: fb.firestoreMod.serverTimestamp(),
+    }, { merge: true });
+
+    // Also write public foodie profile for ID-based friend search
+    const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
+    await fb.firestoreMod.setDoc(pubRef, {
+      foodieId: cleanId,
+      name: account.profile.name || cleanId,
+      avatar: account.profile.avatar || '🥢',
+      favoriteTags: account.profile.favoriteTags || [],
+      dislikedTags: account.profile.dislikedTags || [],
+      bio: account.profile.bio || '',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+
+    console.log('✅ Account synced to Cloud Firestore:', cleanId);
+    return { success: true, message: '帳號已成功同步至雲端！' };
+  } catch (err: any) {
+    console.error('Failed to save account to cloud', err);
+    return { success: false, message: `雲端同步失敗：${err.message}` };
+  }
+}
+
+// 📥 Cloud Account: Fetch Foodie ID Account Record from Firestore
+export async function fetchFoodieAccountFromCloud(foodieId: string): Promise<{
+  success: boolean;
+  account?: {
+    foodieId: string;
+    pinCode: string;
+    profile: UserProfile;
+    restaurants: Restaurant[];
+    friends: Friend[];
+    meetups: DiningMeetup[];
+  };
+  message: string;
+}> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb) return { success: false, message: '未連線至 Firebase' };
+
+    const cleanId = foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+    const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+    const snap = await fb.firestoreMod.getDoc(docRef);
+
+    if (!snap.exists()) {
+      return { success: false, message: `雲端查無吃貨 ID【${cleanId}】！` };
+    }
+
+    const data = snap.data();
+    return {
+      success: true,
+      account: {
+        foodieId: data.foodieId,
+        pinCode: String(data.pinCode || '8888').trim(),
+        profile: data.profile,
+        restaurants: data.restaurants || [],
+        friends: data.friends || [],
+        meetups: data.meetups || [],
+      },
+      message: '帳號已從雲端載入！',
+    };
+  } catch (err: any) {
+    console.error('Failed to fetch account from cloud', err);
+    return { success: false, message: `讀取雲端帳號失敗：${err.message}` };
+  }
+}
+
 // 👥 Send Friend Request to Cloud (Cross-Device Routing)
 export async function sendCloudFriendRequest(
   req: FriendRequest,
