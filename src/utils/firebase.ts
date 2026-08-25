@@ -365,6 +365,63 @@ export async function syncFriendsRestaurantsFromCloud(
   }
 }
 
+// ⚡ 0.1-Second Real-Time WebSocket Listener for Friends' Shared Restaurants (onSnapshot)
+export async function listenToFriendsRestaurantsRealtime(
+  friends: Friend[],
+  onUpdate: (restaurants: Restaurant[]) => void
+): Promise<() => void> {
+  try {
+    const fb = await loadFirebaseModules();
+    if (!fb || friends.length === 0) return () => {};
+
+    const unsubs: (() => void)[] = [];
+    const friendMaps: Record<string, Restaurant[]> = {};
+
+    const triggerMergedUpdate = () => {
+      const merged = Object.values(friendMaps).flat();
+      onUpdate(merged);
+    };
+
+    for (const friend of friends) {
+      if (!friend.foodieId || friend.foodieId === 'guest') continue;
+      const cleanId = friend.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
+      const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+
+      const unsub = fb.firestoreMod.onSnapshot(docRef, (docSnap: any) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const list = Array.isArray(data.restaurants) ? data.restaurants : [];
+          const nonPrivate = list
+            .filter((r: Restaurant) => r.visibility !== 'private')
+            .map((r: Restaurant) => ({
+              ...r,
+              id: 'friend_' + cleanId + '_' + r.id,
+              authorFoodieId: cleanId,
+              authorName: friend.customNickname || friend.name || cleanId,
+              authorAvatar: friend.avatar || '🥢',
+              recommendedByFriendIds: [friend.id],
+            }));
+          friendMaps[cleanId] = nonPrivate;
+        } else {
+          friendMaps[cleanId] = [];
+        }
+        triggerMergedUpdate();
+      }, (err: any) => {
+        console.warn('Realtime friends restaurant listener error', err);
+      });
+
+      unsubs.push(unsub);
+    }
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  } catch (err) {
+    console.error('Failed to setup realtime friends restaurant listeners', err);
+    return () => {};
+  }
+}
+
 // 🆔 Cloud Account: Save Foodie ID Account Record to Firestore (Cross-Device Registry)
 export async function saveFoodieAccountToCloud(
   account: {

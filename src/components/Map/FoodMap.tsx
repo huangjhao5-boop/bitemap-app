@@ -371,6 +371,12 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-amber-600 transition-colors truncate">
                             {restaurant.name}
                           </h4>
+                          {/* Author / Recommender Badge */}
+                          {restaurant.authorName && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
+                              <span>👥 來自 @{restaurant.authorName}</span>
+                            </span>
+                          )}
 
                           {/* 🎯 Deep Search Match Snippet Highlight */}
                           {matchHighlight && (
@@ -499,9 +505,18 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </p>
                     </div>
 
-                    {recommender && (
-                      <div className="text-[11px] text-purple-800 bg-purple-50 p-1.5 rounded-lg border border-purple-100 font-medium">
-                        <span>{recommender.avatar} {recommender.name} {t.friendRecommendedCount}</span>
+                                        {(restaurant.authorName || recommender) && (
+                      <div className="text-[11px] text-purple-900 bg-purple-50 p-2 rounded-xl border border-purple-200 font-bold flex items-center gap-1.5 shadow-2xs">
+                        <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                          {(() => {
+                            const av = restaurant.authorAvatar || recommender?.avatar;
+                            if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
+                              return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
+                            }
+                            return <span>{av || '🥢'}</span>;
+                          })()}
+                        </div>
+                        <span className="truncate">👥 好友【{restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name)}】分享</span>
                       </div>
                     )}
 

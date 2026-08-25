@@ -15,6 +15,7 @@ import {
   deleteCloudFriendship,
   syncFriendsWithLatestProfiles,
   syncFriendsRestaurantsFromCloud,
+  listenToFriendsRestaurantsRealtime,
 } from './utils/firebase';
 import { purgeMockTestData } from './utils/storage';
 import { 
@@ -680,15 +681,22 @@ export function App() {
     });
   }, [friendRequests, friends]);
 
-  // 🗺️ Auto-Sync Friends Shared Food Maps from Cloud
+    // 🗺️ 0.1-Second Real-Time WebSocket Stream for Friends' Shared Food Maps
   useEffect(() => {
     if (friends.length === 0) {
       setFriendsRestaurants([]);
       return;
     }
-    syncFriendsRestaurantsFromCloud(friends).then((sharedList) => {
+    let unsub: (() => void) | null = null;
+    listenToFriendsRestaurantsRealtime(friends, (sharedList) => {
       setFriendsRestaurants(sharedList);
+    }).then((cleanup) => {
+      unsub = cleanup;
     });
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, [friends]);
 
   // Combined Restaurants (My Spots + Friends Shared Spots based on Scope)
