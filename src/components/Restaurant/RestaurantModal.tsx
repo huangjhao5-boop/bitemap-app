@@ -560,11 +560,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       : 'bg-purple-800/60 hover:bg-purple-700/60 text-purple-100 border border-purple-600'
                   }`}
                 >
-                  <span className="text-base leading-none">
-                    {typeof c.authorAvatar === 'string' && c.authorAvatar.startsWith('data:')
-                      ? '🥢'
-                      : (c.authorAvatar || (c.isMine ? '👑' : '🥢'))}
-                  </span>
+                  <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                    {renderSafeAvatar(c.authorAvatar, c.isMine ? '👑' : '🥢')}
+                  </div>
                   <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記' : '👑 マイ記録') : (c.authorName || '熱心吃貨')}</span>
                   <span className="text-[10px] opacity-75">
                     {c.ratingTag === 'must_eat' ? '🔥' : c.ratingTag === 'frequent_visit' ? '🔄' : c.ratingTag === 'avoid_again' ? '☠️' : c.ratingTag === 'wishlist' ? '📌' : '📝'}
@@ -1184,14 +1182,27 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             </button>
 
             {isReadOnlyMode ? (
-              <button
-                type="button"
-                onClick={handleCloneToMyPocket}
-                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>📌 一鍵收進我的口袋名單</span>
-              </button>
+              editingRestaurant?.contributions?.some((c) => c.isMine) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const myIdx = editingRestaurant.contributions!.findIndex((c) => c.isMine);
+                    if (myIdx !== -1) handleSelectReview(myIdx);
+                  }}
+                  className="px-5 py-2 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>👑 切換至我的筆記修改</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCloneToMyPocket}
+                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>📌 一鍵收進我的口袋名單</span>
+                </button>
+              )
             ) : (
               <button
                 type="button"

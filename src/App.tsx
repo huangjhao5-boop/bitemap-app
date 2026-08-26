@@ -506,12 +506,40 @@ export function App() {
     }
   };
 
-  const handleDeleteRestaurant = (id: string) => {
-    const confirmMsg = lang === 'zh-TW' ? '確定要刪除這間餐廳紀錄嗎？' : 'このグルメ記録を削除しますか？';
+    const handleDeleteRestaurant = (id: string) => {
+    const confirmMsg = lang === 'zh-TW' ? '確定要從您的口袋名單中刪除這間餐廳紀錄嗎？' : 'このグルメ記録を削除しますか？';
     if (confirm(confirmMsg)) {
+      const deletedRestaurant = restaurants.find((r) => r.id === id);
+      const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+
+      // 1. Remove from local user pocket
       const updated = restaurants.filter((r) => r.id !== id);
       setRestaurants(updated);
       saveRestaurants(updated);
+
+      // 2. Instantly remove from local community live state if it belonged to user
+      if (deletedRestaurant) {
+        const deletedKey = normalizeRestaurantKey(deletedRestaurant);
+        setCommunityRestaurants((prev) =>
+          prev.filter((r) => r.id !== id && (r.authorFoodieId !== cleanMyId || normalizeRestaurantKey(r) !== deletedKey))
+        );
+      }
+
+      // 3. Sync deletion to Cloud Firestore
+      if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
+        saveFoodieAccountToCloud({
+          foodieId: cleanMyId,
+          pinCode: userProfile.pinCode || '8888',
+          profile: userProfile,
+          restaurants: updated,
+          friends,
+          meetups,
+        }).catch(() => {});
+
+        // Unpublish from public stream
+        publishPublicRestaurantToCloud({ id, visibility: 'private' } as any, userProfile).catch(() => {});
+      }
+
       setLastSyncTime(triggerAutoSync());
     }
   };

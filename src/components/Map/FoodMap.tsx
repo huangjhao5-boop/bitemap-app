@@ -253,9 +253,12 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
-    // When targetRestaurant changes, fly to it
+      const lastTargetIdRef = React.useRef<string | null>(null);
+
+  // When targetRestaurant changes, fly to it only once per target
   useEffect(() => {
-    if (targetRestaurant) {
+    if (targetRestaurant && targetRestaurant.id !== lastTargetIdRef.current) {
+      lastTargetIdRef.current = targetRestaurant.id;
       setSelectedRestaurant(targetRestaurant);
       const lat = Number(targetRestaurant.lat);
       const lng = Number(targetRestaurant.lng);
