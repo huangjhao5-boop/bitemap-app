@@ -839,7 +839,7 @@ export function App() {
     };
   }, [friends]);
 
-        // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
+          // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
   const allCombinedGlobalList = useMemo(() => {
     const map = new Map<string, Restaurant>();
     restaurants.forEach((r) => map.set(r.id, r));
@@ -856,13 +856,22 @@ export function App() {
   // Combined & Multi-Foodie Aggregated Restaurants for current scopeFilter
   const allCombinedRestaurants = useMemo(() => {
     if (scopeFilter === 'mine') {
-      return aggregateRestaurants(restaurants, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
+      const myIds = new Set(restaurants.map((r) => r.id));
+      return allCombinedGlobalList.filter((r) => {
+        if (myIds.has(r.id)) return true;
+        if (r.contributions && r.contributions.some((c) => c.isMine)) return true;
+        return !r.authorFoodieId || r.authorFoodieId === userProfile.foodieId;
+      });
     }
     if (scopeFilter === 'friends') {
-      return aggregateRestaurants(friendsRestaurants, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
+      return allCombinedGlobalList.filter((r) => {
+        const isFriendAuthor = friends.some((f) => (f.foodieId || '').toLowerCase() === (r.authorFoodieId || '').toLowerCase());
+        const hasFriendContribution = r.contributions?.some((c) => friends.some((f) => (f.foodieId || '').toLowerCase() === (c.authorFoodieId || '').toLowerCase()));
+        return isFriendAuthor || hasFriendContribution || r.id.startsWith('friend_') || (r.recommendedByFriendIds && r.recommendedByFriendIds.length > 0);
+      });
     }
     return allCombinedGlobalList;
-  }, [scopeFilter, restaurants, friendsRestaurants, allCombinedGlobalList, userProfile.foodieId]);
+  }, [scopeFilter, allCombinedGlobalList, restaurants, friends, userProfile.foodieId]);
 
     const cities = useMemo<string[]>(() => {
     const set = new Set(allCombinedRestaurants.map((r: Restaurant) => r.city).filter(Boolean));

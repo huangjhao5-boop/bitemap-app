@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Restaurant, Friend } from '../../types';
@@ -244,26 +244,41 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
-  // When targetRestaurant changes, fly to it
+    // When targetRestaurant changes, fly to it
   useEffect(() => {
     if (targetRestaurant) {
       setSelectedRestaurant(targetRestaurant);
+      const lat = Number(targetRestaurant.lat);
+      const lng = Number(targetRestaurant.lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setFlyToPosition([lat, lng]);
+      }
     }
   }, [targetRestaurant]);
 
-  // When restaurants list changes (async load), auto-select first if none selected
+  // When restaurants list changes, keep current selected if valid, else select first without moving map
   useEffect(() => {
-    if (!selectedRestaurant && restaurants.length > 0) {
-      setSelectedRestaurant(restaurants[0]);
+    if (restaurants.length > 0) {
+      setSelectedRestaurant((prev) => {
+        if (prev && restaurants.some((r) => r.id === prev.id)) {
+          return prev;
+        }
+        return restaurants[0];
+      });
     }
   }, [restaurants]);
 
-  const defaultCenter: [number, number] = [userLocation.lat, userLocation.lng];
-
+  const defaultCenter = useMemo<[number, number]>(() => {
+    return [userLocation.lat || 25.0478, userLocation.lng || 121.5319];
+  }, []);
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
-    setFlyToPosition([Number(restaurant.lat) || 25.0478, Number(restaurant.lng) || 121.5319]);
+    const lat = Number(restaurant.lat);
+    const lng = Number(restaurant.lng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setFlyToPosition([lat, lng]);
+    }
     setIsMobileDrawerOpen(false);
   };
 
