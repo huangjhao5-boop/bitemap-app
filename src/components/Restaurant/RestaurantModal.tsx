@@ -35,6 +35,13 @@ interface RestaurantModalProps {
   lang: Language;
 }
 
+function renderSafeAvatar(avatar: string | undefined, defaultEmoji: string = '🥢', sizeClass: string = 'w-full h-full') {
+  if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20)) {
+    return <img src={avatar} alt="avatar" className={`${sizeClass} object-cover`} />;
+  }
+  return <span>{avatar || defaultEmoji}</span>;
+}
+
 const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
   '台北市': { lat: 25.0478, lng: 121.5319 },
   '新北市': { lat: 25.0118, lng: 121.4658 },
@@ -209,16 +216,16 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (c.menuDishes) setMenuDishes(c.menuDishes);
   };
 
-  // 📌 一鍵收進我的口袋名單 (Clone and customize as my own record)
+    // 📌 一鍵收進我的口袋名單 (Clone and switch into editable draft for current user)
   const handleCloneToMyPocket = () => {
     const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     setIsReadOnlyMode(false);
-    setPersonalNotes(''); // Clear notes so user can write own observation
-    setVisitCount(1);
-    setRatingTag('wishlist'); // Default to wishlist
+    setPersonalNotes(''); // Clear notes so user writes own evaluation
+    setVisitCount(0);
+    setRatingTag('wishlist');
     setVisibility('public');
     alert(lang === 'zh-TW'
-      ? '🎉 已將此店家基本資料複製為您的個人草稿！您可以自由填寫自己的評分、必吃菜色與筆記並儲存。'
+      ? '🎉 已將此店家基本資料複製為您的個人草稿！您可以填寫自己的評分、必吃菜色與筆記並儲存到我的口袋。'
       : '🎉 口コミを自分用にコピーしました！自由に編集して保存できます。');
   };
 
@@ -490,954 +497,604 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto border border-slate-200">
+            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto border border-slate-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
           <div className="flex items-center gap-2">
-            <span className="text-xl">✨</span>
+            <span className="text-xl">{isReadOnlyMode ? '🥢' : '✨'}</span>
             <h2 className="text-lg font-bold text-white">
-              {editingRestaurant ? t.modalTitleEdit : t.modalTitleAdd}
+              {isReadOnlyMode 
+                ? (lang === 'zh-TW' ? '吃貨美食筆記與評論檢視' : 'グルメ口コミ・記録閲覧')
+                : editingRestaurant 
+                ? (lang === 'zh-TW' ? '編輯我的美食紀錄' : t.modalTitleEdit)
+                : (lang === 'zh-TW' ? '新增我的美食紀錄' : t.modalTitleAdd)}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
-          {/* 👥 多吃貨評論合體切換器 */}
-          {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
-            <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3 rounded-2xl border border-purple-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-purple-600" />
-                  {lang === 'zh-TW'
-                    ? `👥 共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：`
-                    : `👥 ${editingRestaurant.contributions.length} 人の口コミ：`}
-                </span>
-                <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
-                  {lang === 'zh-TW' ? '點擊切換心得' : 'タップして切り替え'}
-                </span>
+        {isReadOnlyMode ? (
+          /* ═══════════════════════════════════════════════════════════════════════════
+             📖 唯讀吃貨心得檢視模式 (Clean Read-Only View, NO form inputs!)
+             ═══════════════════════════════════════════════════════════════════════════ */
+          <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-slate-50/50">
+            {/* 👥 多吃貨評論合體切換籤頁 */}
+            {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
+              <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3.5 rounded-2xl border border-purple-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    <span>{lang === 'zh-TW' ? `共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：` : `${editingRestaurant.contributions.length} 人の口コミ：`}</span>
+                  </span>
+                  <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
+                    點擊切換心得
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {editingRestaurant.contributions.map((c, idx) => (
+                    <button
+                      key={c.restaurantId + '_' + idx}
+                      type="button"
+                      onClick={() => handleSelectReview(idx)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                        activeReviewIndex === idx
+                          ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300'
+                          : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
+                      }`}
+                    >
+                      <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                        {renderSafeAvatar(c.authorAvatar, '🥢')}
+                      </div>
+                      <span>{c.isMine ? '👑 我的筆記' : c.authorName}</span>
+                      <span className="text-[10px] opacity-80">
+                        {c.ratingTag === 'must_eat' ? '🔥 必吃' : c.ratingTag === 'frequent_visit' ? '🔄 愛店' : c.ratingTag === 'avoid_again' ? '☠️ 雷店' : '📌 口袋'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {editingRestaurant.contributions.map((c, idx) => (
-                  <button
-                    key={c.restaurantId + '_' + idx}
-                    type="button"
-                    onClick={() => handleSelectReview(idx)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                      activeReviewIndex === idx
-                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300'
-                        : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
-                    }`}
-                  >
-                    <span>{c.authorAvatar || '🥢'}</span>
-                    <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記' : '👑 自分') : c.authorName}</span>
-                    <span className="text-[9px] opacity-75">
-                      {c.ratingTag === 'must_eat' ? '🔥' : c.ratingTag === 'frequent_visit' ? '🔄' : c.ratingTag === 'avoid_again' ? '☠️' : '📌'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* 🔒 唯讀瀏覽提示與一鍵複製 */}
-          {isReadOnlyMode && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-slate-800">
-                <div className="w-8 h-8 rounded-full bg-white border border-amber-300 flex items-center justify-center text-base shrink-0">
-                  {currentAuthorInfo.avatar || '🥢'}
+            {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white border-2 border-amber-300 overflow-hidden flex items-center justify-center text-lg shrink-0 shadow-2xs">
+                  {renderSafeAvatar(currentAuthorInfo.avatar, '🥢')}
                 </div>
                 <div>
                   <span className="text-xs font-black text-slate-900 block">
                     {lang === 'zh-TW' ? `這是吃貨【${currentAuthorInfo.name}】的美食筆記（唯讀模式）` : `${currentAuthorInfo.name} さんの口コミ（閲覧モード）`}
                   </span>
                   <span className="text-[11px] text-slate-600">
-                    {lang === 'zh-TW' ? '無法直接修改對方紀錄，可複製為您自己的口袋名單！' : 'この記録をコピーして自分のリストに追加できます！'}
+                    {lang === 'zh-TW' ? '無法直接修改對方紀錄，您可以複製並建立自己的專屬口袋名單！' : 'この記録をコピーして自分のリストに追加できます！'}
                   </span>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={handleCloneToMyPocket}
-                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                {lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}
+                <span>{lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}</span>
               </button>
             </div>
-          )}
 
-          {/* 🪄 Smart Auto-Fill Banner */}
-          {!editingRestaurant && (
-            <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <Wand2 className="w-4 h-4 text-amber-600" />
-                  <span>{lang === 'zh-TW' ? '🪄 智能一鍵自動填入（貼上短影音網址或社群貼文）' : '🪄 AI 自動入力（動画URLやSNS投稿を貼り付け）'}</span>
-                </span>
-                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
-                  {lang === 'zh-TW' ? '省時極速' : '時短'}
-                </span>
-              </div>
-
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={lang === 'zh-TW' ? '貼上 IG Reels / TikTok 網址，例如：https://www.instagram.com/reel/...' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
-                  value={smartInputText}
-                  onChange={(e) => setSmartInputText(e.target.value)}
-                  className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white font-medium shadow-2xs"
-                />
-                <button
-                  type="button"
-                  onClick={handleSmartAutoFill}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                >
-                  {autoFillSuccess ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{lang === 'zh-TW' ? '一鍵自動填入' : '自動解析'}</span>
-                    </>
+            {/* 店家核心資訊小卡 */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                    {category} · {priceRange} · {city}
+                  </span>
+                  {ratingTag === 'must_eat' && (
+                    <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white font-black text-xs flex items-center gap-1">
+                      <Flame className="w-3 h-3 fill-current" />
+                      <span>{t.tagMustEat}</span>
+                    </span>
                   )}
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {lang === 'zh-TW'
-                  ? '💡 支援自動提取店名、分類、必吃餐點與短影音來源，解析後仍可自由微調！'
-                  : '💡 店名・ジャンル・おすすめ料理を自動抽出します。抽出後も手動で編集可能です。'}
-              </p>
-            </div>
-          )}
+                  {ratingTag === 'frequent_visit' && (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center gap-1">
+                      <RotateCw className="w-3 h-3" />
+                      <span>{t.tagFrequentVisit}</span>
+                    </span>
+                  )}
+                  {ratingTag === 'wishlist' && (
+                    <span className="px-2.5 py-1 rounded-full bg-blue-600 text-white font-black text-xs flex items-center gap-1">
+                      <Bookmark className="w-3 h-3" />
+                      <span>{t.tagWishlist}</span>
+                    </span>
+                  )}
+                  {ratingTag === 'avoid_again' && (
+                    <span className="px-2.5 py-1 rounded-full bg-slate-900 text-rose-300 font-black text-xs flex items-center gap-1">
+                      <ThumbsDown className="w-3 h-3 text-rose-400" />
+                      <span>{lang === 'zh-TW' ? '☠️ 黑名單' : '☠️ NG店'}</span>
+                    </span>
+                  )}
+                </div>
 
-          {/* Section 1: Basic Info */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>🏪</span> {t.secBasicInfo}
-            </h3>
-
-            {/* 🌐 公開範圍設定 (Visibility Scope) */}
-            <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-amber-500/10 p-4 rounded-2xl border-2 border-indigo-300/80 shadow-xs space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-indigo-600 animate-pulse" />
-                  <span>{lang === 'zh-TW' ? '🎯 這間店的公開範圍設定：' : '🎯 店舗の公開範囲設定：'}</span>
-                </label>
-                <span className="text-[11px] font-extrabold text-indigo-800 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
-                  {visibility === 'public' ? '🌐 全公開 (社群與好友皆可見)' : visibility === 'friends_only' ? '👥 好友限定 (僅吃貨好友可見)' : '🔒 僅自己私密備忘'}
+                <span className="text-xs font-bold text-slate-500">
+                  去過次數：{visitCount} 次
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setVisibility('public')}
-                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'public' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+              <h3 className="text-lg font-black text-slate-900">{name}</h3>
+              <p className="text-xs text-slate-600 flex items-center gap-1">
+                <span>📍 {address}</span>
+              </p>
+
+              {googleMapsUrl && (
+                <a
+                  href={googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 transition-colors"
                 >
                   <Globe className="w-3.5 h-3.5" />
-                  <span>🌐 全公開</span>
-                </button>
+                  <span>開啟 Google 地圖導航</span>
+                </a>
+              )}
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => setVisibility('friends_only')}
-                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'friends_only' ? 'bg-purple-600 text-white border-purple-600 shadow-md ring-2 ring-purple-300 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>👥 好友限定</span>
-                </button>
+            {/* 必吃與雷菜展示 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 space-y-2">
+                <span className="text-xs font-black text-amber-900 flex items-center gap-1">
+                  <Flame className="w-4 h-4 text-amber-600 fill-amber-500" />
+                  <span>推薦必吃 / 招牌餐點</span>
+                </span>
+                {mustEatDishes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {mustEatDishes.map((d, i) => (
+                      <span key={i} className="bg-amber-100 text-amber-950 font-bold text-xs px-2.5 py-1 rounded-xl">
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700/70 italic">尚未填寫特定招牌菜</p>
+                )}
+              </div>
 
-                <button
-                  type="button"
-                  onClick={() => setVisibility('private')}
-                  className={`p-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${visibility === 'private' ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-400 scale-102' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>🔒 私密</span>
-                </button>
+              <div className="bg-rose-50/80 p-3.5 rounded-2xl border border-rose-200 space-y-2">
+                <span className="text-xs font-black text-rose-900 flex items-center gap-1">
+                  <ThumbsDown className="w-4 h-4 text-rose-600" />
+                  <span>建議避開 / 踩雷菜色</span>
+                </span>
+                {avoidDishes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {avoidDishes.map((d, i) => (
+                      <span key={i} className="bg-rose-100 text-rose-950 font-bold text-xs px-2.5 py-1 rounded-xl line-through">
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-rose-700/70 italic">無特定踩雷備註</p>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelSpotName} *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'zh-TW' ? '例如：隱家拉麵 赤峰店' : '例：麺屋 一燈'}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-medium"
-                />
+            {/* 心得筆記展示 */}
+            {personalNotes && (
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1.5">
+                <span className="text-xs font-black text-slate-700 block">📝 吃貨私房心得筆記：</span>
+                <p className="text-xs text-slate-700 italic bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                  "{personalNotes}"
+                </p>
+              </div>
+            )}
+
+            {/* 探店短影音展示 */}
+            {videos.length > 0 && (
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-xs font-black text-slate-700 block">📹 探店短影音 ({videos.length})：</span>
+                <div className="space-y-2">
+                  {videos.map((v, i) => (
+                    <a
+                      key={i}
+                      href={v.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 transition-colors text-xs"
+                    >
+                      <span className="font-bold text-slate-800 truncate">
+                        🎬 {v.title || v.creatorName ? `${v.creatorName || ''} - ${v.title || '探店推薦'}` : v.url}
+                      </span>
+                      <span className="text-purple-600 font-bold shrink-0 ml-2">點擊觀看 ↗</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ═══════════════════════════════════════════════════════════════════════════
+             ✍️ 編輯 / 新增模式 (Full Editable Form)
+             ═══════════════════════════════════════════════════════════════════════════ */
+          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+            {/* 🪄 Smart Auto-Fill Banner */}
+            {!editingRestaurant && (
+              <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <Wand2 className="w-4 h-4 text-amber-600" />
+                    <span>{lang === 'zh-TW' ? '🪄 智能一鍵自動填入（貼上短影音網址或社群貼文）' : '🪄 AI 自動入力（動画URLやSNS投稿を貼り付け）'}</span>
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    {lang === 'zh-TW' ? '省時極速' : '時短'}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={lang === 'zh-TW' ? '貼上 IG Reels / TikTok 網址，例如：https://www.instagram.com/reel/...' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
+                    value={smartInputText}
+                    onChange={(e) => setSmartInputText(e.target.value)}
+                    className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white font-medium shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSmartAutoFill}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                  >
+                    {autoFillSuccess ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{lang === 'zh-TW' ? '一鍵自動填入' : '自動解析'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 🏪 基本店家資訊 */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                  <span>🏪</span>
+                  <span>{t.secBasicInfo}</span>
+                </h3>
+              </div>
+
+              {/* 🌐 Visibility Selector */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-purple-50/70 to-blue-50/70 border border-indigo-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-indigo-600" />
+                    <span>這間店的公開範圍設定：</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                    {visibility === 'public' ? '🌐 全公開 (社群與好友皆可見)' : visibility === 'friends_only' ? '👥 好友限定 (僅吃貨朋友可見)' : '🔒 私密 (僅自己可見)'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('public')}
+                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      visibility === 'public'
+                        ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300 scale-102'
+                        : 'bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>🌐 全公開</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('friends_only')}
+                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      visibility === 'friends_only'
+                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300 scale-102'
+                        : 'bg-white hover:bg-purple-50 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>👥 好友限定</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('private')}
+                    className={`py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      visibility === 'private'
+                        ? 'bg-slate-900 text-white shadow-md ring-2 ring-slate-400 scale-102'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>🔒 私密</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t.labelSpotName}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder={lang === 'zh-TW' ? '例如：隱家拉麵 赤峰店' : '例：一蘭 新宿中央東口店'}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t.labelCategory}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={lang === 'zh-TW' ? '例如：日式拉麵、燒肉居酒屋' : '例：ラーメン、焼肉'}
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t.labelCity}
+                  </label>
+                  <select
+                    value={city}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                  >
+                    {Object.keys(CITY_COORDINATES).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {t.labelAddress}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={lang === 'zh-TW' ? '例如：台北市大同區南京西路25巷28號' : '例：東京都新宿区新宿3-34-11'}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelCategory}
-                </label>
-                <input
-                  type="text"
-                  placeholder={lang === 'zh-TW' ? '日式拉麵 / 燒肉 / 甜點 / 火鍋' : 'ラーメン / 焼肉 / スイーツ / 居酒屋'}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelCity}
-                </label>
-                <select
-                  value={city}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
-                >
-                  <option value="台北市">台北市</option>
-                  <option value="新北市">新北市</option>
-                  <option value="台中市">台中市</option>
-                  <option value="台南市">台南市</option>
-                  <option value="高雄市">高雄市</option>
-                  <option value="東京">東京</option>
-                  <option value="大阪">大阪</option>
-                  <option value="京都">京都</option>
-                  <option value="福岡">福岡</option>
-                  <option value="其他">其他 / その他</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelAddress}
-                </label>
-                <input
-                  type="text"
-                  placeholder={lang === 'zh-TW' ? '例如：台北市大同區南京西路25巷28號' : '例：東京都渋谷区神宮前1-2-3'}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelGoogleMapsUrl}
+                  Google Maps 連結 (選填)
                 </label>
                 <input
                   type="url"
                   placeholder="https://maps.app.goo.gl/..."
                   value={googleMapsUrl}
                   onChange={(e) => setGoogleMapsUrl(e.target.value)}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>{t.labelPriceRange} *</span>
-                  <span className="text-[11px] font-bold text-amber-600">
-                    {priceRange === '$' && (lang === 'zh-TW' ? '💰 銅板小吃 (< $200)' : '💰 リーズナブル (~1,000円)')}
-                    {priceRange === '$$' && (lang === 'zh-TW' ? '🍽️ 日常聚餐 ($200 ~ $500)' : '🍽️ 定番ランチ (1,000~2,500円)')}
-                    {priceRange === '$$$' && (lang === 'zh-TW' ? '✨ 精緻享受 ($500 ~ $1,500)' : '✨ ディナー・居酒屋 (2,500~8,000円)')}
-                    {priceRange === '$$$$' && (lang === 'zh-TW' ? '💎 頂級奢華 ($1,500+)' : '💎 高級・コース (8,000円~)')}
-                  </span>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  價位級距 *
                 </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[
-                    { lvl: '$' as const, label: lang === 'zh-TW' ? '銅板平價' : '手頃', range: '< $200' },
-                    { lvl: '$$' as const, label: lang === 'zh-TW' ? '日常聚餐' : '普通', range: '$200-500' },
-                    { lvl: '$$$' as const, label: lang === 'zh-TW' ? '精緻饗宴' : 'プチ贅沢', range: '$500-1.5k' },
-                    { lvl: '$$$$' as const, label: lang === 'zh-TW' ? '奢華頂級' : '高級', range: '$1.5k+' },
-                  ].map((item) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {(['$', '$$', '$$$', '$$$$'] as const).map((p) => (
                     <button
-                      key={item.lvl}
+                      key={p}
                       type="button"
-                      onClick={() => setPriceRange(item.lvl)}
-                      className={`p-2 rounded-2xl text-center border transition-all ${
-                        priceRange === item.lvl
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-md scale-102 ring-2 ring-amber-300'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      onClick={() => setPriceRange(p)}
+                      className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        priceRange === p
+                          ? 'bg-amber-500 text-white shadow-md ring-2 ring-amber-300'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                       }`}
                     >
-                      <div className="font-black text-sm">{item.lvl}</div>
-                      <div className="text-[10px] font-bold opacity-90">{item.range}</div>
+                      {p}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
 
+            {/* ⭐ 評價定位 */}
+            <div className="space-y-4 pt-2 border-t border-slate-200">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <span>⭐</span>
+                <span>{lang === 'zh-TW' ? '評價定位' : '評価設定'}</span>
+              </h3>
 
-          {/* Section 2: Store Overall Rating Tag */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>🎯</span> {lang === 'zh-TW' ? '店家整體評價定位' : '店舗ステータス'}
-            </h3>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                {lang === 'zh-TW' ? '選擇這間店在您心中的定位：' : '評価タグを選択：'}
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setRatingTag('must_eat')}
-                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     ratingTag === 'must_eat'
-                      ? 'bg-rose-500 text-white border-rose-500 shadow-xs ring-2 ring-rose-200'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-300 shadow-md'
+                      : 'bg-slate-50 hover:bg-amber-50/50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <Flame className="w-4 h-4 shrink-0 fill-current" />
-                  <span>{t.tagMustEat}</span>
+                  <div className="flex items-center gap-1.5 font-black text-xs mb-0.5">
+                    <Flame className="w-4 h-4 fill-current" />
+                    <span>{t.tagMustEat}</span>
+                  </div>
+                  <p className="text-[10px] opacity-85">超推必吃、無腦首選</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRatingTag('frequent_visit')}
-                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     ratingTag === 'frequent_visit'
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-200'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-300 shadow-md'
+                      : 'bg-slate-50 hover:bg-emerald-50/50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <RotateCw className="w-4 h-4 shrink-0" />
-                  <span>{t.tagFrequentVisit}</span>
+                  <div className="flex items-center gap-1.5 font-black text-xs mb-0.5">
+                    <RotateCw className="w-4 h-4" />
+                    <span>{t.tagFrequentVisit}</span>
+                  </div>
+                  <p className="text-[10px] opacity-85">日常愛店、常去回訪</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRatingTag('wishlist')}
-                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     ratingTag === 'wishlist'
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-200'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-blue-600 text-white border-blue-700 ring-2 ring-blue-300 shadow-md'
+                      : 'bg-slate-50 hover:bg-blue-50/50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <Bookmark className="w-4 h-4 shrink-0" />
-                  <span>{t.tagWishlist}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRatingTag('mediocre')}
-                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
-                    ratingTag === 'mediocre'
-                      ? 'bg-slate-600 text-white border-slate-600 shadow-xs ring-2 ring-slate-200'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <HelpCircle className="w-4 h-4 shrink-0" />
-                  <span>{t.tagMediocre}</span>
+                  <div className="flex items-center gap-1.5 font-black text-xs mb-0.5">
+                    <Bookmark className="w-4 h-4" />
+                    <span>{t.tagWishlist}</span>
+                  </div>
+                  <p className="text-[10px] opacity-85">待吃名單、想去探店</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRatingTag('avoid_again')}
-                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all text-left col-span-2 sm:col-span-2 ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     ratingTag === 'avoid_again'
-                      ? 'bg-slate-950 text-rose-300 border-slate-950 shadow-md ring-2 ring-rose-400'
-                      : 'bg-white text-rose-900 border-rose-200 hover:bg-rose-50'
+                      ? 'bg-slate-900 text-rose-300 border-slate-950 ring-2 ring-rose-500 shadow-md'
+                      : 'bg-slate-50 hover:bg-rose-50/50 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <ThumbsDown className="w-4 h-4 shrink-0 text-rose-500" />
-                  <div className="flex flex-col">
-                    <span>{lang === 'zh-TW' ? '☠️ 整間店列入黑名單 (永久封殺)' : '☠️ 店舗ブラックリスト (二度と行かない)'}</span>
-                    <span className="text-[10px] opacity-75 font-normal">
-                      {lang === 'zh-TW' ? '環境極差、態度惡劣或全面踩雷' : '店全体がNG・リピート不可'}
-                    </span>
+                  <div className="flex items-center gap-1.5 font-black text-xs mb-0.5 text-rose-400">
+                    <ThumbsDown className="w-4 h-4" />
+                    <span>{lang === 'zh-TW' ? '☠️ 黑名單' : '☠️ NG店'}</span>
                   </div>
+                  <p className="text-[10px] opacity-85">踩雷勿入、不會再去</p>
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelVisitCount}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    value={visitCount}
-                    onChange={(e) => setVisitCount(parseInt(e.target.value) || 0)}
-                    className="w-24 text-sm px-3 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-bold text-center bg-white"
-                  />
-                  <span className="text-xs text-slate-500">{t.timesUnit}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelLastDate}
-                </label>
-                <input
-                  type="date"
-                  value={lastVisitedDate}
-                  onChange={(e) => setLastVisitedDate(e.target.value)}
-                  className="w-full text-sm px-3 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: 📸 Smart Menu OCR & Interactive Dish Tagger */}
-          <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between border-b pb-1">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span>📋</span> {lang === 'zh-TW' ? '菜單圖片上傳 & 菜色點選評價' : 'メニュー写真・料理別評価'}
-              </h3>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => menuFileInputRef.current?.click()}
-                  disabled={isProcessingMenu}
-                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95"
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>{isProcessingMenu ? '處理中...' : '📷 上傳菜單照片'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowTextMenuInput(!showTextMenuInput)}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-colors cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5 inline mr-1" />
-                  <span>貼上菜單文字</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Hidden Menu File Input */}
-            <input
-              type="file"
-              ref={menuFileInputRef}
-              onChange={handleMenuPhotoUpload}
-              accept="image/*"
-              className="hidden"
-            />
-
-            {/* Menu Photo Gallery Preview */}
-            {menuImages.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto py-1">
-                {menuImages.map((img, idx) => (
-                  <div key={idx} className="relative w-24 h-24 rounded-xl overflow-hidden border border-slate-300 shadow-2xs shrink-0 group">
-                    <img src={img} alt="菜單" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setMenuImages((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-rose-600 text-white rounded-lg transition-colors cursor-pointer"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Batch Paste Text Menu Box */}
-            {showTextMenuInput && (
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2 animate-fadeIn">
-                <label className="block text-xs font-bold text-slate-700">
-                  貼上或輸入菜單文字（每行一道菜，系統會自動拆解）：
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="濃厚豚骨拉麵 240元\n辛味噌拉麵 260元\n日式煎餃 80元\n唐揚炸雞 120元"
-                  value={menuTextInput}
-                  onChange={(e) => setMenuTextInput(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white font-mono"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowTextMenuInput(false)}
-                    className="px-3 py-1 text-xs text-slate-500 font-bold hover:bg-slate-200 rounded-lg"
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleParseMenuText}
-                    className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-2xs cursor-pointer"
-                  >
-                    ✨ 自動解析為菜色列表
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 🍽️ Interactive Dishes Tagger List (With Inline Edit Correction) */}
-            {menuDishes.length > 0 ? (
-              <div className="space-y-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-200">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span>🍽️ 點擊標籤直接為菜色評分（可隨時修改菜名訂正）：</span>
-                  <button
-                    type="button"
-                    onClick={handleAddCustomDish}
-                    className="text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>新增菜色</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {menuDishes.map((dish) => (
-                    <div
-                      key={dish.id}
-                      className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-all hover:border-slate-300"
-                    >
-                      {/* Dish Name (Editable Input for instant typo correction) */}
-                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                        <input
-                          type="text"
-                          value={dish.name}
-                          onChange={(e) => handleUpdateDishName(dish.id, e.target.value)}
-                          placeholder="菜色名稱 (點此修改訂正)"
-                          className="w-full text-xs font-bold text-slate-800 px-2 py-1 rounded-lg border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-indigo-50/30 transition-colors"
-                        />
-                        {dish.price && (
-                          <span className="text-[10px] font-mono text-slate-400 font-bold shrink-0">
-                            {dish.price}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* 4-Level Dish Taste Rating Buttons */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleSetDishRating(dish.id, 'must_eat')}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                            dish.rating === 'must_eat'
-                              ? 'bg-amber-500 text-white shadow-2xs ring-1 ring-amber-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700'
-                          }`}
-                        >
-                          🌟 必吃
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetDishRating(dish.id, 'tasty')}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                            dish.rating === 'tasty'
-                              ? 'bg-emerald-600 text-white shadow-2xs ring-1 ring-emerald-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
-                          }`}
-                        >
-                          👍 好吃
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetDishRating(dish.id, 'mediocre')}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                            dish.rating === 'mediocre'
-                              ? 'bg-slate-600 text-white shadow-2xs ring-1 ring-slate-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          😐 普通
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSetDishRating(dish.id, 'avoid')}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
-                            dish.rating === 'avoid'
-                              ? 'bg-rose-600 text-white shadow-2xs ring-1 ring-rose-300'
-                              : 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-700'
-                          }`}
-                        >
-                          ❌ 踩雷
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDishItem(dish.id)}
-                          className="p-1 text-slate-300 hover:text-rose-600 rounded-md transition-colors cursor-pointer ml-0.5"
-                          title="刪除此道菜"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              /* Quick Manual Input Fallback */
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-200">
-                {/* Must-Eat Dishes */}
-                <div>
-                  <label className="block text-xs font-bold text-amber-900 mb-1 flex items-center gap-1">
-                    <Flame className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-                    <span>{lang === 'zh-TW' ? '🌟 此店必點招牌' : '🌟 必食名物メニュー'}</span>
+            {/* 🌟 必吃與雷菜 */}
+            <div className="space-y-4 pt-2 border-t border-slate-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 必吃菜色 */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-amber-900 flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                    <span>{t.mustEatDishesTitle}</span>
                   </label>
-                  <div className="flex gap-1.5 mb-1.5">
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="手動新增必吃招牌"
+                      placeholder="輸入必吃菜色按新增"
                       value={newMustEatInput}
                       onChange={(e) => setNewMustEatInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          handleAddMustEat();
+                          if (newMustEatInput.trim()) {
+                            setMustEatDishes([...mustEatDishes, newMustEatInput.trim()]);
+                            setNewMustEatInput('');
+                          }
                         }
                       }}
-                      className="flex-1 text-xs px-2.5 py-1.5 rounded-xl border border-amber-300 bg-white"
+                      className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white"
                     />
                     <button
                       type="button"
-                      onClick={handleAddMustEat}
-                      className="px-2.5 py-1.5 bg-amber-600 text-white rounded-xl text-xs font-bold"
+                      onClick={() => {
+                        if (newMustEatInput.trim()) {
+                          setMustEatDishes([...mustEatDishes, newMustEatInput.trim()]);
+                          setNewMustEatInput('');
+                        }
+                      }}
+                      className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold"
                     >
-                      {t.btnAdd}
+                      新增
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {mustEatDishes.map((dish, i) => (
-                      <span key={i} className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                        <span>🌟 {dish}</span>
-                        <button type="button" onClick={() => handleRemoveMustEat(i)}>
-                          <X className="w-3 h-3" />
-                        </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mustEatDishes.map((d, idx) => (
+                      <span key={idx} className="bg-amber-100 text-amber-950 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                        {d}
+                        <button type="button" onClick={() => setMustEatDishes(mustEatDishes.filter((_, i) => i !== idx))} className="text-amber-700 hover:text-red-500">×</button>
                       </span>
                     ))}
                   </div>
                 </div>
 
-                {/* Avoid Dishes */}
-                <div>
-                  <label className="block text-xs font-bold text-rose-900 mb-1 flex items-center gap-1">
-                    <ThumbsDown className="w-3.5 h-3.5 text-rose-600" />
-                    <span>{lang === 'zh-TW' ? '❌ 此店特定雷菜' : '❌ 避けるべき料理'}</span>
+                {/* 踩雷菜色 */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-rose-900 flex items-center gap-1">
+                    <ThumbsDown className="w-3.5 h-3.5 text-rose-500" />
+                    <span>{t.avoidDishesTitle}</span>
                   </label>
-                  <div className="flex gap-1.5 mb-1.5">
+                  <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="手動新增特定雷菜"
+                      placeholder="輸入雷菜按新增"
                       value={newAvoidInput}
                       onChange={(e) => setNewAvoidInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          handleAddAvoidDish();
+                          if (newAvoidInput.trim()) {
+                            setAvoidDishes([...avoidDishes, newAvoidInput.trim()]);
+                            setNewAvoidInput('');
+                          }
                         }
                       }}
-                      className="flex-1 text-xs px-2.5 py-1.5 rounded-xl border border-rose-300 bg-white"
+                      className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white"
                     />
                     <button
                       type="button"
-                      onClick={handleAddAvoidDish}
-                      className="px-2.5 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold"
+                      onClick={() => {
+                        if (newAvoidInput.trim()) {
+                          setAvoidDishes([...avoidDishes, newAvoidInput.trim()]);
+                          setNewAvoidInput('');
+                        }
+                      }}
+                      className="px-3 py-2 bg-rose-500 text-white rounded-xl text-xs font-bold"
                     >
-                      {t.btnAdd}
+                      新增
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {avoidDishes.map((dish, i) => (
-                      <span key={i} className="bg-rose-100 text-rose-900 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                        <span>❌ {dish}</span>
-                        <button type="button" onClick={() => handleRemoveAvoidDish(i)}>
-                          <X className="w-3 h-3" />
-                        </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    {avoidDishes.map((d, idx) => (
+                      <span key={idx} className="bg-rose-100 text-rose-950 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                        {d}
+                        <button type="button" onClick={() => setAvoidDishes(avoidDishes.filter((_, i) => i !== idx))} className="text-rose-700 hover:text-red-500">×</button>
                       </span>
                     ))}
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-          
-          {/* Section 4: Short Videos */}
-          <div className="space-y-3 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>🎬</span> {t.secVideos}
-            </h3>
-
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {t.labelVideoUrl}
-                </label>
-                <input
-                  type="url"
-                  placeholder={t.placeholderVideoUrl}
-                  value={newVideoUrl}
-                  onChange={(e) => setNewVideoUrl(e.target.value)}
-                  className="w-full text-sm px-3 py-1.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <input
-                    type="text"
-                    placeholder={t.creatorAccount}
-                    value={newVideoCreator}
-                    onChange={(e) => setNewVideoCreator(e.target.value)}
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder={t.videoTitleNote}
-                    value={newVideoTitle}
-                    onChange={(e) => setNewVideoTitle(e.target.value)}
-                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAddVideo}
-                className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition-colors flex items-center justify-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {t.btnAddVideo}
-              </button>
             </div>
 
-            {videos.length > 0 && (
-              <div className="space-y-2">
-                {videos.map((vid) => {
-                  const info = parseVideoUrl(vid.url);
-                  return (
-                    <div
-                      key={vid.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-xs shadow-2xs"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${info.badgeBg}`}>
-                          {info.displayLabel}
-                        </span>
-                        <span className="truncate font-medium text-slate-700">
-                          {vid.title || vid.url}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveVideo(vid.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Section 5: Friends Link */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>👥</span> {t.secFriendsLink}
-            </h3>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                {t.labelRecommendingFriends}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {friends.map((f) => {
-                  const isSelected = recommendedByFriendIds.includes(f.id);
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setRecommendedByFriendIds(recommendedByFriendIds.filter((id) => id !== f.id));
-                        } else {
-                          setRecommendedByFriendIds([...recommendedByFriendIds, f.id]);
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1 transition-all ${
-                        isSelected
-                          ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
-                        {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
-                          <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>{f.avatar || '🥢'}</span>
-                        )}
-                      </div>
-                      <span>{f.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {t.labelCompanionFriends}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {friends.map((f) => {
-                  const isSelected = dinedWithFriendIds.includes(f.id);
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setDinedWithFriendIds(dinedWithFriendIds.filter((id) => id !== f.id));
-                        } else {
-                          setDinedWithFriendIds([...dinedWithFriendIds, f.id]);
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-semibold border flex items-center gap-1 transition-all ${
-                        isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-md overflow-hidden flex items-center justify-center shrink-0">
-                        {f.avatar && (f.avatar.startsWith('data:') || f.avatar.startsWith('http') || f.avatar.length > 20) ? (
-                          <img src={f.avatar} alt={f.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>{f.avatar || '🥢'}</span>
-                        )}
-                      </div>
-                      <span>{f.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Section 6: Notes & Cover */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-              <span>📝</span> {t.secNotesAndPhoto}
-            </h3>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700">
-                  {lang === 'zh-TW' ? '📷 美食/店家封面照片' : '📷 店舗・料理のカバー写真'}
-                </label>
-
-                {/* Mode Toggle */}
-                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setImageInputMode('upload')}
-                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
-                      imageInputMode === 'upload' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    上傳照片
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageInputMode('url')}
-                    className={`px-2 py-0.5 rounded-md font-bold transition-all ${
-                      imageInputMode === 'url' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    圖片網址
-                  </button>
-                </div>
-              </div>
-
-              {/* Photo Preview & Upload Area */}
-              {coverImage ? (
-                <div className="relative w-full h-48 rounded-2xl overflow-hidden border border-slate-200 shadow-2xs group">
-                  <img
-                    src={coverImage}
-                    alt="封面預覽"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-xl text-xs font-bold shadow-md flex items-center gap-1 cursor-pointer"
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>更換照片</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCoverImage('')}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1 cursor-pointer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>移除封面</span>
-                    </button>
-                  </div>
-                </div>
-              ) : imageInputMode === 'upload' ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50/70 hover:bg-indigo-50/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-2xs transition-colors">
-                    <Camera className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-slate-800 group-hover:text-indigo-700 transition-colors">
-                      {lang === 'zh-TW' ? '點擊上傳手機相簿/電腦中的美食照片' : 'クリックして写真・アルバムから選択'}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      支援 JPG、PNG、WEBP，系統會自動進行高畫質智慧壓縮
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={coverImage}
-                  onChange={(e) => setCoverImage(e.target.value)}
-                  className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
-                />
-              )}
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+            {/* 📝 心得筆記 */}
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <label className="block text-xs font-bold text-slate-700">
                 {t.labelPersonalNotes}
               </label>
               <textarea
@@ -1445,30 +1102,43 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 placeholder={lang === 'zh-TW' ? '例如：建議平日11:30前到免排隊，醬汁濃郁但略偏鹹，附餐白飯可續...' : '例：開店15分前到着推奨、スープ濃厚、トッピング増しがおすすめ...'}
                 value={personalNotes}
                 onChange={(e) => setPersonalNotes(e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 leading-relaxed"
+                className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 leading-relaxed bg-white"
               />
             </div>
-          </div>
-        </form>
+          </form>
+        )}
 
         {/* Footer */}
         <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
           >
-            {t.btnCancel}
+            {isReadOnlyMode ? '關閉' : t.btnCancel}
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-6 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95"
-          >
-            {editingRestaurant ? t.btnSave : t.btnCreate}
-          </button>
+
+          {isReadOnlyMode ? (
+            <button
+              type="button"
+              onClick={handleCloneToMyPocket}
+              className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>📌 一鍵收進我的口袋名單</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="px-6 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
+            >
+              {editingRestaurant ? t.btnSave : '儲存到我的口袋'}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 };
+

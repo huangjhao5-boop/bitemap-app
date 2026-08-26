@@ -839,31 +839,30 @@ export function App() {
     };
   }, [friends]);
 
-      // Combined & Multi-Foodie Aggregated Restaurants (Auto-Merges duplicates & groups reviews!)
-  const allCombinedRestaurants = useMemo(() => {
-    let rawList: Restaurant[];
-    if (scopeFilter === 'mine') {
-      rawList = restaurants;
-    } else if (scopeFilter === 'friends') {
-      rawList = friendsRestaurants;
-    } else {
-      const map = new Map<string, Restaurant>();
-      // 1. My local restaurants
-      restaurants.forEach((r) => map.set(r.id, r));
-      // 2. Friends restaurants
-      friendsRestaurants.forEach((r) => map.set(r.id, r));
-      // 3. Community public restaurants
-      communityRestaurants.forEach((r) => {
-        if (!map.has(r.id)) {
-          map.set(r.id, r);
-        }
-      });
-      rawList = Array.from(map.values());
-    }
-
-    // 🌟 Auto-group identical restaurants across all foodies
+        // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
+  const allCombinedGlobalList = useMemo(() => {
+    const map = new Map<string, Restaurant>();
+    restaurants.forEach((r) => map.set(r.id, r));
+    friendsRestaurants.forEach((r) => map.set(r.id, r));
+    communityRestaurants.forEach((r) => {
+      if (!map.has(r.id)) {
+        map.set(r.id, r);
+      }
+    });
+    const rawList = Array.from(map.values());
     return aggregateRestaurants(rawList, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
-  }, [restaurants, friendsRestaurants, communityRestaurants, scopeFilter, userProfile.foodieId]);
+  }, [restaurants, friendsRestaurants, communityRestaurants, userProfile.foodieId]);
+
+  // Combined & Multi-Foodie Aggregated Restaurants for current scopeFilter
+  const allCombinedRestaurants = useMemo(() => {
+    if (scopeFilter === 'mine') {
+      return aggregateRestaurants(restaurants, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
+    }
+    if (scopeFilter === 'friends') {
+      return aggregateRestaurants(friendsRestaurants, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
+    }
+    return allCombinedGlobalList;
+  }, [scopeFilter, restaurants, friendsRestaurants, allCombinedGlobalList, userProfile.foodieId]);
 
     const cities = useMemo<string[]>(() => {
     const set = new Set(allCombinedRestaurants.map((r: Restaurant) => r.city).filter(Boolean));
@@ -1058,7 +1057,7 @@ export function App() {
               onScopeChange={setScopeFilter}
               myCount={restaurants.length}
               friendsCount={friendsRestaurants.length}
-              totalCount={allCombinedRestaurants.length}
+              totalCount={allCombinedGlobalList.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}
@@ -1100,7 +1099,7 @@ export function App() {
               onScopeChange={setScopeFilter}
               myCount={restaurants.length}
               friendsCount={friendsRestaurants.length}
-              totalCount={allCombinedRestaurants.length}
+              totalCount={allCombinedGlobalList.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
               lang={lang}
