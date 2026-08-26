@@ -407,7 +407,12 @@ export function purgeMockTestData(): void {
         try {
           const list = JSON.parse(raw);
           if (Array.isArray(list)) {
-            const realOnly = list.filter((r: any) => !['r1', 'r2', 'r3', 'r4'].includes(r.id) && !r.id?.startsWith('mock_'));
+            const realOnly = list.filter((r: any) => {
+              if (['r1', 'r2', 'r3', 'r4', 'as', 'asas', 'asd'].includes(r.id)) return false;
+              if (r.id?.startsWith('mock_')) return false;
+              if (['as', 'asas', 'asd'].includes(r.name?.toLowerCase())) return false;
+              return true;
+            });
             localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));
           }
         } catch {}
