@@ -100,6 +100,13 @@ export const RestaurantCompactRow: React.FC<RestaurantCompactRowProps> = ({
               </span>
             )}
 
+            {restaurant.contributions && restaurant.contributions.length > 1 ? (
+              <span className="px-2 py-0.2 rounded-md bg-purple-100 text-purple-900 border border-purple-300 font-black text-[9px] flex items-center gap-1 shadow-2xs shrink-0">
+                <Users className="w-2.5 h-2.5 text-purple-700" />
+                <span>👥 {restaurant.contributions.length} 位吃貨共筆</span>
+              </span>
+            ) : null}
+
             <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded-md">
               {restaurant.category} · {restaurant.priceRange}
             </span>

@@ -122,10 +122,37 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
             : 'bg-blue-500'
         }`} />
 
-        {/* 👥 Friend / 🌐 Community Shared Spot Banner */}
-        {restaurant.authorFoodieId && (() => {
-          const isFriend = friends.some(
-            (f) => (f.foodieId || '').toLowerCase() === (restaurant.authorFoodieId || '').toLowerCase()
+        {/* 👥 Multi-Foodie Co-op Badge Banner */}
+        {restaurant.contributions && restaurant.contributions.length > 1 ? (
+          <div className="bg-gradient-to-r from-purple-500/15 via-indigo-500/15 to-pink-500/15 border-b border-purple-200/80 px-4 py-2 flex flex-col gap-1 text-xs">
+            <div className="flex items-center justify-between font-black text-purple-950">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                <span>👥 共 {restaurant.contributions.length} 位吃貨共筆（合體紀錄）</span>
+              </span>
+              <span className="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.2 rounded-full">
+                點擊看雙方心得
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              {restaurant.contributions.map((c, i) => (
+                <span
+                  key={i}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 border shadow-2xs ${
+                    c.isMine
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-800 border-purple-200'
+                  }`}
+                >
+                  <span>{c.isMine ? '👑 我' : c.authorName}：</span>
+                  <span>{c.ratingTag === 'must_eat' ? '🔥 必吃' : c.ratingTag === 'frequent_visit' ? '🔄 愛店' : c.ratingTag === 'avoid_again' ? '☠️ 黑名單' : '📌 口袋'}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : restaurant.authorFoodieId && (() => {
+          const isFriend = friends.length > 0 && friends.some(
+            (f) => (f.foodieId || '').toLowerCase().trim() === (restaurant.authorFoodieId || '').toLowerCase().trim()
           );
           return (
             <div className={`border-b px-4 py-1.5 flex items-center justify-between text-xs ${

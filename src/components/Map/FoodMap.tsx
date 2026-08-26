@@ -24,6 +24,7 @@ import {
   ChevronRight,
   ChevronUp,
   List,
+  Users,
   X
 } from 'lucide-react';
 
@@ -184,11 +185,19 @@ function LocateMeControl({
 // Inner Leaflet component — flies to position whenever flyToPosition changes
 function FlyToLocation({ position, onDone }: { position: [number, number]; onDone: () => void }) {
   const map = useMap();
+  const onDoneRef = React.useRef(onDone);
+  onDoneRef.current = onDone;
+  const lat = position[0];
+  const lng = position[1];
+
   React.useEffect(() => {
-    map.flyTo(position, 16, { duration: 0.8 });
-    const t = setTimeout(onDone, 1200);
+    map.flyTo([lat, lng], 16, { duration: 0.8 });
+    const t = setTimeout(() => {
+      if (onDoneRef.current) onDoneRef.current();
+    }, 900);
     return () => clearTimeout(t);
-  }, [position, map, onDone]);
+  }, [lat, lng, map]);
+
   return null;
 }
 
@@ -535,31 +544,58 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </p>
                     </div>
 
-                                                            {(restaurant.authorName || recommender) && (() => {
-                      const authorId = (restaurant.authorFoodieId || '').toLowerCase().trim();
-                      const isFriend = friends.some((f) => (f.foodieId || '').toLowerCase().trim() === authorId);
-                      const displayName = restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name);
-                      return (
-                        <div className={`text-[11px] p-2 rounded-xl border font-bold flex items-center gap-1.5 shadow-2xs ${
-                          isFriend 
-                            ? 'text-purple-900 bg-purple-50 border-purple-200' 
-                            : 'text-indigo-900 bg-indigo-50 border-indigo-200'
-                        }`}>
-                          <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                            {(() => {
-                              const av = restaurant.authorAvatar || recommender?.avatar;
-                              if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
-                                return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
-                              }
-                              return <span>{av || '🥢'}</span>;
-                            })()}
+                                                                                  {/* 👥 Multi-Foodie Contributions or Single Author Banner */}
+                      {restaurant.contributions && restaurant.contributions.length > 1 ? (
+                        <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-2 rounded-xl border border-purple-200 space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between text-[11px] font-black text-purple-950">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-purple-600" />
+                              <span>共 {restaurant.contributions.length} 位吃貨共筆評價：</span>
+                            </span>
                           </div>
-                          <span className="truncate">
-                            {isFriend ? '👥 好友' : '🌐 社群吃貨'}【{displayName}】分享
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {restaurant.contributions.map((c, i) => (
+                              <span
+                                key={i}
+                                className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 border ${
+                                  c.isMine
+                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                    : 'bg-white text-slate-800 border-purple-200'
+                                }`}
+                              >
+                                <span>{c.isMine ? '👑 我' : c.authorName}</span>
+                                <span className="font-mono">
+                                  {c.ratingTag === 'must_eat' ? '🔥必吃' : c.ratingTag === 'frequent_visit' ? '🔄愛店' : c.ratingTag === 'avoid_again' ? '☠️黑名單' : '📌口袋'}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      );
-                    })()}
+                      ) : (restaurant.authorName || recommender) ? (() => {
+                        const authorId = (restaurant.authorFoodieId || '').toLowerCase().trim();
+                        const isFriend = friends.length > 0 && friends.some((f) => (f.foodieId || '').toLowerCase().trim() === authorId);
+                        const displayName = restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name);
+                        return (
+                          <div className={`text-[11px] p-2 rounded-xl border font-bold flex items-center gap-1.5 shadow-2xs ${
+                            isFriend 
+                              ? 'text-purple-900 bg-purple-50 border-purple-200' 
+                              : 'text-indigo-900 bg-indigo-50 border-indigo-200'
+                          }`}>
+                            <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                              {(() => {
+                                const av = restaurant.authorAvatar || recommender?.avatar;
+                                if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
+                                  return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
+                                }
+                                return <span>{av || '🥢'}</span>;
+                              })()}
+                            </div>
+                            <span className="truncate">
+                              {isFriend ? '👥 好友' : '🌐 社群吃貨'}【{displayName}】分享
+                            </span>
+                          </div>
+                        );
+                      })() : null}
 
                     {/* Must-Eat Dishes */}
                     {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
