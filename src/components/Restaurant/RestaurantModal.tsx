@@ -536,42 +536,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
              📖 唯讀吃貨心得檢視模式 (Clean Read-Only View, NO form inputs!)
              ═══════════════════════════════════════════════════════════════════════════ */
           <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-slate-50/50">
-            {/* 👥 多吃貨評論合體切換籤頁 */}
-            {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
-              <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3.5 rounded-2xl border border-purple-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-purple-600" />
-                    <span>{lang === 'zh-TW' ? `共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：` : `${editingRestaurant.contributions.length} 人の口コミ：`}</span>
-                  </span>
-                  <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
-                    點擊切換心得
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {editingRestaurant.contributions.map((c, idx) => (
-                    <button
-                      key={c.restaurantId + '_' + idx}
-                      type="button"
-                      onClick={() => handleSelectReview(idx)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                        activeReviewIndex === idx
-                          ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300'
-                          : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
-                      }`}
-                    >
-                      <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                        {renderSafeAvatar(c.authorAvatar, '🥢')}
-                      </div>
-                      <span>{c.isMine ? '👑 我的筆記' : c.authorName}</span>
-                      <span className="text-[10px] opacity-80">
-                        {c.ratingTag === 'must_eat' ? '🔥 必吃' : c.ratingTag === 'frequent_visit' ? '🔄 愛店' : c.ratingTag === 'avoid_again' ? '☠️ 雷店' : '📌 口袋'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            
 
             {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
             <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
@@ -592,6 +557,43 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   </span>
                 </div>
               </div>
+
+        {/* 👥 多吃貨評論合體切換籤頁 (Always visible if multiple reviews exist!) */}
+        {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
+          <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3.5 border-b border-purple-200 space-y-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-purple-600" />
+                <span>{lang === 'zh-TW' ? `共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：` : `${editingRestaurant.contributions.length} 人の口コミ：`}</span>
+              </span>
+              <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
+                點擊切換查看不同吃貨心得
+              </span>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {editingRestaurant.contributions.map((c, idx) => (
+                <button
+                  key={c.restaurantId + '_' + idx}
+                  type="button"
+                  onClick={() => handleSelectReview(idx)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                    activeReviewIndex === idx
+                      ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300 scale-102'
+                      : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                    {renderSafeAvatar(c.authorAvatar, '🥢')}
+                  </div>
+                  <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記 (編輯)' : '👑 マイ記録') : c.authorName}</span>
+                  <span className="text-[10px] opacity-85">
+                    {c.ratingTag === 'must_eat' ? '🔥 必吃' : c.ratingTag === 'frequent_visit' ? '🔄 愛店' : c.ratingTag === 'avoid_again' ? '☠️ 雷店' : '📌 口袋'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
               {editingRestaurant?.contributions?.some((c) => c.isMine) ? (
                 <button
