@@ -465,14 +465,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (!name.trim()) return;
 
     const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
-    const isEditingMine = editingRestaurant && !isReadOnlyMode && (
-      !editingRestaurant.authorFoodieId || 
-      editingRestaurant.authorFoodieId === cleanMyId || 
-      !editingRestaurant.id.startsWith('friend_')
+    const myContribution = editingRestaurant?.contributions?.find((c) => c.isMine);
+    const isEditingMine = !isReadOnlyMode && (
+      Boolean(myContribution) || 
+      (editingRestaurant && editingRestaurant.authorFoodieId === cleanMyId)
     );
 
     const restaurantData: Restaurant = {
-      id: isEditingMine ? editingRestaurant!.id : `r_${Date.now()}`,
+      id: isEditingMine ? (myContribution?.restaurantId || editingRestaurant!.id) : `r_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: name.trim(),
       category: category.trim() || (lang === 'zh-TW' ? '精選美食' : 'グルメ'),
       city,

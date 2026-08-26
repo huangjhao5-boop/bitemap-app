@@ -1,4 +1,4 @@
-import { aggregateRestaurants } from './utils/restaurantAggregator';
+import { aggregateRestaurants, normalizeRestaurantKey } from './utils/restaurantAggregator';
 import { useState, useEffect, useMemo } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
@@ -839,39 +839,95 @@ export function App() {
     };
   }, [friends]);
 
-          // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
+            // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
   const allCombinedGlobalList = useMemo(() => {
-    const map = new Map<string, Restaurant>();
-    restaurants.forEach((r) => map.set(r.id, r));
-    friendsRestaurants.forEach((r) => map.set(r.id, r));
-    communityRestaurants.forEach((r) => {
-      if (!map.has(r.id)) {
-        map.set(r.id, r);
+    // 1. Gather all raw records from: Self (pocket), Friends, and Global Community
+    const rawList: Restaurant[] = [];
+    const seenAuthorSpot = new Set<string>();
+
+    const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+
+    // Priority 1: User's own restaurants
+    restaurants.forEach((r) => {
+      const authorKey = (cleanMyId || 'me') + '_' + normalizeRestaurantKey(r);
+      if (!seenAuthorSpot.has(authorKey)) {
+        seenAuthorSpot.add(authorKey);
+        rawList.push({
+          ...r,
+          authorFoodieId: r.authorFoodieId || cleanMyId || 'foodie',
+          authorName: r.authorName || userProfile.name || '我',
+          authorAvatar: r.authorAvatar || userProfile.avatar || '👑',
+        });
       }
     });
-    const rawList = Array.from(map.values());
+
+    // Priority 2: Friends' restaurants
+    friendsRestaurants.forEach((r) => {
+      const authorKey = (r.authorFoodieId || r.id) + '_' + normalizeRestaurantKey(r);
+      if (!seenAuthorSpot.has(authorKey)) {
+        seenAuthorSpot.add(authorKey);
+        rawList.push(r);
+      }
+    });
+
+    // Priority 3: Global Community restaurants
+    communityRestaurants.forEach((r) => {
+      const authorKey = (r.authorFoodieId || 'pub_' + r.id) + '_' + normalizeRestaurantKey(r);
+      if (!seenAuthorSpot.has(authorKey)) {
+        seenAuthorSpot.add(authorKey);
+        rawList.push(r);
+      }
+    });
+
     return aggregateRestaurants(rawList, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
-  }, [restaurants, friendsRestaurants, communityRestaurants, userProfile.foodieId]);
+  }, [restaurants, friendsRestaurants, communityRestaurants, userProfile.foodieId, userProfile.name, userProfile.avatar]);
 
   // Combined & Multi-Foodie Aggregated Restaurants for current scopeFilter
   const allCombinedRestaurants = useMemo(() => {
+    const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    const myIds = new Set(restaurants.map((r) => r.id));
+
     if (scopeFilter === 'mine') {
-      const myIds = new Set(restaurants.map((r) => r.id));
       return allCombinedGlobalList.filter((r) => {
         if (myIds.has(r.id)) return true;
         if (r.contributions && r.contributions.some((c) => c.isMine)) return true;
-        return !r.authorFoodieId || r.authorFoodieId === userProfile.foodieId;
+        return !r.authorFoodieId || r.authorFoodieId === cleanMyId;
       });
     }
     if (scopeFilter === 'friends') {
       return allCombinedGlobalList.filter((r) => {
-        const isFriendAuthor = friends.some((f) => (f.foodieId || '').toLowerCase() === (r.authorFoodieId || '').toLowerCase());
-        const hasFriendContribution = r.contributions?.some((c) => friends.some((f) => (f.foodieId || '').toLowerCase() === (c.authorFoodieId || '').toLowerCase()));
+        const isFriendAuthor = friends.some((f) => (f.foodieId || '').toLowerCase().trim() === (r.authorFoodieId || '').toLowerCase().trim());
+        const hasFriendContribution = r.contributions?.some((c) => {
+          const cId = (c.authorFoodieId || '').toLowerCase().trim();
+          return !c.isMine && cId !== cleanMyId && friends.some((f) => (f.foodieId || '').toLowerCase().trim() === cId);
+        });
         return isFriendAuthor || hasFriendContribution || r.id.startsWith('friend_') || (r.recommendedByFriendIds && r.recommendedByFriendIds.length > 0);
       });
     }
     return allCombinedGlobalList;
   }, [scopeFilter, allCombinedGlobalList, restaurants, friends, userProfile.foodieId]);
+
+  const myCount = useMemo(() => {
+    const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    const myIds = new Set(restaurants.map((r) => r.id));
+    return allCombinedGlobalList.filter((r) => {
+      if (myIds.has(r.id)) return true;
+      if (r.contributions && r.contributions.some((c) => c.isMine)) return true;
+      return !r.authorFoodieId || r.authorFoodieId === cleanMyId;
+    }).length;
+  }, [allCombinedGlobalList, restaurants, userProfile.foodieId]);
+
+  const friendsCount = useMemo(() => {
+    const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    return allCombinedGlobalList.filter((r) => {
+      const isFriendAuthor = friends.some((f) => (f.foodieId || '').toLowerCase().trim() === (r.authorFoodieId || '').toLowerCase().trim());
+      const hasFriendContribution = r.contributions?.some((c) => {
+        const cId = (c.authorFoodieId || '').toLowerCase().trim();
+        return !c.isMine && cId !== cleanMyId && friends.some((f) => (f.foodieId || '').toLowerCase().trim() === cId);
+      });
+      return isFriendAuthor || hasFriendContribution || r.id.startsWith('friend_') || (r.recommendedByFriendIds && r.recommendedByFriendIds.length > 0);
+    }).length;
+  }, [allCombinedGlobalList, friends, userProfile.foodieId]);
 
     const cities = useMemo<string[]>(() => {
     const set = new Set(allCombinedRestaurants.map((r: Restaurant) => r.city).filter(Boolean));
@@ -1064,8 +1120,8 @@ export function App() {
               onFriendSelect={setSelectedFriendId}
               scopeFilter={scopeFilter}
               onScopeChange={setScopeFilter}
-              myCount={restaurants.length}
-              friendsCount={friendsRestaurants.length}
+              myCount={myCount}
+              friendsCount={friendsCount}
               totalCount={allCombinedGlobalList.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
@@ -1106,8 +1162,8 @@ export function App() {
               onFriendSelect={setSelectedFriendId}
               scopeFilter={scopeFilter}
               onScopeChange={setScopeFilter}
-              myCount={restaurants.length}
-              friendsCount={friendsRestaurants.length}
+              myCount={myCount}
+              friendsCount={friendsCount}
               totalCount={allCombinedGlobalList.length}
               sortOption={sortOption}
               onSortChange={setSortOption}
