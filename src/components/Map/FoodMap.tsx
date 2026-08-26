@@ -182,21 +182,36 @@ function LocateMeControl({
   );
 }
 
-// Inner Leaflet component — flies to position whenever flyToPosition changes
-function FlyToLocation({ position, onDone }: { position: [number, number]; onDone: () => void }) {
+// 🎯 Marker Focus & Navigation Controller: Auto-fly and open popup on selection
+function MarkerFocusController({ 
+  selectedRestaurant,
+  markerRefs 
+}: { 
+  selectedRestaurant: Restaurant | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
+}) {
   const map = useMap();
-  const onDoneRef = React.useRef(onDone);
-  onDoneRef.current = onDone;
-  const lat = position[0];
-  const lng = position[1];
+  const prevIdRef = React.useRef<string | null>(null);
 
-  React.useEffect(() => {
-    map.flyTo([lat, lng], 16, { duration: 0.8 });
-    const t = setTimeout(() => {
-      if (onDoneRef.current) onDoneRef.current();
-    }, 900);
-    return () => clearTimeout(t);
-  }, [lat, lng, map]);
+  useEffect(() => {
+    if (!selectedRestaurant) return;
+    if (selectedRestaurant.id === prevIdRef.current) return;
+    prevIdRef.current = selectedRestaurant.id;
+
+    const lat = Number(selectedRestaurant.lat) || 25.033;
+    const lng = Number(selectedRestaurant.lng) || 121.5654;
+
+    // 1. Smoothly fly directly to the selected restaurant
+    map.flyTo([lat, lng], 16, { duration: 0.7 });
+
+    // 2. Open the popup for the selected marker
+    setTimeout(() => {
+      const marker = markerRefs.current[selectedRestaurant.id];
+      if (marker) {
+        marker.openPopup();
+      }
+    }, 350);
+  }, [selectedRestaurant, map, markerRefs]);
 
   return null;
 }
@@ -244,41 +259,33 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   onShareRestaurant,
   targetRestaurant,
 }) => {
-  const t = translations[lang];
+    const t = translations[lang];
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(
     targetRestaurant || null
   );
 
+  const markerRefs = React.useRef<Record<string, L.Marker | null>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
-      const lastTargetIdRef = React.useRef<string | null>(null);
-
-  // When targetRestaurant changes, fly to it only once per target
+  // When targetRestaurant changes from outside navigation
   useEffect(() => {
-    if (targetRestaurant && targetRestaurant.id !== lastTargetIdRef.current) {
-      lastTargetIdRef.current = targetRestaurant.id;
+    if (targetRestaurant) {
       setSelectedRestaurant(targetRestaurant);
-      const lat = Number(targetRestaurant.lat);
-      const lng = Number(targetRestaurant.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        setFlyToPosition([lat, lng]);
-      }
     }
   }, [targetRestaurant]);
 
   // When restaurants list changes, only clear selection if the previously selected one is gone.
-  // NEVER auto-select restaurants[0] on filter change — that causes map jump.
   useEffect(() => {
     if (restaurants.length === 0) {
       setSelectedRestaurant(null);
       return;
     }
     setSelectedRestaurant((prev) => {
-      if (!prev) return null; // Don't auto-select on filter change
+      if (!prev) return null;
       const stillExists = restaurants.some((r) => r.id === prev.id);
-      return stillExists ? prev : null; // Clear if gone, but DON'T auto-jump to restaurants[0]
+      return stillExists ? prev : null;
     });
   }, [restaurants]);
 
@@ -288,11 +295,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
-    const lat = Number(restaurant.lat);
-    const lng = Number(restaurant.lng);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      setFlyToPosition([lat, lng]);
-    }
     setIsMobileDrawerOpen(false);
   };
 
@@ -473,6 +475,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           />
 
           <MapViewController isSidebarOpen={isSidebarOpen} />
+          <MarkerFocusController selectedRestaurant={selectedRestaurant} markerRefs={markerRefs} />
 
           {/* 🔵 User Current GPS Pulsing Location Radar */}
           <Marker
@@ -496,10 +499,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             </Popup>
           </Marker>
 
-          {/* FlyTo executor — inside MapContainer so useMap() works */}
-          {flyToPosition && (
-            <FlyToLocation position={flyToPosition} onDone={() => setFlyToPosition(null)} />
-          )}
+
 
           {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
@@ -519,6 +519,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             return (
               <Marker
                 key={restaurant.id}
+                ref={(ref) => { markerRefs.current[restaurant.id] = ref; }}
                 position={[lat, lng]}
                 icon={createCustomPin(restaurant, isSelected)}
                 eventHandlers={{
