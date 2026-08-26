@@ -190,21 +190,31 @@ export const RestaurantCompactRow: React.FC<RestaurantCompactRowProps> = ({
           <Share2 className="w-3.5 h-3.5" />
         </button>
 
-        <button
+                <button
           onClick={() => onEdit(restaurant)}
           className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-          title="編輯"
+          title={restaurant.contributions?.some((c) => c.isMine) || !restaurant.authorFoodieId ? '編輯我的筆記' : '查看吃貨心得 / 收進口袋'}
         >
           <Edit3 className="w-3.5 h-3.5" />
         </button>
 
-        <button
-          onClick={() => onDelete(restaurant.id)}
-          className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-          title="刪除"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {restaurant.contributions?.some((c) => c.isMine) || !restaurant.authorFoodieId ? (
+          <button
+            onClick={() => onDelete(restaurant.id)}
+            className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+            title="從我的口袋中刪除"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => onEdit(restaurant)}
+            className="p-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors cursor-pointer flex items-center gap-0.5"
+            title="收進我的口袋"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

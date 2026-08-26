@@ -118,15 +118,25 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [recommendedByFriendIds, setRecommendedByFriendIds] = useState<string[]>([]);
   const [dinedWithFriendIds, setDinedWithFriendIds] = useState<string[]>([]);
 
-      useEffect(() => {
+        useEffect(() => {
     if (editingRestaurant) {
       const contributions = editingRestaurant.contributions || [];
       const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
       const isGuest = !cleanMyId || cleanMyId === 'guest';
 
-      // Check if primary contribution or restaurant is mine
+      // 🔍 Find if current user already has a contribution in this aggregated spot
+      const myContributionIndex = contributions.findIndex((c) => c.isMine);
+      const hasMyRecord = myContributionIndex !== -1;
+
+      let initialIdx = 0;
       let isMine = false;
-      if (contributions.length > 0) {
+
+      if (hasMyRecord) {
+        // Automatically default to current user's own note so they can directly edit!
+        initialIdx = myContributionIndex;
+        isMine = true;
+      } else if (contributions.length > 0) {
+        initialIdx = 0;
         isMine = Boolean(contributions[0].isMine);
       } else {
         const authorId = (editingRestaurant.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
@@ -137,12 +147,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         }
       }
 
+      setActiveReviewIndex(initialIdx);
       setIsReadOnlyMode(!isMine);
+
+      const activeContribution = contributions[initialIdx];
       setCurrentAuthorInfo({
-        name: editingRestaurant.authorName || (isMine ? (currentUserName || '我') : '熱心吃貨'),
-        avatar: editingRestaurant.authorAvatar || (isMine ? (currentUserAvatar || '👑') : '🥢'),
+        name: activeContribution?.authorName || editingRestaurant.authorName || (isMine ? (currentUserName || '我') : '熱心吃貨'),
+        avatar: activeContribution?.authorAvatar || editingRestaurant.authorAvatar || (isMine ? (currentUserAvatar || '👑') : '🥢'),
       });
-      setActiveReviewIndex(0);
 
       setName(editingRestaurant.name);
       setCategory(editingRestaurant.category);
@@ -153,18 +165,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setGoogleMapsUrl(editingRestaurant.googleMapsUrl || '');
       setGoogleRating(editingRestaurant.googleRating || 4.5);
       setPriceRange(editingRestaurant.priceRange || '$');
-      setRatingTag(editingRestaurant.ratingTag || 'must_eat');
-      setVisibility(editingRestaurant.visibility || 'public');
-      setVisitCount(editingRestaurant.visitCount || 1);
+      setRatingTag(activeContribution?.ratingTag || editingRestaurant.ratingTag || 'must_eat');
+      setVisibility(activeContribution?.visibility || editingRestaurant.visibility || 'public');
+      setVisitCount(activeContribution?.visitCount ?? editingRestaurant.visitCount ?? 1);
       setLastVisitedDate(
         editingRestaurant.lastVisitedDate || new Date().toISOString().split('T')[0]
       );
       setCoverImage(editingRestaurant.coverImage || '');
       setMenuImages(editingRestaurant.menuImages || []);
-      setMenuDishes(editingRestaurant.menuDishes || []);
-      setPersonalNotes(editingRestaurant.personalNotes || '');
-      setMustEatDishes(editingRestaurant.mustEatDishes || []);
-      setAvoidDishes(editingRestaurant.avoidDishes || []);
+      setMenuDishes(activeContribution?.menuDishes || editingRestaurant.menuDishes || []);
+      setPersonalNotes(activeContribution?.personalNotes || editingRestaurant.personalNotes || '');
+      setMustEatDishes(activeContribution?.mustEatDishes || editingRestaurant.mustEatDishes || []);
+      setAvoidDishes(activeContribution?.avoidDishes || editingRestaurant.avoidDishes || []);
       setVideos(editingRestaurant.videos || []);
       setRecommendedByFriendIds(editingRestaurant.recommendedByFriendIds || []);
       setDinedWithFriendIds(editingRestaurant.dinedWithFriendIds || []);
@@ -571,19 +583,36 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     {lang === 'zh-TW' ? `這是吃貨【${currentAuthorInfo.name}】的美食筆記（唯讀模式）` : `${currentAuthorInfo.name} さんの口コミ（閲覧モード）`}
                   </span>
                   <span className="text-[11px] text-slate-600">
-                    {lang === 'zh-TW' ? '無法直接修改對方紀錄，您可以複製並建立自己的專屬口袋名單！' : 'この記録をコピーして自分のリストに追加できます！'}
+                    {lang === 'zh-TW' 
+                      ? (editingRestaurant?.contributions?.some((c) => c.isMine) 
+                          ? '您已在口袋名單中收錄了此店家，可切換至「👑 我的筆記」進行編輯！' 
+                          : '無法直接修改對方紀錄，您可以複製並建立自己的專屬口袋名單！')
+                      : 'この記録をコピーして自分のリストに追加できます！'}
                   </span>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleCloneToMyPocket}
-                className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}</span>
-              </button>
+              {editingRestaurant?.contributions?.some((c) => c.isMine) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const myIdx = editingRestaurant.contributions!.findIndex((c) => c.isMine);
+                    if (myIdx !== -1) handleSelectReview(myIdx);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>👑 切換至我的筆記修改</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCloneToMyPocket}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}</span>
+                </button>
+              )}
             </div>
 
             {/* 店家核心資訊小卡 */}
