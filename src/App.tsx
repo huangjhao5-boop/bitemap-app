@@ -1007,10 +1007,24 @@ export function App() {
         if (r.city !== selectedCity) return false;
       }
 
-      if (selectedFriendId !== 'all') {
-        const isRecommended = r.recommendedByFriendIds?.includes(selectedFriendId);
-        const isDined = r.dinedWithFriendIds?.includes(selectedFriendId);
-        const isAuthored = r.authorFoodieId && friends.find((f) => f.id === selectedFriendId)?.foodieId === r.authorFoodieId;
+            if (selectedFriendId !== 'all') {
+        const selectedFriend = friends.find(
+          (f) => f.id === selectedFriendId || (f.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '') === selectedFriendId.toLowerCase().trim().replace(/[@#\s]/g, '')
+        );
+        const friendFoodieId = selectedFriend
+          ? (selectedFriend.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '')
+          : selectedFriendId.toLowerCase().trim().replace(/[@#\s]/g, '');
+        const friendObjId = selectedFriend?.id || selectedFriendId;
+
+        const isRecommended = Boolean(r.recommendedByFriendIds?.includes(friendObjId));
+        const isDined = Boolean(r.dinedWithFriendIds?.includes(friendObjId));
+        const isAuthored = Boolean(
+          friendFoodieId && (
+            (r.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '') === friendFoodieId ||
+            r.contributions?.some((c) => (c.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '') === friendFoodieId)
+          )
+        );
+
         if (!isRecommended && !isDined && !isAuthored) {
           return false;
         }

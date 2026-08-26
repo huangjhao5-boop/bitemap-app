@@ -207,7 +207,10 @@ export const RestaurantCompactRow: React.FC<RestaurantCompactRowProps> = ({
 
         {restaurant.contributions?.some((c) => c.isMine) || !restaurant.authorFoodieId ? (
           <button
-            onClick={() => onDelete(restaurant.id)}
+            onClick={() => {
+            const myId = restaurant.contributions?.find((c) => c.isMine)?.restaurantId || restaurant.id;
+            onDelete(myId);
+          }}
             className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
             title="從我的口袋中刪除"
           >

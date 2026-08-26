@@ -50,6 +50,13 @@ function getCategoryBadge(category: string) {
   return { emoji: '🥢', color: 'bg-slate-100 text-slate-800 border-slate-300' };
 }
 
+function renderSafeAvatar(avatar: string | undefined, defaultEmoji: string = '🥢', sizeClass: string = 'w-full h-full') {
+  if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.length > 20)) {
+    return <img src={avatar} alt="avatar" className={`${sizeClass} object-cover`} />;
+  }
+  return <span>{avatar || defaultEmoji}</span>;
+}
+
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   friends,
@@ -267,8 +274,8 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                 </span>
                 <div className="flex items-center -space-x-1.5 overflow-hidden">
                   {restaurant.contributions.map((c, idx) => (
-                    <div key={idx} className="w-5 h-5 rounded-full bg-white border border-purple-300 flex items-center justify-center text-[10px] shadow-2xs" title={c.authorName}>
-                      {c.authorAvatar || '🥢'}
+                    <div key={idx} className="w-5 h-5 rounded-full bg-white border border-purple-300 overflow-hidden flex items-center justify-center text-[10px] shadow-2xs" title={c.authorName}>
+                      {renderSafeAvatar(c.authorAvatar, '🥢')}
                     </div>
                   ))}
                 </div>
@@ -398,7 +405,10 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
           {restaurant.contributions?.some((c) => c.isMine) || !restaurant.authorFoodieId ? (
             <button
-              onClick={() => onDelete(restaurant.id)}
+              onClick={() => {
+                const myId = restaurant.contributions?.find((c) => c.isMine)?.restaurantId || restaurant.id;
+                onDelete(myId);
+              }}
               className="p-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 transition-colors cursor-pointer"
               title="從我的口袋中刪除"
             >
@@ -710,7 +720,10 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
         </button>
 
         <button
-          onClick={() => onDelete(restaurant.id)}
+          onClick={() => {
+                const myId = restaurant.contributions?.find((c) => c.isMine)?.restaurantId || restaurant.id;
+                onDelete(myId);
+              }}
           className="p-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 transition-colors cursor-pointer"
           title="刪除"
         >
