@@ -19,8 +19,9 @@ export function normalizeRestaurantKey(r: Restaurant): string {
   const cleanName = (r.name || '')
     .trim()
     .toLowerCase()
-    .replace(/[\s\-_—·.,()（）「」『』【】]/g, '')
-    .replace(/(總店|分店|旗艦店|門市|赤峰店|信義店|中山店|復興店|站前店|一號店)$/, '');
+    .replace(/\(.*?\)|（.*?）|\[.*?\]|【.*?】|「.*?」|『.*?』/g, '')
+    .replace(/[\s\-_—·.,]/g, '')
+    .replace(/(總店|分店|旗艦店|門市|赤峰店|信義店|中山店|復興店|站前店|一號店|二號店)$/, '');
 
   return `${cleanCity}_${cleanName}`;
 }
@@ -31,11 +32,21 @@ export function normalizeRestaurantKey(r: Restaurant): string {
  */
 export function aggregateRestaurants(
   restaurants: Restaurant[],
-  currentFoodieId?: string
+  currentFoodieId?: string,
+  myRestaurantIds?: Set<string>
 ): Restaurant[] {
   if (!restaurants || restaurants.length === 0) return [];
 
   const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+  const isGuest = !cleanMyId || cleanMyId === 'guest';
+
+  const checkIsMine = (r: Restaurant): boolean => {
+    if (myRestaurantIds && myRestaurantIds.has(r.id)) return true;
+    if (isGuest) return false;
+    const authorId = (r.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    return Boolean(authorId && authorId === cleanMyId);
+  };
+
   const groups = new Map<string, Restaurant[]>();
 
   for (const r of restaurants) {
@@ -50,15 +61,12 @@ export function aggregateRestaurants(
   for (const [, group] of groups.entries()) {
     if (group.length === 1) {
       const single = group[0];
-      const isMine = 
-        !single.authorFoodieId || 
-        single.authorFoodieId === cleanMyId || 
-        !single.id.startsWith('friend_');
+      const isMine = checkIsMine(single);
 
       const contribution: RestaurantContribution = {
         restaurantId: single.id,
         authorFoodieId: single.authorFoodieId,
-        authorName: isMine ? '我 (我的口袋筆記)' : (single.authorName || '吃貨好友'),
+        authorName: isMine ? '我 (我的口袋筆記)' : (single.authorName || '熱心吃貨'),
         authorAvatar: single.authorAvatar || (isMine ? '👑' : '🥢'),
         isMine,
         ratingTag: single.ratingTag,
@@ -80,15 +88,8 @@ export function aggregateRestaurants(
     }
 
     // Multiple foodies added the SAME restaurant!
-    // 1. Pick Primary Restaurant (Prefer current user's version, else top friend)
-    let primary = group.find((r) => {
-      const isMine = 
-        !r.authorFoodieId || 
-        r.authorFoodieId === cleanMyId || 
-        !r.id.startsWith('friend_');
-      return isMine;
-    });
-
+    // 1. Pick Primary Restaurant (Prefer current user's version, else first in group)
+    let primary = group.find((r) => checkIsMine(r));
     if (!primary) {
       primary = group[0];
     }
@@ -97,18 +98,14 @@ export function aggregateRestaurants(
     const contributions: RestaurantContribution[] = [];
     const seenAuthors = new Set<string>();
 
-    const primaryIsMine = 
-      !primary.authorFoodieId || 
-      primary.authorFoodieId === cleanMyId || 
-      !primary.id.startsWith('friend_');
-
+    const primaryIsMine = checkIsMine(primary);
     const primaryAuthorKey = primaryIsMine ? 'mine' : (primary.authorFoodieId || primary.id);
     seenAuthors.add(primaryAuthorKey);
 
     contributions.push({
       restaurantId: primary.id,
       authorFoodieId: primary.authorFoodieId,
-      authorName: primaryIsMine ? '我 (我的口袋筆記)' : (primary.authorName || '吃貨好友'),
+      authorName: primaryIsMine ? '我 (我的口袋筆記)' : (primary.authorName || '熱心吃貨'),
       authorAvatar: primary.authorAvatar || (primaryIsMine ? '👑' : '🥢'),
       isMine: primaryIsMine,
       ratingTag: primary.ratingTag,
@@ -125,21 +122,17 @@ export function aggregateRestaurants(
     // Add other foodies' reviews
     for (const other of group) {
       if (other.id === primary.id) continue;
-      const isMine = 
-        !other.authorFoodieId || 
-        other.authorFoodieId === cleanMyId || 
-        !other.id.startsWith('friend_');
-
-      const authorKey = isMine ? 'mine' : (other.authorFoodieId || other.id);
+      const otherIsMine = checkIsMine(other);
+      const authorKey = otherIsMine ? 'mine' : (other.authorFoodieId || other.id);
       if (seenAuthors.has(authorKey)) continue;
       seenAuthors.add(authorKey);
 
       contributions.push({
         restaurantId: other.id,
         authorFoodieId: other.authorFoodieId,
-        authorName: isMine ? '我 (我的口袋筆記)' : (other.authorName || '吃貨好友'),
-        authorAvatar: other.authorAvatar || (isMine ? '👑' : '🥢'),
-        isMine,
+        authorName: otherIsMine ? '我 (我的口袋筆記)' : (other.authorName || '熱心吃貨'),
+        authorAvatar: other.authorAvatar || (otherIsMine ? '👑' : '🥢'),
+        isMine: otherIsMine,
         ratingTag: other.ratingTag,
         visitCount: other.visitCount || 1,
         mustEatDishes: other.mustEatDishes || [],

@@ -111,21 +111,29 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [recommendedByFriendIds, setRecommendedByFriendIds] = useState<string[]>([]);
   const [dinedWithFriendIds, setDinedWithFriendIds] = useState<string[]>([]);
 
-    useEffect(() => {
+      useEffect(() => {
     if (editingRestaurant) {
       const contributions = editingRestaurant.contributions || [];
       const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+      const isGuest = !cleanMyId || cleanMyId === 'guest';
 
-      // Check if primary is mine
-      const isMine = 
-        !editingRestaurant.authorFoodieId || 
-        editingRestaurant.authorFoodieId === cleanMyId || 
-        !editingRestaurant.id.startsWith('friend_');
+      // Check if primary contribution or restaurant is mine
+      let isMine = false;
+      if (contributions.length > 0) {
+        isMine = Boolean(contributions[0].isMine);
+      } else {
+        const authorId = (editingRestaurant.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+        if (!isGuest && authorId && authorId === cleanMyId) {
+          isMine = true;
+        } else if (!editingRestaurant.authorFoodieId && !editingRestaurant.id.startsWith('friend_') && !editingRestaurant.id.startsWith('r_')) {
+          isMine = true;
+        }
+      }
 
       setIsReadOnlyMode(!isMine);
       setCurrentAuthorInfo({
-        name: editingRestaurant.authorName || '吃貨好友',
-        avatar: editingRestaurant.authorAvatar || '🥢',
+        name: editingRestaurant.authorName || (isMine ? (currentUserName || '我') : '熱心吃貨'),
+        avatar: editingRestaurant.authorAvatar || (isMine ? (currentUserAvatar || '👑') : '🥢'),
       });
       setActiveReviewIndex(0);
 
@@ -133,14 +141,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setCategory(editingRestaurant.category);
       setCity(editingRestaurant.city);
       setAddress(editingRestaurant.address);
-      setLat(editingRestaurant.lat);
-      setLng(editingRestaurant.lng);
+      setLat(Number(editingRestaurant.lat) || 25.0478);
+      setLng(Number(editingRestaurant.lng) || 121.5319);
       setGoogleMapsUrl(editingRestaurant.googleMapsUrl || '');
       setGoogleRating(editingRestaurant.googleRating || 4.5);
-      setPriceRange(editingRestaurant.priceRange);
-      setRatingTag(editingRestaurant.ratingTag);
+      setPriceRange(editingRestaurant.priceRange || '$');
+      setRatingTag(editingRestaurant.ratingTag || 'must_eat');
       setVisibility(editingRestaurant.visibility || 'public');
-      setVisitCount(editingRestaurant.visitCount);
+      setVisitCount(editingRestaurant.visitCount || 1);
       setLastVisitedDate(
         editingRestaurant.lastVisitedDate || new Date().toISOString().split('T')[0]
       );
@@ -179,7 +187,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setRecommendedByFriendIds([]);
       setDinedWithFriendIds([]);
     }
-  }, [editingRestaurant, isOpen, lang, currentFoodieId]);
+  }, [editingRestaurant, isOpen, lang, currentFoodieId, currentUserName, currentUserAvatar]);
 
   // Switch between different foodies' reviews for the same restaurant
   const handleSelectReview = (idx: number) => {

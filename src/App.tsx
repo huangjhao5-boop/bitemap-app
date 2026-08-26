@@ -862,7 +862,7 @@ export function App() {
     }
 
     // 🌟 Auto-group identical restaurants across all foodies
-    return aggregateRestaurants(rawList, userProfile.foodieId);
+    return aggregateRestaurants(rawList, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
   }, [restaurants, friendsRestaurants, communityRestaurants, scopeFilter, userProfile.foodieId]);
 
     const cities = useMemo<string[]>(() => {

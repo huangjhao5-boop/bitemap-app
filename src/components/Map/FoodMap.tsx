@@ -193,10 +193,8 @@ function FlyToLocation({ position, onDone }: { position: [number, number]; onDon
 }
 
 function MapViewController({ 
-  selectedSpot,
   isSidebarOpen,
 }: { 
-  selectedSpot?: Restaurant | null;
   isSidebarOpen: boolean;
 }) {
   const map = useMap();
@@ -223,15 +221,6 @@ function MapViewController({
       window.removeEventListener('orientationchange', handleResize);
     };
   }, [map, isSidebarOpen]);
-
-  useEffect(() => {
-    if (selectedSpot) {
-      map.flyTo([selectedSpot.lat, selectedSpot.lng], 16, { 
-        duration: 0.8,
-        easeLinearity: 0.25 
-      });
-    }
-  }, [selectedSpot, map]);
 
   return null;
 }
@@ -274,6 +263,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
+    setFlyToPosition([Number(restaurant.lat) || 25.0478, Number(restaurant.lng) || 121.5319]);
     setIsMobileDrawerOpen(false);
   };
 
@@ -453,7 +443,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <MapViewController selectedSpot={selectedRestaurant} isSidebarOpen={isSidebarOpen} />
+          <MapViewController isSidebarOpen={isSidebarOpen} />
 
           {/* 🔵 User Current GPS Pulsing Location Radar */}
           <Marker
@@ -528,20 +518,31 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </p>
                     </div>
 
-                                        {(restaurant.authorName || recommender) && (
-                      <div className="text-[11px] text-purple-900 bg-purple-50 p-2 rounded-xl border border-purple-200 font-bold flex items-center gap-1.5 shadow-2xs">
-                        <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                          {(() => {
-                            const av = restaurant.authorAvatar || recommender?.avatar;
-                            if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
-                              return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
-                            }
-                            return <span>{av || '🥢'}</span>;
-                          })()}
+                                                            {(restaurant.authorName || recommender) && (() => {
+                      const authorId = (restaurant.authorFoodieId || '').toLowerCase().trim();
+                      const isFriend = friends.some((f) => (f.foodieId || '').toLowerCase().trim() === authorId);
+                      const displayName = restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name);
+                      return (
+                        <div className={`text-[11px] p-2 rounded-xl border font-bold flex items-center gap-1.5 shadow-2xs ${
+                          isFriend 
+                            ? 'text-purple-900 bg-purple-50 border-purple-200' 
+                            : 'text-indigo-900 bg-indigo-50 border-indigo-200'
+                        }`}>
+                          <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                            {(() => {
+                              const av = restaurant.authorAvatar || recommender?.avatar;
+                              if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
+                                return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
+                              }
+                              return <span>{av || '🥢'}</span>;
+                            })()}
+                          </div>
+                          <span className="truncate">
+                            {isFriend ? '👥 好友' : '🌐 社群吃貨'}【{displayName}】分享
+                          </span>
                         </div>
-                        <span className="truncate">👥 好友【{restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name)}】分享</span>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Must-Eat Dishes */}
                     {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
