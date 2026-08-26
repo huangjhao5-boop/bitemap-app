@@ -1354,6 +1354,7 @@ export function App() {
         currentFoodieId={userProfile.foodieId}
         currentUserName={userProfile.name}
         currentUserAvatar={userProfile.avatar}
+        onDeleteRestaurant={handleDeleteRestaurant}
       />
 
       <ShareCardModal

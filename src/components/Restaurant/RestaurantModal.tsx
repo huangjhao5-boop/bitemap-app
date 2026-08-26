@@ -33,6 +33,7 @@ interface RestaurantModalProps {
   currentUserAvatar?: string;
   friends: Friend[];
   lang: Language;
+  onDeleteRestaurant?: (id: string) => void;
 }
 
 function renderSafeAvatar(avatar: string | undefined, defaultEmoji: string = '🥢', sizeClass: string = 'w-full h-full') {
@@ -66,6 +67,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   currentUserAvatar = '🥢',
   friends,
   lang,
+  onDeleteRestaurant,
 }) => {
   const t = translations[lang];
 
@@ -580,17 +582,17 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-slate-50/50">
 
 
-            {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
-            <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-3">
+                        {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
+            <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-10 h-10 rounded-full bg-white border-2 border-amber-300 overflow-hidden flex items-center justify-center text-lg shrink-0 shadow-2xs">
                   {renderSafeAvatar(currentAuthorInfo.avatar, '🥢')}
                 </div>
-                <div>
-                  <span className="text-xs font-black text-slate-900 block">
+                <div className="min-w-0">
+                  <span className="text-xs font-black text-slate-900 block truncate">
                     {lang === 'zh-TW' ? `這是吃貨【${currentAuthorInfo.name}】的美食筆記（唯讀模式）` : `${currentAuthorInfo.name} さんの口コミ（閲覧モード）`}
                   </span>
-                  <span className="text-[11px] text-slate-600">
+                  <span className="text-[11px] text-slate-600 block">
                     {lang === 'zh-TW' 
                       ? (editingRestaurant?.contributions?.some((c) => c.isMine) 
                           ? '您已在口袋名單中收錄了此店家，可切換至「👑 我的筆記」進行編輯！' 
@@ -600,43 +602,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </div>
               </div>
 
-        {/* 👥 多吃貨評論合體切換籤頁 (Always visible if multiple reviews exist!) */}
-        {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
-          <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-3.5 border-b border-purple-200 space-y-2 shrink-0">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-purple-950 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-purple-600" />
-                <span>{lang === 'zh-TW' ? `共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店：` : `${editingRestaurant.contributions.length} 人の口コミ：`}</span>
-              </span>
-              <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-full border border-purple-200">
-                點擊切換查看不同吃貨心得
-              </span>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {editingRestaurant.contributions.map((c, idx) => (
-                <button
-                  key={c.restaurantId + '_' + idx}
-                  type="button"
-                  onClick={() => handleSelectReview(idx)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                    activeReviewIndex === idx
-                      ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-300 scale-102'
-                      : 'bg-white hover:bg-purple-50 text-slate-700 border border-purple-100'
-                  }`}
-                >
-                  <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                    {renderSafeAvatar(c.authorAvatar, '🥢')}
-                  </div>
-                  <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記 (編輯)' : '👑 マイ記録') : c.authorName}</span>
-                  <span className="text-[10px] opacity-85">
-                    {c.ratingTag === 'must_eat' ? '🔥 必吃' : c.ratingTag === 'frequent_visit' ? '🔄 愛店' : c.ratingTag === 'avoid_again' ? '☠️ 雷店' : '📌 口袋'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
               {editingRestaurant?.contributions?.some((c) => c.isMine) ? (
                 <button
                   type="button"
@@ -644,7 +609,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     const myIdx = editingRestaurant.contributions!.findIndex((c) => c.isMine);
                     if (myIdx !== -1) handleSelectReview(myIdx);
                   }}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <span>👑 切換至我的筆記修改</span>
                 </button>
@@ -652,7 +617,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCloneToMyPocket}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{lang === 'zh-TW' ? '📌 一鍵收進我的口袋名單' : '📌 自分のリストに追加'}</span>
@@ -1182,34 +1147,61 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           </form>
         )}
 
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
-          >
-            {isReadOnlyMode ? '關閉' : t.btnCancel}
-          </button>
+                {/* Footer */}
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+          {/* Left: Delete My Pocket Record Button (if user owns a record in this restaurant) */}
+          <div>
+            {Boolean(
+              editingRestaurant?.contributions?.some((c) => c.isMine) || 
+              (!isReadOnlyMode && editingRestaurant && (!editingRestaurant.authorFoodieId || editingRestaurant.authorFoodieId === (currentFoodieId || '').toLowerCase().trim()))
+            ) && onDeleteRestaurant && (
+              <button
+                type="button"
+                onClick={() => {
+                  const myRecId = editingRestaurant?.contributions?.find((c) => c.isMine)?.restaurantId || editingRestaurant?.id;
+                  if (myRecId) {
+                    onDeleteRestaurant(myRecId);
+                    onClose();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs hover:border-rose-300"
+                title="從我的口袋名單中刪除這間店"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>{lang === 'zh-TW' ? '🗑️ 從我的口袋刪除' : '🗑️ リストから削除'}</span>
+              </button>
+            )}
+          </div>
 
-          {isReadOnlyMode ? (
+          {/* Right: Cancel / Save / Clone Buttons */}
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleCloneToMyPocket}
-              className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>📌 一鍵收進我的口袋名單</span>
+              {isReadOnlyMode ? '關閉' : t.btnCancel}
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="px-6 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
-            >
-              {editingRestaurant ? t.btnSave : '儲存到我的口袋'}
-            </button>
-          )}
+
+            {isReadOnlyMode ? (
+              <button
+                type="button"
+                onClick={handleCloneToMyPocket}
+                className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>📌 一鍵收進我的口袋名單</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-6 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
+              >
+                {editingRestaurant ? t.btnSave : '儲存到我的口袋'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
