@@ -531,12 +531,54 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           </button>
         </div>
 
+        {/* ══════════════════════════════════════════════════════════
+            👥 多吃貨心得切換籤頁 (永遠顯示，無論編輯或唯讀模式)
+            只要這間店有 2 位以上吃貨留下紀錄就顯示
+            ══════════════════════════════════════════════════════════ */}
+        {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
+          <div className="bg-gradient-to-r from-purple-900 to-indigo-900 px-5 py-3 border-b border-purple-700 space-y-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-purple-100 flex items-center gap-1.5">
+                <span>👥</span>
+                <span>{lang === 'zh-TW' ? `共 ${editingRestaurant.contributions.length} 位吃貨記錄了這間店` : `${editingRestaurant.contributions.length} 人の口コミ`}</span>
+              </span>
+              <span className="text-[10px] font-bold text-purple-300">
+                點擊切換查看不同吃貨心得
+              </span>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {editingRestaurant.contributions.map((c, idx) => (
+                <button
+                  key={c.restaurantId + '_' + idx}
+                  type="button"
+                  onClick={() => handleSelectReview(idx)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                    activeReviewIndex === idx
+                      ? 'bg-white text-purple-900 shadow-md ring-2 ring-purple-300'
+                      : 'bg-purple-800/60 hover:bg-purple-700/60 text-purple-100 border border-purple-600'
+                  }`}
+                >
+                  <span className="text-base leading-none">
+                    {typeof c.authorAvatar === 'string' && c.authorAvatar.startsWith('data:')
+                      ? '🥢'
+                      : (c.authorAvatar || (c.isMine ? '👑' : '🥢'))}
+                  </span>
+                  <span>{c.isMine ? (lang === 'zh-TW' ? '👑 我的筆記' : '👑 マイ記録') : (c.authorName || '熱心吃貨')}</span>
+                  <span className="text-[10px] opacity-75">
+                    {c.ratingTag === 'must_eat' ? '🔥' : c.ratingTag === 'frequent_visit' ? '🔄' : c.ratingTag === 'avoid_again' ? '☠️' : c.ratingTag === 'wishlist' ? '📌' : '📝'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isReadOnlyMode ? (
           /* ═══════════════════════════════════════════════════════════════════════════
              📖 唯讀吃貨心得檢視模式 (Clean Read-Only View, NO form inputs!)
              ═══════════════════════════════════════════════════════════════════════════ */
           <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-slate-50/50">
-            
+
 
             {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
             <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">

@@ -256,16 +256,18 @@ export const FoodMap: React.FC<FoodMapProps> = ({
     }
   }, [targetRestaurant]);
 
-  // When restaurants list changes, keep current selected if valid, else select first without moving map
+  // When restaurants list changes, only clear selection if the previously selected one is gone.
+  // NEVER auto-select restaurants[0] on filter change — that causes map jump.
   useEffect(() => {
-    if (restaurants.length > 0) {
-      setSelectedRestaurant((prev) => {
-        if (prev && restaurants.some((r) => r.id === prev.id)) {
-          return prev;
-        }
-        return restaurants[0];
-      });
+    if (restaurants.length === 0) {
+      setSelectedRestaurant(null);
+      return;
     }
+    setSelectedRestaurant((prev) => {
+      if (!prev) return null; // Don't auto-select on filter change
+      const stillExists = restaurants.some((r) => r.id === prev.id);
+      return stillExists ? prev : null; // Clear if gone, but DON'T auto-jump to restaurants[0]
+    });
   }, [restaurants]);
 
   const defaultCenter = useMemo<[number, number]>(() => {

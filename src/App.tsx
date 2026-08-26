@@ -973,7 +973,7 @@ export function App() {
 
       return 0;
     });
-  }, [restaurants, searchQuery, selectedTag, selectedCategory, selectedCity, selectedFriendId, sortOption, userLocation]);
+  }, [allCombinedRestaurants, searchQuery, selectedTag, selectedCategory, selectedCity, selectedFriendId, sortOption, userLocation, friends]);
 
   const handleLocateOnMap = (restaurant: Restaurant) => {
     setTargetMapRestaurant(restaurant);
