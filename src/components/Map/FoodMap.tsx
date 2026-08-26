@@ -98,7 +98,7 @@ function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
 
 function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
   const { bgColor, emoji, ringColor } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
-  const selectedClass = isSelected ? 'scale-125 ring-4 ring-amber-400 z-50 shadow-xl' : 'group-hover:scale-110';
+  const selectedClass = isSelected ? 'scale-125 ring-4 ring-indigo-500 shadow-xl shadow-indigo-500/40 z-50 animate-pulse' : 'group-hover:scale-110';
 
   let statusBadge = '';
   if (restaurant.ratingTag === 'must_eat') {

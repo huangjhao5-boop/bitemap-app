@@ -1154,11 +1154,27 @@ export function App() {
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
                 <UtensilsCrossed className="w-12 h-12 text-slate-300 mx-auto" />
                 <h3 className="text-base font-bold text-slate-700">
-                  {lang === 'zh-TW' ? '找不到符合條件的美食紀錄' : '該当するグルメが見つかりません'}
+                  {scopeFilter === 'mine' 
+                    ? (lang === 'zh-TW' ? '👑 您的口袋名單目前尚無店家' : 'マイスポットはまだありません')
+                    : scopeFilter === 'friends'
+                    ? (lang === 'zh-TW' ? '👥 目前尚無好友分享的美食紀錄' : 'フレンドのスポットはまだありません')
+                    : (lang === 'zh-TW' ? '找不到符合條件的美食紀錄' : '該当するグルメが見つかりません')}
                 </h3>
-                <p className="text-xs text-slate-400">
-                  {lang === 'zh-TW' ? '嘗試調整搜尋關鍵字或篩選條件！' : '検索条件を変更してください！'}
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  {scopeFilter === 'mine'
+                    ? (lang === 'zh-TW' ? '在「🌟 全部地圖」點選任何感興趣的店家，點擊「📌 一鍵收進我的口袋名單」即可加入並寫下自己的評分！' : '全体マップからお気に入りのお店を追加できます！')
+                    : scopeFilter === 'friends'
+                    ? (lang === 'zh-TW' ? '前往「吃貨朋友圈」輸入好友吃貨 ID 互相綁定，即可 0 秒即時同步好友私房店！' : 'フレンドを追加すると共有スポットが表示されます！')
+                    : (lang === 'zh-TW' ? '嘗試調整搜尋關鍵字或篩選條件！' : '検索条件を変更してください！')}
                 </p>
+                {scopeFilter !== 'all' && (
+                  <button
+                    onClick={() => { setScopeFilter('all'); setSelectedTag('all'); }}
+                    className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-sm cursor-pointer transition-all active:scale-95"
+                  >
+                    返回「🌟 全部地圖」瀏覽所有美食
+                  </button>
+                )}
               </div>
             ) : listViewMode === 'compact' ? (
               /* 📑 橫式緊湊純文字/關鍵字條列清單 (一頁看 15~20 間) */
@@ -1269,7 +1285,7 @@ export function App() {
 
 
 
-      <RestaurantModal
+            <RestaurantModal
         isOpen={isRestaurantModalOpen}
         onClose={() => {
           setIsRestaurantModalOpen(false);
@@ -1279,6 +1295,9 @@ export function App() {
         editingRestaurant={editingRestaurant}
         friends={friends}
         lang={lang}
+        currentFoodieId={userProfile.foodieId}
+        currentUserName={userProfile.name}
+        currentUserAvatar={userProfile.avatar}
       />
 
       <ShareCardModal

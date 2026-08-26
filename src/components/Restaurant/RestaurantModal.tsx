@@ -118,32 +118,33 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [recommendedByFriendIds, setRecommendedByFriendIds] = useState<string[]>([]);
   const [dinedWithFriendIds, setDinedWithFriendIds] = useState<string[]>([]);
 
-        useEffect(() => {
+          useEffect(() => {
     if (editingRestaurant) {
       const contributions = editingRestaurant.contributions || [];
       const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
       const isGuest = !cleanMyId || cleanMyId === 'guest';
 
-      // 🔍 Find if current user already has a contribution in this aggregated spot
-      const myContributionIndex = contributions.findIndex((c) => c.isMine);
-      const hasMyRecord = myContributionIndex !== -1;
+      // 🔍 1. Find if current user already has a contribution in this aggregated spot
+      let hasMyRecord = false;
+      let myIdx = -1;
 
-      let initialIdx = 0;
-      let isMine = false;
+      if (contributions.length > 0) {
+        myIdx = contributions.findIndex((c) => c.isMine);
+        hasMyRecord = myIdx !== -1;
+      }
 
-      if (hasMyRecord) {
-        // Automatically default to current user's own note so they can directly edit!
-        initialIdx = myContributionIndex;
-        isMine = true;
-      } else if (contributions.length > 0) {
-        initialIdx = 0;
-        isMine = Boolean(contributions[0].isMine);
-      } else {
+      let initialIdx = hasMyRecord ? myIdx : 0;
+      let isMine = hasMyRecord;
+
+      // 🔍 2. If single spot without contributions pre-aggregated:
+      if (!hasMyRecord && contributions.length === 0) {
         const authorId = (editingRestaurant.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
         if (!isGuest && authorId && authorId === cleanMyId) {
           isMine = true;
-        } else if (!editingRestaurant.authorFoodieId && !editingRestaurant.id.startsWith('friend_') && !editingRestaurant.id.startsWith('r_')) {
+        } else if (!editingRestaurant.authorFoodieId && !editingRestaurant.authorName) {
           isMine = true;
+        } else {
+          isMine = false;
         }
       }
 
