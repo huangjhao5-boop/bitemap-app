@@ -205,6 +205,58 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
                 <span className="text-[11px]">點選評分標籤即可 1 秒收錄至我的口袋名單</span>
               </div>
 
+{/* 🌟 Fallback Custom Create Card if specific store isn't listed */}
+              <div className="p-4 rounded-2xl border-2 border-dashed border-indigo-200 bg-gradient-to-r from-blue-50/60 via-purple-50/60 to-pink-50/60 flex items-center justify-between gap-3 shadow-xs">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <h4 className="text-xs sm:text-sm font-black text-indigo-950">
+                      想直接建立「{searchQuery}」嗎？
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    若此店為新開幕或特有店家，可直接以這個名稱一鍵收進您的口袋名單！
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const detectedCity = userLocation.cityName || '台北市';
+                      const customPlace: PlaceSearchResult = {
+                        id: `custom_${Date.now()}`,
+                        name: searchQuery.trim(),
+                        category: '精選美食',
+                        city: detectedCity,
+                        address: `${detectedCity} (待補詳細地址)`,
+                        lat: userLocation.lat || 25.0478,
+                        lng: userLocation.lng || 121.5319,
+                        googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery + ' ' + detectedCity)}`,
+                        googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(searchQuery + ' ' + detectedCity + ' 美食 評價')}`,
+                        priceRange: '$',
+                        source: 'custom',
+                      };
+                      handleQuickAdd(customPlace, 'wishlist');
+                    }}
+                    className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>一鍵加入口袋</span>
+                  </button>
+
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title="在 Google Maps 查詢"
+                  >
+                    <Globe className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+
               {results.map((place) => {
                 const isAdded = addedIds.has(place.id);
                 const distanceKm = calculateDistanceKm(userLocation.lat, userLocation.lng, place.lat, place.lng);
