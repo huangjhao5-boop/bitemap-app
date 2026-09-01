@@ -193,3 +193,24 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
 
   return results;
 }
+
+// 🌐 Smart URL place extraction for Google Share Links / Maps Links
+export function parseGoogleShareUrl(urlStr: string): { placeName: string; query: string; isShareUrl: boolean } {
+  const str = urlStr.trim();
+  if (str.startsWith('http://') || str.startsWith('https://')) {
+    try {
+      const url = new URL(str);
+      const qParam = url.searchParams.get('q') || url.searchParams.get('query');
+      if (qParam) {
+        return { placeName: qParam, query: qParam, isShareUrl: true };
+      }
+      // Check pathname segments
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      const lastPart = pathParts[pathParts.length - 1] || '日本精選店家';
+      return { placeName: decodeURIComponent(lastPart), query: decodeURIComponent(lastPart), isShareUrl: true };
+    } catch {
+      return { placeName: 'Google 分享店家', query: str, isShareUrl: true };
+    }
+  }
+  return { placeName: str, query: str, isShareUrl: false };
+}

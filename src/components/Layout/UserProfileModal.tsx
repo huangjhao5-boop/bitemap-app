@@ -356,28 +356,43 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Default City */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 2-Tier Country & Region Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                  <span>{lang === 'zh-TW' ? '預設常住城市' : '主要活動エリア'}</span>
+                  <span>{lang === 'zh-TW' ? '常駐國家與地區' : '活動国・地域'}</span>
                 </label>
-                <select
-                  value={defaultCity}
-                  onChange={(e) => setDefaultCity(e.target.value)}
-                  className="w-full text-sm px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:outline-hidden focus:ring-2 focus:ring-rose-500"
-                >
-                  <option value="台北市">台北市</option>
-                  <option value="新北市">新北市</option>
-                  <option value="台中市">台中市</option>
-                  <option value="台南市">台南市</option>
-                  <option value="高雄市">高雄市</option>
-                  <option value="東京">東京</option>
-                  <option value="大阪">大阪</option>
-                  <option value="京都">京都</option>
-                  <option value="福岡">福岡</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => {
+                      const newCountry = e.target.value;
+                      setSelectedCountry(newCountry);
+                      const firstCity = COUNTRIES_AND_REGIONS[newCountry]?.cities[0] || '台北市';
+                      setDefaultCity(firstCity);
+                    }}
+                    className="w-full text-xs sm:text-sm px-2.5 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500 cursor-pointer shadow-2xs"
+                  >
+                    {Object.entries(COUNTRIES_AND_REGIONS).map(([code, info]) => (
+                      <option key={code} value={code}>
+                        {info.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={defaultCity}
+                    onChange={(e) => setDefaultCity(e.target.value)}
+                    className="w-full text-xs sm:text-sm px-2.5 py-2 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500 cursor-pointer shadow-2xs"
+                  >
+                    {(COUNTRIES_AND_REGIONS[selectedCountry]?.cities || []).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Favorite Drink */}

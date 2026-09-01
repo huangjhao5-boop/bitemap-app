@@ -392,7 +392,13 @@ export function App() {
     }
 
     setRestaurants(loadRestaurants());
-    setFriends(loadFriends());
+    const currentProfile = loadUserProfile();
+    if (!currentProfile.foodieId || currentProfile.foodieId === 'guest') {
+      setFriends([]);
+      localStorage.setItem('bitemap_friends_v1', JSON.stringify([]));
+    } else {
+      setFriends(loadFriends());
+    }
     setMeetups(loadMeetups());
   }, []);
 
@@ -874,15 +880,16 @@ export function App() {
   }, [friends]);
 
             // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
-  const allCombinedGlobalList = useMemo(() => {
-    // 1. Gather all raw records from: Self (pocket), Friends, and Global Community
+    const allCombinedGlobalList = useMemo(() => {
     const rawList: Restaurant[] = [];
     const seenAuthorSpot = new Set<string>();
 
     const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
+    const isGuest = !cleanMyId || cleanMyId === 'guest';
 
     // Priority 1: User's own restaurants
     restaurants.forEach((r) => {
+      if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
       const authorKey = (cleanMyId || 'me') + '_' + normalizeRestaurantKey(r);
       if (!seenAuthorSpot.has(authorKey)) {
         seenAuthorSpot.add(authorKey);
@@ -895,17 +902,21 @@ export function App() {
       }
     });
 
-    // Priority 2: Friends' restaurants
-    friendsRestaurants.forEach((r) => {
-      const authorKey = (r.authorFoodieId || r.id) + '_' + normalizeRestaurantKey(r);
-      if (!seenAuthorSpot.has(authorKey)) {
-        seenAuthorSpot.add(authorKey);
-        rawList.push(r);
-      }
-    });
+    // Priority 2: Friends' restaurants (ONLY if NOT guest!)
+    if (!isGuest && friends.length > 0) {
+      friendsRestaurants.forEach((r) => {
+        if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
+        const authorKey = (r.authorFoodieId || r.id) + '_' + normalizeRestaurantKey(r);
+        if (!seenAuthorSpot.has(authorKey)) {
+          seenAuthorSpot.add(authorKey);
+          rawList.push(r);
+        }
+      });
+    }
 
     // Priority 3: Global Community restaurants
     communityRestaurants.forEach((r) => {
+      if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
       const authorKey = (r.authorFoodieId || 'pub_' + r.id) + '_' + normalizeRestaurantKey(r);
       if (!seenAuthorSpot.has(authorKey)) {
         seenAuthorSpot.add(authorKey);
@@ -914,7 +925,7 @@ export function App() {
     });
 
     return aggregateRestaurants(rawList, userProfile.foodieId, new Set(restaurants.map((r) => r.id)));
-  }, [restaurants, friendsRestaurants, communityRestaurants, userProfile.foodieId, userProfile.name, userProfile.avatar]);
+  }, [restaurants, friendsRestaurants, communityRestaurants, userProfile.foodieId, userProfile.name, userProfile.avatar, friends]);
 
   // Combined & Multi-Foodie Aggregated Restaurants for current scopeFilter
   const allCombinedRestaurants = useMemo(() => {
