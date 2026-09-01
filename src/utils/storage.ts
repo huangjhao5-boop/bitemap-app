@@ -157,6 +157,10 @@ export function saveRestaurants(restaurants: Restaurant[]): void {
 
 export function loadFriends(): Friend[] {
   try {
+    const profile = loadUserProfile();
+    if (!profile.foodieId || profile.foodieId === 'guest') {
+      return [];
+    }
     const saved = localStorage.getItem(STORAGE_KEYS.FRIENDS);
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -411,6 +415,7 @@ export function purgeMockTestData(): void {
               if (['r1', 'r2', 'r3', 'r4', 'as', 'asas', 'asd'].includes(r.id)) return false;
               if (r.id?.startsWith('mock_')) return false;
               if (['as', 'asas', 'asd'].includes(r.name?.toLowerCase())) return false;
+              if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return false;
               return true;
             });
             localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));

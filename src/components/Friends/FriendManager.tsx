@@ -3,6 +3,7 @@ import type { Friend, Restaurant, DiningMeetup, UserProfile } from '../../types'
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { FriendTasteModal } from './FriendTasteModal';
+import { FriendPhotoModal } from './FriendPhotoModal';
 import { FriendIdModal } from './FriendIdModal';
 import { FriendRequestsInbox } from './FriendRequestsInbox';
 import type { FriendRequest } from '../../types';
@@ -68,6 +69,7 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
   const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false);
   const [editingFriend, setEditingFriend] = useState<Friend | null>(null);
+  const [viewingFriendPhoto, setViewingFriendPhoto] = useState<Friend | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleAddNewFriend = () => {
@@ -252,7 +254,11 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-2xl shadow-2xs overflow-hidden shrink-0">
+                      <div 
+                        onClick={() => setViewingFriendPhoto(friend)}
+                        className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-2xl shadow-2xs overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-purple-400 hover:scale-105 transition-all"
+                        title="點擊放大查看好友大頭照與完整檔案"
+                      >
                         {friend.avatar && (friend.avatar.startsWith('data:') || friend.avatar.startsWith('http') || friend.avatar.length > 20) ? (
                           <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
                         ) : (
@@ -336,6 +342,15 @@ export const FriendManager: React.FC<FriendManagerProps> = ({
           </div>
         </div>
       )}
+
+            <FriendPhotoModal
+        isOpen={Boolean(viewingFriendPhoto)}
+        onClose={() => setViewingFriendPhoto(null)}
+        friend={viewingFriendPhoto}
+        onViewFriendRestaurants={onViewFriendRestaurants}
+        onEditFriend={handleEditFriend}
+        lang={lang}
+      />
 
       <FriendTasteModal
         isOpen={isFriendModalOpen}

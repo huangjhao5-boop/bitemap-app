@@ -24,6 +24,8 @@ export interface Friend {
   avatar: string; // 對方公開頭像 (雲端動態同步)
   favoriteTags: string[]; // 對方公開喜好 (雲端動態同步)
   dislikedTags: string[]; // 對方公開忌口 (雲端動態同步)
+  bio?: string;
+  instagramHandle?: string;
   
   // 📝 自身私房觀察與專屬備忘 (本機專屬，雲端更新不會被覆蓋！)
   customNickname?: string; // 我的專屬備註外號
