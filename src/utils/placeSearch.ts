@@ -30,9 +30,22 @@ export function guessCategory(name: string, amenity: string = ''): string {
   return '精選美食';
 }
 
-// 🏙️ Detect city from address or raw text
+// 🏙️ Detect city from address or raw text (Taiwan, Japan, Global)
 export function detectCity(addrText: string): string {
   const text = (addrText || '').replace(/臺/g, '台');
+  // 🇯🇵 Japan Prefectures
+  if (text.includes('愛知') || text.includes('名古屋') || text.includes('Aichi') || text.includes('Nagoya')) return '愛知縣';
+  if (text.includes('東京') || text.includes('Tokyo')) return '東京都';
+  if (text.includes('大阪') || text.includes('Osaka')) return '大阪府';
+  if (text.includes('京都') || text.includes('Kyoto')) return '京都府';
+  if (text.includes('福岡') || text.includes('博多') || text.includes('Fukuoka')) return '福岡縣';
+  if (text.includes('北海道') || text.includes('札幌') || text.includes('Hokkaido')) return '北海道';
+  if (text.includes('沖繩') || text.includes('Okinawa')) return '沖繩縣';
+  if (text.includes('神奈川') || text.includes('橫濱') || text.includes('Yokohama')) return '神奈川縣';
+  if (text.includes('兵庫') || text.includes('神戶') || text.includes('Kobe')) return '兵庫縣';
+  if (text.includes('廣島') || text.includes('Hiroshima')) return '廣島縣';
+
+  // 🇹🇼 Taiwan Cities
   if (text.includes('台北') || text.includes('Taipei')) return '台北市';
   if (text.includes('新北') || text.includes('New Taipei')) return '新北市';
   if (text.includes('台中') || text.includes('Taichung')) return '台中市';
@@ -40,10 +53,18 @@ export function detectCity(addrText: string): string {
   if (text.includes('高雄') || text.includes('Kaohsiung')) return '高雄市';
   if (text.includes('新竹') || text.includes('Hsinchu')) return '新竹市';
   if (text.includes('桃園') || text.includes('Taoyuan')) return '桃園市';
-  if (text.includes('東京') || text.includes('Tokyo')) return '東京';
-  if (text.includes('大阪') || text.includes('Osaka')) return '大阪';
-  if (text.includes('京都') || text.includes('Kyoto')) return '京都';
-  if (text.includes('福岡') || text.includes('Fukuoka')) return '福岡';
+  if (text.includes('基隆') || text.includes('Keelung')) return '基隆市';
+  if (text.includes('宜蘭') || text.includes('Yilan')) return '宜蘭縣';
+  if (text.includes('彰化') || text.includes('Changhua')) return '彰化縣';
+  if (text.includes('嘉義') || text.includes('Chiayi')) return '嘉義市';
+  if (text.includes('屏東') || text.includes('Pingtung')) return '屏東縣';
+  if (text.includes('花蓮') || text.includes('Hualien')) return '花蓮縣';
+  if (text.includes('台東') || text.includes('Taitung')) return '台東縣';
+
+  // 🇰🇷 韓國
+  if (text.includes('首爾') || text.includes('Seoul')) return '首爾';
+  if (text.includes('釜山') || text.includes('Busan')) return '釜山';
+
   return '台北市';
 }
 

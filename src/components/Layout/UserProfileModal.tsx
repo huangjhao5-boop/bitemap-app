@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { UserProfile } from '../../types';
+import { COUNTRIES_AND_REGIONS, getCountryCodeByCity } from '../../utils/geo';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { 
@@ -48,7 +49,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [name, setName] = useState(profile.name);
   const [avatar, setAvatar] = useState(profile.avatar);
   const [bio, setBio] = useState(profile.bio);
-  const [defaultCity, setDefaultCity] = useState(profile.defaultCity);
+  const [defaultCity, setDefaultCity] = useState(profile.defaultCity || '台北市');
+  const [selectedCountry, setSelectedCountry] = useState<string>(() => getCountryCodeByCity(profile.defaultCity || '台北市'));
   const [instagramHandle, setInstagramHandle] = useState(profile.instagramHandle || '');
 
   // Rich Dietary & Taste preferences
@@ -71,7 +73,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setName(profile.name || '吃貨探險家');
       setAvatar(profile.avatar || '🥢');
       setBio(profile.bio || '');
-      setDefaultCity(profile.defaultCity || '台北市');
+      const initialCity = profile.defaultCity || '台北市';
+      setDefaultCity(initialCity);
+      setSelectedCountry(getCountryCodeByCity(initialCity));
       setInstagramHandle(profile.instagramHandle || '');
       setFavoriteTags(profile.favoriteTags || []);
       setDislikedTags(profile.dislikedTags || []);

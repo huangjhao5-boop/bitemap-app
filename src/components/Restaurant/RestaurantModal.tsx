@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Restaurant, Friend, RestaurantRatingTag, ShortVideoSource, DishItem, DishRating } from '../../types';
 import { parseMenuTextToDishes, processMenuImage } from '../../utils/menuOcr';
+import { COUNTRIES_AND_REGIONS, CITY_COORDS } from '../../utils/geo';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText } from '../../utils/videoParser';
@@ -44,19 +45,7 @@ function renderSafeAvatar(avatar: string | undefined, defaultEmoji: string = '�
   return <span>{avatar || defaultEmoji}</span>;
 }
 
-const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
-  '台北市': { lat: 25.0478, lng: 121.5319 },
-  '新北市': { lat: 25.0118, lng: 121.4658 },
-  '台中市': { lat: 24.1477, lng: 120.6736 },
-  '台南市': { lat: 22.9997, lng: 120.2270 },
-  '高雄市': { lat: 22.6273, lng: 120.3014 },
-  '新竹市': { lat: 24.8138, lng: 120.9675 },
-  '桃園市': { lat: 24.9936, lng: 121.3010 },
-  '東京': { lat: 35.6762, lng: 139.6503 },
-  '大阪': { lat: 34.6937, lng: 135.5023 },
-  '京都': { lat: 35.0116, lng: 135.7681 },
-  '福岡': { lat: 33.5904, lng: 130.4017 },
-};
+const CITY_COORDINATES = CITY_COORDS;
 
 export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   isOpen,
@@ -64,18 +53,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   onSave,
   editingRestaurant,
   currentFoodieId,
-  currentUserName = '熱心吃貨',
-  currentUserAvatar = '🥢',
+  currentUserName,
+  currentUserAvatar,
   friends,
   lang,
   onDeleteRestaurant,
 }) => {
   const t = translations[lang];
 
-  // Smart Auto-Fill Input State
   const [activeReviewIndex, setActiveReviewIndex] = useState<number>(0);
   const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
-  const [currentAuthorInfo, setCurrentAuthorInfo] = useState<{ name: string; avatar: string }>({ name: '', avatar: '' });
+  const [currentAuthorInfo, setCurrentAuthorInfo] = useState<{ id?: string; name?: string; avatar?: string }>({});
+
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
@@ -993,12 +982,16 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <select
                     value={city}
                     onChange={(e) => handleCityChange(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
                   >
-                    {Object.keys(CITY_COORDINATES).map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
+                    {Object.entries(COUNTRIES_AND_REGIONS).map(([code, info]) => (
+                      <optgroup key={code} label={info.label}>
+                        {info.cities.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Restaurant, RestaurantRatingTag, UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
-import { searchGooglePlacesOnline, type PlaceSearchResult } from '../../utils/placeSearch';
+import { searchGooglePlacesOnline, detectCity, type PlaceSearchResult } from '../../utils/placeSearch';
 import { calculateDistanceKm, formatDistance, type UserLocation } from '../../utils/geo';
 import { 
   Search, 
@@ -223,7 +223,7 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      const detectedCity = userLocation.cityName || '台北市';
+                      const detectedCity = detectCity(searchQuery) !== '台北市' ? detectCity(searchQuery) : (userLocation.cityName || '台北市');
                       const customPlace: PlaceSearchResult = {
                         id: `custom_${Date.now()}`,
                         name: searchQuery.trim(),
