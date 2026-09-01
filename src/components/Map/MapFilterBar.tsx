@@ -2,6 +2,7 @@ import React from 'react';
 import type { RestaurantRatingTag, SortOption, Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
+import { COUNTRIES_AND_REGIONS } from '../../utils/geo';
 import { 
   Search, 
   Flame, 

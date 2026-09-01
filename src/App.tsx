@@ -38,7 +38,7 @@ import {
   getAutoSyncTime,
   triggerAutoSync
 } from './utils/storage';
-import { type UserLocation, CITY_COORDS, calculateDistanceKm } from './utils/geo';
+import { type UserLocation, CITY_COORDS, calculateDistanceKm, findNearestCity } from './utils/geo';
 
 import { Header } from './components/Layout/Header';
 import { TabNavigation } from './components/Layout/TabNavigation';
@@ -332,13 +332,17 @@ export function App() {
 
   // Auto-detect browser GPS location if permitted
   useEffect(() => {
-    if (navigator.geolocation) {
+        if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const nearest = findNearestCity(lat, lng);
+
           setUserLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            cityName: '目前 GPS 位置',
+            lat,
+            lng,
+            cityName: `${nearest.cityName} (GPS)`,
             isGps: true,
           });
         },

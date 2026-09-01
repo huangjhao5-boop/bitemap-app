@@ -137,3 +137,26 @@ export function getCountryCodeByCity(city: string): string {
   }
   return 'TW';
 }
+
+// 🧭 Find nearest city name from GPS coordinates (Taiwan, Japan, Global)
+export function findNearestCity(lat: number, lng: number): { cityName: string; countryCode: string; distanceKm: number } {
+  let minDistance = Infinity;
+  let nearestCity = '台北市';
+
+  for (const [cityName, coords] of Object.entries(CITY_COORDS)) {
+    const dist = calculateDistanceKm(lat, lng, coords.lat, coords.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestCity = cityName;
+    }
+  }
+
+  const countryCode = getCountryCodeByCity(nearestCity);
+  const countryFlag = countryCode === 'JP' ? '🇯🇵 ' : countryCode === 'KR' ? '🇰🇷 ' : countryCode === 'TW' ? '🇹🇼 ' : '🌏 ';
+
+  return {
+    cityName: `${countryFlag}${nearestCity}`,
+    countryCode,
+    distanceKm: minDistance,
+  };
+}
