@@ -48,6 +48,7 @@ import { RestaurantCard } from './components/Restaurant/RestaurantCard';
 import { RestaurantCompactRow } from './components/Restaurant/RestaurantCompactRow';
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { RestaurantModal } from './components/Restaurant/RestaurantModal';
+import { GooglePlaceSearchModal } from './components/Restaurant/GooglePlaceSearchModal';
 import { FriendManager } from './components/Friends/FriendManager';
 import { GroupDiningMatcher } from './components/Friends/GroupDiningMatcher';
 import { ShareCardModal } from './components/Social/ShareCardModal';
@@ -317,6 +318,7 @@ export function App() {
 
   // Modal States
   const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
+  const [isPlaceSearchModalOpen, setIsPlaceSearchModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isReelsModalOpen, setIsReelsModalOpen] = useState(false);
@@ -1085,7 +1087,7 @@ export function App() {
 
   const handleCitySelectWithCoords = (city: string) => {
     setSelectedCity(city);
-    if (city !== 'all' && CITY_COORDS[city]) {
+        if (city !== 'all' && CITY_COORDS[city]) {
       setUserLocation({
         lat: CITY_COORDS[city].lat,
         lng: CITY_COORDS[city].lng,
@@ -1107,6 +1109,7 @@ export function App() {
           setEditingRestaurant(null);
           setIsRestaurantModalOpen(true);
         }}
+        onOpenPlaceSearchModal={() => setIsPlaceSearchModalOpen(true)}
         onOpenProfileModal={() => setIsProfileModalOpen(true)}
         onOpenReelsModal={() => setIsReelsModalOpen(true)}
         onOpenMysteryBox={() => setIsMysteryBoxModalOpen(true)}
@@ -1383,7 +1386,18 @@ export function App() {
 
 
 
-            <RestaurantModal
+                  <GooglePlaceSearchModal
+        isOpen={isPlaceSearchModalOpen}
+        onClose={() => setIsPlaceSearchModalOpen(false)}
+        onAddRestaurant={(r) => {
+          handleSaveRestaurant(r);
+        }}
+        userLocation={userLocation}
+        lang={lang}
+        userProfile={userProfile}
+      />
+
+      <RestaurantModal
         isOpen={isRestaurantModalOpen}
         onClose={() => {
           setIsRestaurantModalOpen(false);

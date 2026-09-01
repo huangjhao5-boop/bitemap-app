@@ -4,6 +4,7 @@ import { parseMenuTextToDishes, processMenuImage } from '../../utils/menuOcr';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText } from '../../utils/videoParser';
+import { searchGooglePlacesOnline, type PlaceSearchResult } from '../../utils/placeSearch';
 import { 
   X, 
   Plus, 
@@ -75,6 +76,36 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [activeReviewIndex, setActiveReviewIndex] = useState<number>(0);
   const [isReadOnlyMode, setIsReadOnlyMode] = useState<boolean>(false);
   const [currentAuthorInfo, setCurrentAuthorInfo] = useState<{ name: string; avatar: string }>({ name: '', avatar: '' });
+  const [placeSearchQuery, setPlaceSearchQuery] = useState('');
+  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+
+  const handleSearchPlacesInModal = async () => {
+    if (!placeSearchQuery.trim()) return;
+    setIsSearchingPlaces(true);
+    try {
+      const items = await searchGooglePlacesOnline(placeSearchQuery.trim());
+      setPlaceSearchResults(items);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSearchingPlaces(false);
+    }
+  };
+
+  const handleSelectPlaceSuggestion = (place: PlaceSearchResult) => {
+    setName(place.name);
+    setCategory(place.category);
+    setCity(place.city);
+    setAddress(place.address);
+    setLat(place.lat);
+    setLng(place.lng);
+    setGoogleMapsUrl(place.googleMapsUrl);
+    setPriceRange(place.priceRange);
+    setPlaceSearchResults([]);
+    setPlaceSearchQuery('');
+  };
+
   const [smartInputText, setSmartInputText] = useState('');
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const [menuImages, setMenuImages] = useState<string[]>([]);
@@ -756,44 +787,108 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
              ✍️ 編輯 / 新增模式 (Full Editable Form)
              ═══════════════════════════════════════════════════════════════════════════ */
           <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
-            {/* 🪄 Smart Auto-Fill Banner */}
+                                    {/* 🪄 Smart Auto-Fill & Google Place Search Banner */}
             {!editingRestaurant && (
-              <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                    <Wand2 className="w-4 h-4 text-amber-600" />
-                    <span>{lang === 'zh-TW' ? '🪄 智能一鍵自動填入（貼上短影音網址或社群貼文）' : '🪄 AI 自動入力（動画URLやSNS投稿を貼り付け）'}</span>
-                  </span>
-                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
-                    {lang === 'zh-TW' ? '省時極速' : '時短'}
-                  </span>
+              <div className="space-y-3">
+                {/* 🔍 Google Place Search Bar */}
+                <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                      <span>🔍</span>
+                      <span>{lang === 'zh-TW' ? 'Google 智慧搜店 · 自動帶入店名/地址/座標' : 'Google スポット検索・自動入力'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-full">
+                      推薦首選
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={lang === 'zh-TW' ? '搜尋店名或地標 (例如：隱家拉麵 赤峰店、詹記麻辣火鍋...)' : '店舗名を入力 (例：一蘭 新宿)'}
+                      value={placeSearchQuery}
+                      onChange={(e) => setPlaceSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearchPlacesInModal();
+                        }
+                      }}
+                      className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-indigo-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white font-medium shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchPlacesInModal}
+                      disabled={isSearchingPlaces || !placeSearchQuery.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSearchingPlaces ? '搜尋中...' : '🔍 搜店帶入'}
+                    </button>
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {placeSearchResults.length > 0 && (
+                    <div className="bg-white rounded-xl border border-indigo-200 shadow-md divide-y divide-slate-100 max-h-48 overflow-y-auto mt-2">
+                      {placeSearchResults.map((place) => (
+                        <div
+                          key={place.id}
+                          onClick={() => handleSelectPlaceSuggestion(place)}
+                          className="p-2.5 hover:bg-indigo-50 cursor-pointer transition-colors flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-xs text-slate-900 truncate">{place.name}</span>
+                              <span className="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded font-bold">{place.category}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate">{place.address}</p>
+                          </div>
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-lg shrink-0">
+                            帶入 ↵
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder={lang === 'zh-TW' ? '貼上 IG Reels / TikTok 網址，例如：https://www.instagram.com/reel/...' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
-                    value={smartInputText}
-                    onChange={(e) => setSmartInputText(e.target.value)}
-                    className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white font-medium shadow-2xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSmartAutoFill}
-                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0"
-                  >
-                    {autoFillSuccess ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>{lang === 'zh-TW' ? '一鍵自動填入' : '自動解析'}</span>
-                      </>
-                    )}
-                  </button>
+                {/* 🪄 IG / TikTok URL Auto-Fill */}
+                <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <Wand2 className="w-4 h-4 text-amber-600" />
+                      <span>{lang === 'zh-TW' ? '🪄 智能一鍵自動填入（貼上短影音網址或社群貼文）' : '🪄 AI 自動入力（動画URLやSNS投稿を貼り付け）'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                      {lang === 'zh-TW' ? '省時極速' : '時短'}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={lang === 'zh-TW' ? '貼上 IG Reels / TikTok 網址，例如：https://www.instagram.com/reel/...' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
+                      value={smartInputText}
+                      onChange={(e) => setSmartInputText(e.target.value)}
+                      className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white font-medium shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSmartAutoFill}
+                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
+                    >
+                      {autoFillSuccess ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{lang === 'zh-TW' ? '一鍵自動填入' : '自動解析'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

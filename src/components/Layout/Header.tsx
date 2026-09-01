@@ -4,6 +4,7 @@ import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { 
   Plus, 
+  Search, 
   Download, 
   Upload, 
   Flame, 
@@ -22,6 +23,7 @@ interface HeaderProps {
   lastSyncTime?: string;
   onLanguageChange: (lang: Language) => void;
   onAddNewRestaurant: () => void;
+  onOpenPlaceSearchModal: () => void;
   onOpenProfileModal: () => void;
   onOpenReelsModal: () => void;
   onOpenMysteryBox: () => void;
@@ -37,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   lastSyncTime,
   onLanguageChange,
   onAddNewRestaurant,
+  onOpenPlaceSearchModal,
   onOpenProfileModal,
   onOpenReelsModal,
   onOpenMysteryBox,
@@ -244,6 +247,16 @@ export const Header: React.FC<HeaderProps> = ({
               className="hidden"
             />
           </div>
+
+          {/* 🔍 Google 智慧搜店按鈕 */}
+          <button
+            onClick={onOpenPlaceSearchModal}
+            className="px-2.5 py-2 sm:px-3.5 sm:py-2 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black text-xs shadow-md shadow-indigo-500/20 transition-all active:scale-95 hover:scale-105 flex items-center gap-1.5 shrink-0 cursor-pointer"
+            title="Google 智慧搜店 · 搜到店家直接一鍵收進口袋！"
+          >
+            <Search className="w-4 h-4 stroke-[2.5]" />
+            <span className="hidden sm:inline">Google 搜店 🔍</span>
+          </button>
 
           {/* Add Restaurant Button (Cute Floating Button) */}
           <button
