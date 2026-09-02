@@ -5,7 +5,7 @@ import { COUNTRIES_AND_REGIONS, CITY_COORDS } from '../../utils/geo';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText } from '../../utils/videoParser';
-import { searchGooglePlacesOnline, type PlaceSearchResult } from '../../utils/placeSearch';
+import { searchGooglePlacesOnline, resolveGooglePlaceUrl, type PlaceSearchResult } from '../../utils/placeSearch';
 import { 
   X, 
   Plus, 
@@ -399,8 +399,34 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     e.target.value = '';
   };
 
-  const handleSmartAutoFill = () => {
+  const handleSmartAutoFill = async () => {
     if (!smartInputText.trim()) return;
+
+    // 🌐 If input is a Google Share Link / Google Maps URL, resolve directly
+    if (
+      smartInputText.includes('share.google') ||
+      smartInputText.includes('goo.gl') ||
+      smartInputText.includes('google.com/maps') ||
+      smartInputText.includes('google.com/search')
+    ) {
+      try {
+        const gCard = await resolveGooglePlaceUrl(smartInputText.trim());
+        if (gCard) {
+          if (gCard.name) setName(gCard.name);
+          if (gCard.category) setCategory(gCard.category);
+          if (gCard.city) handleCityChange(gCard.city);
+          if (gCard.address) setAddress(gCard.address);
+          if (gCard.lat) setLat(gCard.lat);
+          if (gCard.lng) setLng(gCard.lng);
+          if (gCard.googleMapsUrl) setGoogleMapsUrl(gCard.googleMapsUrl);
+          setAutoFillSuccess(true);
+          setTimeout(() => setAutoFillSuccess(false), 3000);
+          return;
+        }
+      } catch (err) {
+        console.warn('Google URL auto-fill failed', err);
+      }
+    }
 
     const extracted = extractRestaurantInfoFromText(smartInputText);
 

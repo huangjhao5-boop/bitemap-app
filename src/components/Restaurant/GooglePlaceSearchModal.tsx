@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Restaurant, RestaurantRatingTag, UserProfile } from '../../types';
 import type { Language } from '../../utils/i18n';
-import { searchGooglePlacesOnline, detectCity, parseGoogleShareUrl, type PlaceSearchResult } from '../../utils/placeSearch';
-import { calculateDistanceKm, formatDistance, type UserLocation } from '../../utils/geo';
+import { searchGooglePlacesOnline, parseGoogleShareUrl, type PlaceSearchResult } from '../../utils/placeSearch';
+import { calculateDistanceKm, formatDistance, detectCity, type UserLocation } from '../../utils/geo';
 import { 
   Search, 
   MapPin, 
@@ -44,17 +44,17 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
 
   // Quick popular search presets
   const presets = [
+    '新北 三重 今大魯肉飯',
+    '愛知 炒飯 信',
     '台北 隱家拉麵',
-    '詹記麻辣火鍋',
-    '鼎泰豐 信義店',
-    'TAMED FOX',
+    '日本 三重 松阪牛',
     '台中 和牛燒肉',
     '台南 牛肉湯',
     '東京 一蘭拉麵',
     '福岡 炭火燒鳥',
   ];
 
-    const handleSearch = async (queryText?: string) => {
+  const handleSearch = async (queryText?: string) => {
     const rawQ = (queryText !== undefined ? queryText : searchQuery).trim();
     if (!rawQ) return;
 
@@ -62,35 +62,11 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
       setSearchQuery(queryText);
     }
 
-    // Check if input is a Google Maps share link
-    const parsedUrl = parseGoogleShareUrl(rawQ);
-    const searchTarget = parsedUrl.isShareUrl ? parsedUrl.query : rawQ;
-
     setIsSearching(true);
     setHasSearched(true);
 
     try {
-      let items = await searchGooglePlacesOnline(searchTarget);
-      
-      // If URL was provided and no exact POI found, create a rich instant card for this URL
-      if (parsedUrl.isShareUrl) {
-        const detectedCity = detectCity(rawQ) || '愛知縣';
-        const urlCard: PlaceSearchResult = {
-          id: `url_${Date.now()}`,
-          name: parsedUrl.placeName || '炒飯 信 (Shin)',
-          category: '中華料理 / 炒飯專門',
-          city: detectedCity,
-          address: `${detectedCity} (Google 分享店家)`,
-          lat: 35.1802,
-          lng: 136.9066,
-          googleMapsUrl: rawQ,
-          googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(parsedUrl.placeName + ' ' + detectedCity)}`,
-          priceRange: '$',
-          source: 'custom',
-        };
-        items = [urlCard, ...items];
-      }
-
+      const items = await searchGooglePlacesOnline(rawQ);
       setResults(items);
     } catch (e) {
       console.error('Search failed', e);

@@ -974,7 +974,7 @@ export function App() {
     }).length;
   }, [allCombinedGlobalList, friends, userProfile.foodieId]);
 
-    const cities = useMemo<string[]>(() => {
+  const cities = useMemo<string[]>(() => {
     const set = new Set(allCombinedRestaurants.map((r: Restaurant) => r.city).filter(Boolean));
     return Array.from(set);
   }, [allCombinedRestaurants]);
@@ -1021,7 +1021,10 @@ export function App() {
       }
 
       if (selectedCity !== 'all') {
-        if (r.city !== selectedCity) return false;
+        const cleanSelected = selectedCity.replace(/^[🇹🇼🇯🇵🇰🇷🌏\s]+/g, '').trim();
+        const matchesExact = r.city === selectedCity || r.city === cleanSelected;
+        const matchesSub = r.city.includes(cleanSelected) || cleanSelected.includes(r.city);
+        if (!matchesExact && !matchesSub) return false;
       }
 
             if (selectedFriendId !== 'all') {
