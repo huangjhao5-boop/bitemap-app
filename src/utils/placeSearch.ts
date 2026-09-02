@@ -192,14 +192,14 @@ export const CURATED_VERIFIED_SPOTS: Array<{
   },
 ];
 
-// 🌐 Smart URL place extraction for Google Share Links / Maps Links / Search Links
+// 🌐 Smart Universal Google Maps / Search Link Live Resolver (Zero Key Needed)
 export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearchResult | null> {
   const str = urlStr.trim();
   if (!str.startsWith('http://') && !str.startsWith('https://')) {
     return null;
   }
 
-  // 1. Direct check against curated spot database (e.g. LmyDeVFCGWr5z4AoN)
+  // 1. Direct check against curated spot database
   const lowerUrl = str.toLowerCase();
   for (const spot of CURATED_VERIFIED_SPOTS) {
     if (spot.keywords.some((kw) => lowerUrl.includes(kw.toLowerCase()))) {
@@ -225,7 +225,7 @@ export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearch
   let detectedCity = '台北市';
   let formattedAddress = '';
 
-  // Case 1: Google Maps Place full URL (/maps/place/Name/@lat,lng)
+  // Case 1: Google Maps Place URL (/maps/place/Name/@lat,lng)
   const placeMatch = str.match(/\/maps\/place\/([^/@?#]+)(?:\/@([0-9.-]+),([0-9.-]+))?/i);
   if (placeMatch) {
     try {
@@ -251,44 +251,78 @@ export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearch
     }
   }
 
-  // Case 3: Google Short URL (share.google, maps.app.goo.gl, goo.gl/maps)
+  // Case 3: Live Dynamic HTML Resolver for Short URLs (share.google, maps.app.goo.gl, goo.gl/maps)
   const isShortLink = /share\.google|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(str);
   if (isShortLink || !placeName) {
-    try {
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(str)}`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
-      const res = await fetch(proxyUrl, { signal: controller.signal });
-      clearTimeout(timer);
+    // Multi-proxy resilient fetch
+    const proxies = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(str)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(str)}`
+    ];
 
-      if (res.ok) {
-        const html = await res.text();
-        const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-        const titleText = titleMatch ? titleMatch[1] : '';
+    for (const pUrl of proxies) {
+      if (placeName && placeName !== 'Google 分享店家') break;
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(pUrl, { signal: controller.signal });
+        clearTimeout(timer);
 
-        const innerQ = html.match(/q=([^&"\'<>]+)/i);
-        if (innerQ) {
-          try {
-            const rawQ = decodeURIComponent(innerQ[1]).replace(/\+/g, ' ');
-            if (rawQ && !rawQ.includes('http') && rawQ.length < 50) {
-              placeName = rawQ;
+        if (res.ok) {
+          const html = await res.text();
+
+          // 1. Check og:title meta tag
+          const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+                               html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+          if (ogTitleMatch && ogTitleMatch[1]) {
+            placeName = ogTitleMatch[1].trim();
+          }
+
+          // 2. Check title tag
+          if (!placeName) {
+            const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+            const titleText = titleMatch ? titleMatch[1] : '';
+            if (titleText && !titleText.includes('Google Search') && !titleText.includes('Google 地圖')) {
+              placeName = titleText.trim();
             }
-          } catch {}
-        }
+          }
 
-        if (!placeName && titleText && !titleText.includes('Google Search') && !titleText.includes('Google 地圖')) {
-          placeName = titleText.replace(/ - Google 地圖| - Google Search/gi, '').trim();
-        }
+          // 3. Check q= query in redirect page
+          if (!placeName) {
+            const innerQ = html.match(/q=([^&"\'<>]+)/i);
+            if (innerQ) {
+              try {
+                const rawQ = decodeURIComponent(innerQ[1]).replace(/\+/g, ' ');
+                if (rawQ && !rawQ.includes('http') && rawQ.length < 50) {
+                  placeName = rawQ;
+                }
+              } catch {}
+            }
+          }
 
-        detectedCity = detectCity(html.slice(0, 5000));
+          // 4. Extract coordinates from HTML
+          const coordMatch = html.match(/!3d([0-9.-]+)!4d([0-9.-]+)/) || html.match(/@([0-9.-]+),([0-9.-]+)/);
+          if (coordMatch && coordMatch[1] && coordMatch[2]) {
+            lat = parseFloat(coordMatch[1]);
+            lng = parseFloat(coordMatch[2]);
+          }
+
+          // 5. Detect city from HTML content
+          detectedCity = detectCity(html.slice(0, 8000));
+        }
+      } catch (e) {
+        console.warn('Proxy fetch warning', e);
       }
-    } catch (e) {
-      console.warn('Short link resolution error', e);
     }
   }
 
-  // Check if placeName matches any curated spot
+  // Clean placeName by removing Google suffixes
   if (placeName) {
+    placeName = placeName
+      .replace(/ - Google 地圖| - Google Search| - Google 搜尋| · Google Maps| \| Google Maps/gi, '')
+      .trim();
+
+    // Check if placeName matches any curated spot
     const pLower = placeName.toLowerCase();
     for (const spot of CURATED_VERIFIED_SPOTS) {
       if (spot.keywords.some((kw) => pLower.includes(kw.toLowerCase()) || kw.toLowerCase().includes(pLower))) {
@@ -434,7 +468,7 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
         const cityCandidate = props.city || props.state || props.county || '';
         const city = detectCity(cityCandidate + ' ' + street + ' ' + (props.country || ''));
 
-        // Region sanity filter: if user typed '愛知', reject spots in Taiwan (e.g. Taipei)
+        // Region sanity filter
         if (queryHasJapan && (city.includes('台北') || city.includes('新北') || city.includes('台中') || city.includes('高雄') || city.includes('台南'))) {
           return;
         }

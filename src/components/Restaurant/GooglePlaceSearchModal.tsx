@@ -76,6 +76,28 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
     }
   };
 
+  const handleInputChange = (val: string) => {
+    setSearchQuery(val);
+    const trimmed = val.trim();
+    if (
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.includes('share.google') ||
+      trimmed.includes('maps.app.goo.gl') ||
+      trimmed.includes('goo.gl/maps') ||
+      trimmed.includes('google.com/maps')
+    ) {
+      handleSearch(trimmed);
+    }
+  };
+
+  const isUrlQuery =
+    searchQuery.trim().startsWith('http://') ||
+    searchQuery.trim().startsWith('https://') ||
+    searchQuery.includes('share.google') ||
+    searchQuery.includes('maps.app.goo.gl') ||
+    searchQuery.includes('goo.gl');
+
   const handleQuickAdd = (place: PlaceSearchResult, tag: RestaurantRatingTag) => {
     const newRestaurant: Restaurant = {
       id: `r_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -149,9 +171,9 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="輸入餐廳名稱、地標或關鍵字 (例如：台北 隱家拉麵、詹記、鼎泰豐...)"
+                placeholder="貼上 Google Maps 分享連結 或 輸入店名/地標 (例如：https://share.google/... 或 愛知 炒飯 信)"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value)}
                 autoFocus
                 className="w-full text-xs sm:text-sm pl-10 pr-4 py-2.5 rounded-2xl border-2 border-indigo-300 focus:outline-hidden focus:border-indigo-600 bg-white font-medium shadow-xs"
               />
@@ -164,16 +186,22 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
               {isSearching ? (
                 <>
                   <Sparkles className="w-4 h-4 animate-spin" />
-                  <span>搜尋中...</span>
+                  <span>{isUrlQuery ? '解析網址中...' : '搜尋中...'}</span>
                 </>
               ) : (
                 <>
                   <Search className="w-4 h-4" />
-                  <span>搜店</span>
+                  <span>{isUrlQuery ? '解析網址' : '搜店'}</span>
                 </>
               )}
             </button>
           </form>
+
+          {/* Tips Banner */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-800 text-[11px] font-medium">
+            <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span>💡 秘訣：在 Google Maps App 找到任何新店，點「分享」複製連結貼到這裡，任何新店都能 100% 抓入！</span>
+          </div>
 
           {/* Quick Presets */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
@@ -196,7 +224,9 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
           {isSearching ? (
             <div className="py-12 text-center space-y-3">
               <Sparkles className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />
-              <p className="text-xs font-bold text-slate-500">正在全球地圖與 Google POI 資料庫中搜店...</p>
+              <p className="text-xs font-bold text-slate-500">
+                {isUrlQuery ? '正在動態穿透 Google 頁面解析店家名稱、地址與座標...' : '正在全球地圖與 Google POI 資料庫中搜店...'}
+              </p>
             </div>
           ) : results.length > 0 ? (
             <div className="space-y-3">
