@@ -97,7 +97,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const SIZE = 400; // Perfect high-res square avatar
+        const SIZE = 1000; // Ultra high-definition square avatar (crisp on Retina/4K)
         canvas.width = SIZE;
         canvas.height = SIZE;
         const ctx = canvas.getContext('2d');
@@ -107,7 +107,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           const startX = (img.width - minDim) / 2;
           const startY = (img.height - minDim) / 2;
           ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, SIZE, SIZE);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
           setAvatar(dataUrl);
         }
       };

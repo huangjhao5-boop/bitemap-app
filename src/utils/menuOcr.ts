@@ -64,7 +64,7 @@ export async function processMenuImage(file: File): Promise<{
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
+        const MAX_WIDTH = 2560; // Ultra high-resolution for crisp readable menu text
         let width = img.width;
         let height = img.height;
 
@@ -80,7 +80,7 @@ export async function processMenuImage(file: File): Promise<{
           ctx.drawImage(img, 0, 0, width, height);
         }
 
-        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.94);
 
         // Fallback intelligent extraction simulation
         // In browser environments without heavy Tesseract WASM download,

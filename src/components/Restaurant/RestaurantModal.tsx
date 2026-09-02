@@ -96,6 +96,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   };
 
   const [smartInputText, setSmartInputText] = useState('');
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const [menuImages, setMenuImages] = useState<string[]>([]);
   const [menuDishes, setMenuDishes] = useState<DishItem[]>([]);
@@ -370,8 +371,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+        const MAX_WIDTH = 2560; // Ultra high-resolution crisp photo
+        const MAX_HEIGHT = 2560;
         let width = img.width;
         let height = img.height;
 
@@ -771,6 +772,61 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 <p className="text-xs text-slate-700 italic bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
                   "{personalNotes}"
                 </p>
+              </div>
+            )}
+
+            {/* 📷 菜單照片展示 (高清放大) */}
+            {menuImages.length > 0 && (
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-indigo-600" />
+                    <span>📷 店家菜單照片 ({menuImages.length})</span>
+                  </span>
+                  <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">
+                    點擊可放大檢視
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {menuImages.map((imgUrl, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setZoomedImage(imgUrl)}
+                      className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-4/3 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+                    >
+                      <img src={imgUrl} alt={`菜單 ${i + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold text-xs">
+                        🔍 點擊放大
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 📋 菜單品項與評分 */}
+            {menuDishes.length > 0 && (
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-xs font-black text-slate-800 block">📋 菜單品項與即時評分 ({menuDishes.length})：</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {menuDishes.map((dish) => (
+                    <span
+                      key={dish.id}
+                      className={`text-xs px-2.5 py-1 rounded-xl font-bold flex items-center gap-1 border ${
+                        dish.rating === 'must_eat'
+                          ? 'bg-amber-100 text-amber-950 border-amber-300'
+                          : dish.rating === 'avoid'
+                          ? 'bg-rose-100 text-rose-950 border-rose-300 line-through'
+                          : 'bg-slate-100 text-slate-800 border-slate-200'
+                      }`}
+                    >
+                      {dish.rating === 'must_eat' && '🔥 '}
+                      {dish.rating === 'avoid' && '👎 '}
+                      <span>{dish.name}</span>
+                      {dish.price && <span className="opacity-70 text-[10px]">({dish.price})</span>}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1243,6 +1299,274 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             </div>
 
+            {/* 📷 封面與環境美食照片上傳 (高清無損) */}
+            <div className="space-y-3 pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-indigo-600" />
+                  <span>📷 店家封面 / 美食環境照片</span>
+                </label>
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setImageInputMode('upload')}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      imageInputMode === 'upload' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500'
+                    }`}
+                  >
+                    本機上傳
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageInputMode('url')}
+                    className={`px-2 py-0.5 rounded-md transition-all ${
+                      imageInputMode === 'url' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500'
+                    }`}
+                  >
+                    圖片網址
+                  </button>
+                </div>
+              </div>
+
+              {imageInputMode === 'upload' ? (
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>選擇高解析度照片 (支援 2K/4K)</span>
+                  </button>
+                  {coverImage && (
+                    <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> 已載入照片
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <input
+                  type="url"
+                  placeholder="https://example.com/food.jpg"
+                  value={coverImage}
+                  onChange={(e) => setCoverImage(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 bg-white"
+                />
+              )}
+
+              {coverImage && (
+                <div className="relative rounded-2xl overflow-hidden border border-slate-200 max-h-48 bg-slate-100 group">
+                  <img
+                    src={coverImage}
+                    alt="Cover preview"
+                    className="w-full h-48 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => setZoomedImage(coverImage)}
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setZoomedImage(coverImage)}
+                      className="px-2.5 py-1 bg-black/60 hover:bg-black/80 text-white rounded-lg text-xs font-bold backdrop-blur-xs cursor-pointer"
+                    >
+                      🔍 放大
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCoverImage('')}
+                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-md cursor-pointer"
+                    >
+                      🗑️ 移除
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 📋 菜單照片上傳與菜色辨識評分 */}
+            <div className="space-y-3 pt-2 border-t border-slate-200 bg-gradient-to-r from-purple-50/50 via-indigo-50/50 to-blue-50/50 p-4 rounded-2xl border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-indigo-950 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    <span>📷 菜單照片上傳與菜色智慧評分</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    上傳菜單照片高清保存，可標記個別菜色為「必吃」或「避雷」
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={menuFileInputRef}
+                    onChange={handleMenuPhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => menuFileInputRef.current?.click()}
+                    disabled={isProcessingMenu}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{isProcessingMenu ? '處理中...' : '+ 上傳菜單照片'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Uploaded Menu Photos Thumbnails */}
+              {menuImages.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-600 block">已上傳菜單 ({menuImages.length} 張)：</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {menuImages.map((mImg, idx) => (
+                      <div key={idx} className="relative rounded-xl overflow-hidden border border-slate-200 bg-white group aspect-4/3">
+                        <img
+                          src={mImg}
+                          alt={`菜單 ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setZoomedImage(mImg)}
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setZoomedImage(mImg)}
+                            className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-[10px] font-bold"
+                            title="放大"
+                          >
+                            🔍
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMenuImages(menuImages.filter((_, i) => i !== idx))}
+                            className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold"
+                            title="刪除"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback Text Menu Parser Button */}
+              {!showTextMenuInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTextMenuInput(true)}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>📝 貼上菜單文字一鍵解析菜色</span>
+                </button>
+              ) : (
+                <div className="space-y-2 bg-white p-3 rounded-xl border border-indigo-200">
+                  <span className="text-xs font-bold text-slate-700 block">貼上菜單文字（每行一道菜，或以逗號分隔）：</span>
+                  <textarea
+                    rows={2}
+                    placeholder="例如：特製炒飯 $120, 大蒜拉麵 $220, 煎餃 $80"
+                    value={menuTextInput}
+                    onChange={(e) => setMenuTextInput(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-slate-50 font-medium"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTextMenuInput(false)}
+                      className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 font-bold"
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleParseMenuText}
+                      disabled={!menuTextInput.trim()}
+                      className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                    >
+                      解析並加入菜單
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Parsed / Added Dishes List with Interactive 1-Click Rating */}
+              {menuDishes.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-indigo-100">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span>菜色列表 ({menuDishes.length})：點擊按鈕標記必吃或避雷</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
+                    {menuDishes.map((dish) => (
+                      <div
+                        key={dish.id}
+                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                          dish.rating === 'must_eat'
+                            ? 'bg-amber-50/80 border-amber-300 shadow-2xs'
+                            : dish.rating === 'avoid'
+                            ? 'bg-rose-50/80 border-rose-300'
+                            : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <input
+                            type="text"
+                            value={dish.name}
+                            onChange={(e) => handleUpdateDishName(dish.id, e.target.value)}
+                            className={`w-full text-xs font-bold bg-transparent focus:outline-hidden focus:border-b focus:border-indigo-500 ${
+                              dish.rating === 'avoid' ? 'line-through text-rose-800' : 'text-slate-800'
+                            }`}
+                          />
+                          {dish.price && <span className="text-[10px] text-slate-400 font-medium">{dish.price}</span>}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleSetDishRating(dish.id, 'must_eat')}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                              dish.rating === 'must_eat'
+                                ? 'bg-amber-500 text-white shadow-2xs'
+                                : 'bg-slate-100 hover:bg-amber-100 text-amber-800'
+                            }`}
+                            title="設為必吃"
+                          >
+                            🔥 必吃
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetDishRating(dish.id, 'avoid')}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                              dish.rating === 'avoid'
+                                ? 'bg-rose-600 text-white shadow-2xs'
+                                : 'bg-slate-100 hover:bg-rose-100 text-rose-800'
+                            }`}
+                            title="設為避雷"
+                          >
+                            👎 避雷
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDishItem(dish.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
+                            title="刪除"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* 📝 心得筆記 */}
             <div className="space-y-2 pt-2 border-t border-slate-200">
               <label className="block text-xs font-bold text-slate-700">
@@ -1329,6 +1653,29 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 🔍 High-Resolution Lightbox Modal (Click to View Crisp Full-Screen Photo) */}
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setZoomedImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute -top-10 right-0 text-white/90 hover:text-white text-sm font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full cursor-pointer transition-colors"
+            >
+              ✕ 關閉
+            </button>
+            <img
+              src={zoomedImage}
+              alt="High resolution zoom"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/20"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
