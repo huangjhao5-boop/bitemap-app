@@ -190,6 +190,102 @@ export const CURATED_VERIFIED_SPOTS: Array<{
     lng: 120.6033,
     priceRange: '$$$$',
   },
+
+  // ─── WILLcha 未来茶 タピオカ 連鎖分店 ───────────────────────────────────────
+  {
+    keywords: [
+      'WILLcha', 'willcha', '未来茶', '未來茶', 'ウィルチャ',
+      'タピオカ 道頓堀', '道頓堀 タピオカ', '道頓堀 珍珠奶茶',
+      'WILLcha 道頓堀', '未来茶 道頓堀', '未来茶 大阪',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 道頓堀店',
+    category: '甜點午茶',
+    city: '大阪府 (道頓堀)',
+    address: '大阪府大阪市中央区道頓堀1丁目 (道頓堀商店街)',
+    lat: 34.6688,
+    lng: 135.5013,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E9%81%93%E9%A0%93%E5%A0%80%E5%BA%97+%E5%A4%A7%E9%98%AA',
+  },
+  {
+    keywords: [
+      'WILLcha 心齋橋', '未来茶 心齋橋', 'willcha 心斎橋', '未来茶 心斎橋',
+      'WILLcha 大阪 心斎橋',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 心斎橋店',
+    category: '甜點午茶',
+    city: '大阪府 (心齋橋)',
+    address: '大阪府大阪市中央区心斎橋筋2丁目',
+    lat: 34.6726,
+    lng: 135.5014,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E5%BF%83%E6%96%8E%E6%A9%8B%E5%BA%97+%E5%A4%A7%E9%98%AA',
+  },
+  {
+    keywords: [
+      'WILLcha 新宿', '未来茶 新宿', 'willcha 東京', '未来茶 東京',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 新宿店',
+    category: '甜點午茶',
+    city: '東京都 (新宿)',
+    address: '東京都新宿区新宿3丁目',
+    lat: 35.6905,
+    lng: 139.7006,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E6%96%B0%E5%AE%BF%E5%BA%97',
+  },
+  {
+    keywords: [
+      'WILLcha 渋谷', '未来茶 渋谷', 'willcha 渋谷', '未来茶 渋谷店',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 渋谷店',
+    category: '甜點午茶',
+    city: '東京都 (渋谷)',
+    address: '東京都渋谷区渋谷2丁目',
+    lat: 35.6598,
+    lng: 139.7016,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E6%B8%8B%E8%B0%B7%E5%BA%97',
+  },
+  {
+    keywords: [
+      'WILLcha 池袋', '未来茶 池袋', 'willcha 池袋',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 池袋店',
+    category: '甜點午茶',
+    city: '東京都 (池袋)',
+    address: '東京都豊島区東池袋1丁目',
+    lat: 35.7282,
+    lng: 139.7116,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E6%B1%A0%E8%A2%8B%E5%BA%97',
+  },
+  {
+    keywords: [
+      'WILLcha 京都', '未来茶 京都', 'willcha 京都', '未来茶 京都四条',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 京都四条店',
+    category: '甜點午茶',
+    city: '京都府 (四条)',
+    address: '京都府京都市下京区四条通',
+    lat: 35.0038,
+    lng: 135.7601,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E4%BA%AC%E9%83%BD%E5%9B%9B%E6%9D%A1%E5%BA%97',
+  },
+  {
+    keywords: [
+      'WILLcha 名古屋', '未来茶 名古屋', 'willcha 名古屋', '未来茶 栄店',
+    ],
+    name: 'WILLcha 未来茶 タピオカ 名古屋栄店',
+    category: '甜點午茶',
+    city: '愛知縣 (名古屋)',
+    address: '愛知県名古屋市中区栄3丁目',
+    lat: 35.1688,
+    lng: 136.9077,
+    priceRange: '$',
+    googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=WILLcha+%E6%9C%AA%E6%9D%A5%E8%8C%B6+%E5%90%8D%E5%8F%A4%E5%B1%8B%E6%A0%84%E5%BA%97',
+  },
 ];
 
 // 🌐 Smart Universal Google Maps / Search Link Live Resolver (Zero Key Needed)
@@ -254,62 +350,97 @@ export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearch
   // Case 3: Live Dynamic HTML Resolver for Short URLs (share.google, maps.app.goo.gl, goo.gl/maps)
   const isShortLink = /share\.google|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(str);
   if (isShortLink || !placeName) {
-    // Multi-proxy resilient fetch
-    const proxies = [
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(str)}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(str)}`
+    // 使用 allorigins.win/get (JSON 包裝版，UTF-8 安全) 避免亂碼
+    // /raw 直接傳原始 bytes，瀏覽器可能用錯誤 encoding 解讀
+    // /get 回傳 JSON { contents: '...' }，contents 已是 UTF-8 字串
+    const proxies: Array<{ url: string; isJson: boolean }> = [
+      {
+        url: `https://api.allorigins.win/get?url=${encodeURIComponent(str)}`,
+        isJson: true,
+      },
+      {
+        url: `https://corsproxy.io/?url=${encodeURIComponent(str)}`,
+        isJson: false,
+      },
     ];
 
-    for (const pUrl of proxies) {
+    for (const proxy of proxies) {
       if (placeName && placeName !== 'Google 分享店家') break;
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3500);
-        const res = await fetch(pUrl, { signal: controller.signal });
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(proxy.url, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json, text/html, */*' },
+        });
         clearTimeout(timer);
 
-        if (res.ok) {
-          const html = await res.text();
+        if (!res.ok) continue;
 
-          // 1. Check og:title meta tag
-          const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
-                               html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
-          if (ogTitleMatch && ogTitleMatch[1]) {
-            placeName = ogTitleMatch[1].trim();
+        let html = '';
+        if (proxy.isJson) {
+          try {
+            const json = await res.json();
+            // allorigins /get 回傳 { contents: string, status: {...} }
+            html = (json?.contents as string) || '';
+          } catch {
+            html = await res.text();
           }
-
-          // 2. Check title tag
-          if (!placeName) {
-            const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-            const titleText = titleMatch ? titleMatch[1] : '';
-            if (titleText && !titleText.includes('Google Search') && !titleText.includes('Google 地圖')) {
-              placeName = titleText.trim();
-            }
-          }
-
-          // 3. Check q= query in redirect page
-          if (!placeName) {
-            const innerQ = html.match(/q=([^&"\'<>]+)/i);
-            if (innerQ) {
-              try {
-                const rawQ = decodeURIComponent(innerQ[1]).replace(/\+/g, ' ');
-                if (rawQ && !rawQ.includes('http') && rawQ.length < 50) {
-                  placeName = rawQ;
-                }
-              } catch {}
-            }
-          }
-
-          // 4. Extract coordinates from HTML
-          const coordMatch = html.match(/!3d([0-9.-]+)!4d([0-9.-]+)/) || html.match(/@([0-9.-]+),([0-9.-]+)/);
-          if (coordMatch && coordMatch[1] && coordMatch[2]) {
-            lat = parseFloat(coordMatch[1]);
-            lng = parseFloat(coordMatch[2]);
-          }
-
-          // 5. Detect city from HTML content
-          detectedCity = detectCity(html.slice(0, 8000));
+        } else {
+          // corsproxy.io 直接 stream raw bytes，強制以 UTF-8 解讀
+          const buf = await res.arrayBuffer();
+          html = new TextDecoder('utf-8', { fatal: false }).decode(buf);
         }
+
+        if (!html) continue;
+
+        // 1. 偵測頁面宣告的 charset，若不是 UTF-8 則重新 decode
+        const charsetMatch = html.match(/charset=["']?([^"'\s;>]+)/i);
+        const declaredCharset = charsetMatch ? charsetMatch[1].toLowerCase().replace(/-/g, '') : 'utf8';
+        // （arrayBuffer 已由 allorigins 的 JSON 字串化，無需再 decode；僅 corsproxy 需要考慮）
+
+        // 2. 優先提取 og:title（最準確）
+        const ogTitleMatch =
+          html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+        if (ogTitleMatch?.[1]) {
+          placeName = ogTitleMatch[1].trim();
+        }
+
+        // 3. 提取 <title>
+        if (!placeName) {
+          const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+          const rawTitle = titleMatch ? titleMatch[1].replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim() : '';
+          if (rawTitle && !rawTitle.toLowerCase().includes('google search') && !rawTitle.includes('Google 地圖') && !rawTitle.includes('Google Maps')) {
+            placeName = rawTitle;
+          }
+        }
+
+        // 4. 提取 q= redirect query
+        if (!placeName) {
+          const innerQ = html.match(/[?&]q=([^&"'<>\s]+)/i);
+          if (innerQ) {
+            try {
+              const rawQ = decodeURIComponent(innerQ[1]).replace(/\+/g, ' ');
+              if (rawQ && !rawQ.startsWith('http') && rawQ.length < 60) {
+                placeName = rawQ;
+              }
+            } catch {}
+          }
+        }
+
+        // 5. 提取座標
+        const coordMatch = html.match(/!3d([0-9.-]+)!4d([0-9.-]+)/) || html.match(/@([0-9.-]+),([0-9.-]+)/);
+        if (coordMatch?.[1] && coordMatch?.[2]) {
+          lat = parseFloat(coordMatch[1]);
+          lng = parseFloat(coordMatch[2]);
+        }
+
+        // 6. 偵測城市
+        detectedCity = detectCity(html.slice(0, 8000));
+
+        // 若有效則不繼續嘗試下一個 proxy
+        if (placeName) break;
       } catch (e) {
         console.warn('Proxy fetch warning', e);
       }
@@ -407,16 +538,66 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
 
   // 2. Exact / Keyword check against Curated Verified Spots
   const qLower = cleanQ.toLowerCase();
+
+  // 品牌核心關鍵字 → 同品牌所有分店都要顯示
+  // key = 品牌識別關鍵字（含中英文）, value = 分店名稱共同包含的字串
+  const CHAIN_BRAND_IDENTIFIERS: Array<{ triggers: string[]; brandMatcher: (name: string) => boolean }> = [
+    {
+      triggers: ['willcha', 'WILLcha', '未来茶', '未來茶', 'ウィルチャ', 'タピオカ'],
+      brandMatcher: (name) => name.includes('WILLcha') || name.includes('未来茶'),
+    },
+    {
+      triggers: ['一蘭', 'ichiran'],
+      brandMatcher: (name) => name.includes('一蘭'),
+    },
+    {
+      triggers: ['屋馬燒肉', '屋馬'],
+      brandMatcher: (name) => name.includes('屋馬'),
+    },
+  ];
+
+  // 判斷是否為連鎖品牌全域搜尋
+  let chainBrandMatcher: ((name: string) => boolean) | null = null;
+  for (const brand of CHAIN_BRAND_IDENTIFIERS) {
+    if (brand.triggers.some((t) => qLower.includes(t.toLowerCase()))) {
+      chainBrandMatcher = brand.brandMatcher;
+      break;
+    }
+  }
+
   for (const spot of CURATED_VERIFIED_SPOTS) {
+    // 連鎖品牌：把同品牌所有分店都列入
+    if (chainBrandMatcher && chainBrandMatcher(spot.name)) {
+      const key = (spot.name + '_' + spot.city).toLowerCase().replace(/\s/g, '');
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        results.push({
+          id: `curated_${Date.now()}_${results.length}`,
+          name: spot.name,
+          category: spot.category,
+          city: spot.city,
+          address: spot.address,
+          lat: spot.lat,
+          lng: spot.lng,
+          googleMapsUrl:
+            spot.googleMapsUrl ||
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${spot.address}`)}`,
+          googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(`${spot.name} ${spot.city} 美食 評價`)}`,
+          priceRange: spot.priceRange,
+          source: 'custom',
+        });
+      }
+      continue; // 已由連鎖邏輯處理，跳過一般關鍵字比對
+    }
+
+    // 一般關鍵字比對（避免過度匹配：只允許 query 長度 >= 2 的子字串匹配）
     const isMatch = spot.keywords.some((kw) => {
       const kwLower = kw.toLowerCase();
-      return (
-        qLower.includes(kwLower) ||
-        (qLower.length >= 2 && kwLower.includes(qLower)) ||
-        (cleanQ.includes('炒飯') && cleanQ.includes('信') && spot.name.includes('炒飯 信')) ||
-        (cleanQ.includes('今大') && spot.name.includes('今大')) ||
-        (cleanQ.includes('松阪牛') && spot.name.includes('一升びん'))
-      );
+      // query 包含 keyword（keyword 是完整詞組）
+      const qContainsKw = kwLower.length >= 2 && qLower.includes(kwLower);
+      // keyword 包含 query（query 必須夠長，防止單字誤觸）
+      const kwContainsQ = qLower.length >= 3 && kwLower.includes(qLower);
+      return qContainsKw || kwContainsQ;
     });
 
     if (isMatch) {
