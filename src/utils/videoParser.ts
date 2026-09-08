@@ -9,11 +9,18 @@ export interface VideoInfo {
   badgeBg: string;
 }
 
-export function parseVideoUrl(url: string): VideoInfo {
-  const trimmed = url.trim();
+export function parseVideoUrl(input: string): VideoInfo {
+  let trimmed = input.trim();
   
-  if (/instagram\.com\/(reel|p)\/([a-zA-Z0-9_-]+)/i.test(trimmed)) {
-    const match = trimmed.match(/instagram\.com\/(?:reel|p)\/([a-zA-Z0-9_-]+)/i);
+  // Extract pure URL if mixed with share text or comments
+  const urlMatch = trimmed.match(/https?:\/\/[^\s"'<>]+/i);
+  if (urlMatch) {
+    trimmed = urlMatch[0];
+  }
+
+  // Instagram Reels or Posts
+  if (/instagram\.com\/(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/i.test(trimmed)) {
+    const match = trimmed.match(/instagram\.com\/(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/i);
     const shortcode = match ? match[1] : '';
     return {
       platform: 'instagram',
@@ -25,7 +32,8 @@ export function parseVideoUrl(url: string): VideoInfo {
     };
   }
 
-  if (/tiktok\.com\/(@[\w.-]+\/video\/\d+|v\/\d+|[\w.-]+)/i.test(trimmed) || /vt\.tiktok\.com\/\w+/i.test(trimmed)) {
+  // TikTok
+  if (/tiktok\.com\/(@[\w.-]+\/video\/\d+|v\/\d+|[\w.-]+)/i.test(trimmed) || /vt\.tiktok\.com\/\w+/i.test(trimmed) || /vm\.tiktok\.com\/\w+/i.test(trimmed)) {
     return {
       platform: 'tiktok',
       cleanUrl: trimmed,
@@ -35,8 +43,9 @@ export function parseVideoUrl(url: string): VideoInfo {
     };
   }
 
-  if (/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/i.test(trimmed) || /youtu\.be\/([a-zA-Z0-9_-]+)/i.test(trimmed)) {
-    const match = trimmed.match(/(?:shorts\/|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
+  // YouTube Shorts or Videos
+  if (/(?:youtube\.com\/(?:shorts\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/i.test(trimmed)) {
+    const match = trimmed.match(/(?:shorts\/|watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/i);
     const videoId = match ? match[1] : '';
     return {
       platform: 'youtube',
@@ -48,20 +57,32 @@ export function parseVideoUrl(url: string): VideoInfo {
     };
   }
 
+  // Xiaohongshu (RED)
   if (/xiaohongshu\.com|xhslink\.com/i.test(trimmed)) {
     return {
       platform: 'xiaohongshu',
       cleanUrl: trimmed,
-      displayLabel: '小紅書 筆記',
+      displayLabel: '小紅書 探店',
       badgeColor: 'text-rose-600',
       badgeBg: 'bg-rose-50 border-rose-200 text-rose-700',
+    };
+  }
+
+  // Douyin
+  if (/douyin\.com|v\.douyin\.com/i.test(trimmed)) {
+    return {
+      platform: 'tiktok',
+      cleanUrl: trimmed,
+      displayLabel: '抖音 探店短影音',
+      badgeColor: 'text-neutral-900',
+      badgeBg: 'bg-neutral-100 border-neutral-300 text-neutral-800',
     };
   }
 
   return {
     platform: 'other',
     cleanUrl: trimmed,
-    displayLabel: '網路影音/食記',
+    displayLabel: '外部探店影音 / 食記',
     badgeColor: 'text-blue-600',
     badgeBg: 'bg-blue-50 border-blue-200 text-blue-700',
   };

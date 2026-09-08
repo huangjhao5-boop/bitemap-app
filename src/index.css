@@ -13,6 +13,18 @@ body {
   background-color: #F8F9FB;
   color: #1E293B;
   overflow-x: hidden;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Android & Mobile Safe Area Utility */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
 }
 
 /* Custom Clean Scrollbar */

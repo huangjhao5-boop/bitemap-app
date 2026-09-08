@@ -23,6 +23,7 @@ import {
   Users,
   Lock,
   Camera,
+  Video,
 } from 'lucide-react';
 
 interface RestaurantModalProps {
@@ -483,22 +484,37 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   };
 
   const handleAddVideo = () => {
-    if (!newVideoUrl.trim()) return;
-    const parsed = parseVideoUrl(newVideoUrl.trim());
+    const raw = newVideoUrl.trim();
+    if (!raw) return;
+
+    // Smart clean URL if user pasted mobile share snippet
+    const urlMatch = raw.match(/https?:\/\/[^\s"'<>]+/i);
+    const cleanUrl = urlMatch ? urlMatch[0] : raw;
+
+    const parsed = parseVideoUrl(cleanUrl);
     const highlights = newVideoHighlights
       ? newVideoHighlights.split(/[,， 、]+/).filter(Boolean)
       : undefined;
 
+    // If title is empty but raw input had text before/after URL, use it
+    let fallbackTitle = newVideoTitle.trim();
+    if (!fallbackTitle && raw !== cleanUrl) {
+      const extra = raw.replace(cleanUrl, '').replace(/^[\s,，#]+/g, '').replace(/[\s,，#]+$/g, '').trim();
+      if (extra.length > 0 && extra.length < 50) {
+        fallbackTitle = extra;
+      }
+    }
+
     const newVid: ShortVideoSource = {
-      id: 'v_' + Date.now(),
+      id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
       platform: parsed.platform,
-      url: newVideoUrl.trim(),
+      url: cleanUrl,
       creatorName: newVideoCreator.trim() || undefined,
-      title: newVideoTitle.trim() || undefined,
+      title: fallbackTitle || parsed.displayLabel,
       highlights,
     };
 
-    setVideos([...videos, newVid]);
+    setVideos((prev) => [...prev, newVid]);
     setNewVideoUrl('');
     setNewVideoCreator('');
     setNewVideoTitle('');
@@ -558,10 +574,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xl">{isReadOnlyMode ? '🥢' : '✨'}</span>
             <h2 className="text-lg font-bold text-white">
@@ -857,7 +873,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           /* ═══════════════════════════════════════════════════════════════════════════
              ✍️ 編輯 / 新增模式 (Full Editable Form)
              ═══════════════════════════════════════════════════════════════════════════ */
-          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-5 flex-1">
                                     {/* 🪄 Smart Auto-Fill & Google Place Search Banner */}
             {!editingRestaurant && (
               <div className="space-y-3">
@@ -1567,6 +1583,122 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               )}
             </div>
 
+            {/* 📹 探店短影音 / 外部影片 (TikTok / IG Reels / YouTube Shorts) */}
+            <div className="space-y-3 pt-2 border-t border-slate-200 bg-gradient-to-r from-pink-50/50 via-rose-50/50 to-purple-50/50 p-4 rounded-2xl border border-pink-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
+                    <Video className="w-4 h-4 text-rose-600" />
+                    <span>📹 探店短影音 / 外部影片</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    支援 Instagram Reels、TikTok、YouTube Shorts、抖音、小紅書等短影音連結
+                  </p>
+                </div>
+                <span className="text-[10px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full shrink-0">
+                  {videos.length > 0 ? `${videos.length} 部影片` : '可收錄多部'}
+                </span>
+              </div>
+
+              {/* Video URL Input Box */}
+              <div className="space-y-2 bg-white p-3 rounded-xl border border-rose-200/80 shadow-2xs">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      placeholder="貼上短影音連結 (例如：https://instagram.com/reel/... 或 tiktok.com/...)"
+                      value={newVideoUrl}
+                      onChange={(e) => setNewVideoUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddVideo();
+                        }
+                      }}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-rose-500 bg-slate-50 font-medium"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddVideo}
+                    disabled={!newVideoUrl.trim()}
+                    className="px-3.5 py-2 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>新增影片</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="創作者 / 帳號 (選填，如：@foodie_daily)"
+                    value={newVideoCreator}
+                    onChange={(e) => setNewVideoCreator(e.target.value)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70"
+                  />
+                  <input
+                    type="text"
+                    placeholder="影片標題 / 重點 (選填，如：必點招牌厚切叉燒)"
+                    value={newVideoTitle}
+                    onChange={(e) => setNewVideoTitle(e.target.value)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70"
+                  />
+                </div>
+              </div>
+
+              {/* List of Added Videos */}
+              {videos.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-700 block">已加入的探店影片 ({videos.length})：</span>
+                  <div className="space-y-1.5">
+                    {videos.map((vid) => {
+                      const parsed = parseVideoUrl(vid.url);
+                      return (
+                        <div
+                          key={vid.id}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-rose-100 shadow-2xs text-xs gap-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base shrink-0">
+                              {vid.platform === 'instagram' ? '📱' : vid.platform === 'tiktok' ? '🎵' : vid.platform === 'youtube' ? '🔴' : '🎬'}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-black text-slate-900 truncate">
+                                {vid.title || vid.creatorName ? `${vid.creatorName ? `@${vid.creatorName} · ` : ''}${vid.title || '探店推薦'}` : vid.url}
+                              </p>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${parsed.badgeBg}`}>
+                                {parsed.displayLabel}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <a
+                              href={vid.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-bold transition-colors"
+                            >
+                              測試 ↗
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVideo(vid.id)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                              title="移除此影片"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* 📝 心得筆記 */}
             <div className="space-y-2 pt-2 border-t border-slate-200">
               <label className="block text-xs font-bold text-slate-700">
@@ -1584,7 +1716,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         )}
 
                 {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 sm:gap-3 shrink-0 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
           {/* Left: Delete My Pocket Record Button (if user owns a record in this restaurant) */}
           <div>
             {Boolean(

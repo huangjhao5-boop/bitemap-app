@@ -131,11 +131,11 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">🔍</span>
             <div>
@@ -220,7 +220,7 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
         </div>
 
         {/* Search Results List */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1">
+        <div className="p-3 sm:p-5 overflow-y-auto overscroll-contain space-y-3 flex-1 pb-safe">
           {isSearching ? (
             <div className="py-12 text-center space-y-3">
               <Sparkles className="w-8 h-8 text-indigo-500 animate-spin mx-auto" />

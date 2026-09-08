@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className="text-lg sm:text-xl font-black tracking-tight ig-gradient-text m-0">
                 {t.appName}
               </h1>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-2xs">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-2xs hidden sm:inline-block">
                 ✨ {t.appSubtitle}
               </span>
             </div>
@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Reels Feed Button */}
             <button
               onClick={onOpenReelsModal}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 hover:opacity-90 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 hover:opacity-90 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer"
               title={lang === 'zh-TW' ? '📱 沉浸式短影音流' : '📱 ショート動画フィード'}
             >
               <Play className="w-3.5 h-3.5 fill-current" />
@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mystery Box Button */}
             <button
               onClick={onOpenMysteryBox}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 hover:from-amber-400 hover:to-orange-500 text-amber-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 hover:from-amber-400 hover:to-orange-500 text-amber-950 font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer"
               title={lang === 'zh-TW' ? '🎁 美食盲盒抽籤機' : '🎁 ミステリーボックス'}
             >
               <Gift className="w-3.5 h-3.5 text-amber-900" />
@@ -156,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Bill Splitter Button */}
             <button
               onClick={onOpenBillSplitter}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer"
               title={lang === 'zh-TW' ? '🎲 聚餐分帳與買單轉盤' : '🎲 割り勘＆おごり'}
             >
               <Calculator className="w-3.5 h-3.5" />
@@ -167,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Language Switcher */}
           <button
             onClick={() => onLanguageChange(lang === 'zh-TW' ? 'ja' : 'zh-TW')}
-            className="px-2 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-700 font-extrabold text-[11px] sm:text-xs border border-rose-200/80 shadow-2xs transition-colors shrink-0"
+            className="px-2 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-slate-700 font-extrabold text-[11px] sm:text-xs border border-rose-200/80 shadow-2xs transition-colors shrink-0 cursor-pointer"
             title="切換語言 / 言語切替"
           >
             {lang === 'zh-TW' ? '🇯🇵' : '🇹🇼'}
@@ -177,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
           {profile.googleEmail ? (
             <button
               onClick={onOpenAuthModal}
-              className="px-2 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[120px]"
+              className="px-2 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[85px] sm:max-w-[120px] cursor-pointer"
               title="Google 帳號已連線雲端同步 (點擊切換/管理)"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -186,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (profile.foodieId && profile.foodieId !== 'guest' && profile.foodieId !== 'kaw_foodie') ? (
             <button
               onClick={onOpenAuthModal}
-              className="px-2 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[120px]"
+              className="px-2 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 font-black text-xs flex items-center gap-1 shadow-2xs transition-all active:scale-95 shrink-0 max-w-[85px] sm:max-w-[120px] cursor-pointer"
               title={`吃貨帳號【${profile.foodieId}】已登入 (點擊切換/管理)`}
             >
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
