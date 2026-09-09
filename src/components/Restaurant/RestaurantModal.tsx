@@ -4,7 +4,7 @@ import { parseMenuTextToDishes, processMenuImage } from '../../utils/menuOcr';
 import { COUNTRIES_AND_REGIONS, CITY_COORDS } from '../../utils/geo';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
-import { parseVideoUrl, extractRestaurantInfoFromText } from '../../utils/videoParser';
+import { parseVideoUrl, extractRestaurantInfoFromText, fetchVideoMetadata } from '../../utils/videoParser';
 import { searchGooglePlacesOnline, resolveGooglePlaceUrl, type PlaceSearchResult } from '../../utils/placeSearch';
 import { 
   X, 
@@ -420,11 +420,37 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       const urlMatch = rawInput.match(/https?:\/\/[^\s"'<>]+/i);
       const cleanUrl = urlMatch ? urlMatch[0] : rawInput;
       const parsed = parseVideoUrl(cleanUrl);
+
+      // 🤖 嘗試從影片取得標題/說明，自動解析店家資訊
+      const meta = await fetchVideoMetadata(cleanUrl);
+      let videoTitle = parsed.displayLabel;
+
+      if (meta?.rawText) {
+        const extracted = extractRestaurantInfoFromText(meta.rawText);
+        // 自動帶入解析到的店家資訊（不覆蓋用戶已填寫的欄位）
+        if (extracted.name && !name) setName(extracted.name);
+        if (extracted.category && !category) setCategory(extracted.category);
+        if (extracted.city) handleCityChange(extracted.city);
+        if (extracted.address && !address) setAddress(extracted.address);
+        if (extracted.mustEatDishes.length > 0) {
+          setMustEatDishes((prev) => Array.from(new Set([...prev, ...extracted.mustEatDishes])));
+        }
+        if (extracted.avoidDishes.length > 0) {
+          setAvoidDishes((prev) => Array.from(new Set([...prev, ...extracted.avoidDishes])));
+        }
+        // 使用真實影片標題
+        if (meta.title) videoTitle = meta.title;
+        // 創作者名稱 → 自動填入創作者欄位（若有）
+        if (meta.authorName) setNewVideoCreator(meta.authorName);
+      }
+
       const newVid: ShortVideoSource = {
         id: 'v_' + Date.now(),
         platform: parsed.platform,
         url: cleanUrl,
-        title: parsed.displayLabel,
+        title: videoTitle,
+        creatorName: meta?.authorName,
+        thumbnailUrl: meta?.thumbnailUrl,
       };
       setVideos((prev) => [...prev, newVid]);
       setSmartInputText('');

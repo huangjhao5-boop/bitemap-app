@@ -9,6 +9,89 @@ export interface VideoInfo {
   badgeBg: string;
 }
 
+// ─── 影片 Metadata（從 oEmbed API 或 proxy 解析出的資料）───────────────────────
+export interface VideoMetadata {
+  title?: string;       // 影片標題 / caption
+  authorName?: string;  // 創作者名稱
+  thumbnailUrl?: string;
+  rawText: string;      // 所有可解析的原始文字（供 extractRestaurantInfoFromText 使用）
+}
+
+/**
+ * 嘗試從影片 URL 取得標題/說明文字
+ * 利用各平台的 oEmbed API（免費、無需 Key），失敗時嘗試 proxy 抓 og:title
+ */
+export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadata | null> {
+  const url = videoUrl.trim();
+
+  try {
+    // ── YouTube oEmbed ─────────────────────────────────────────────────────────
+    if (/youtube\.com|youtu\.be/i.test(url)) {
+      const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const res = await fetch(oembed, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const data = await res.json();
+        const title: string = data.title || '';
+        const author: string = data.author_name || '';
+        return {
+          title,
+          authorName: author,
+          thumbnailUrl: data.thumbnail_url,
+          rawText: [title, author].filter(Boolean).join(' '),
+        };
+      }
+    }
+
+    // ── TikTok oEmbed ──────────────────────────────────────────────────────────
+    if (/tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com/i.test(url)) {
+      const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+      const res = await fetch(oembed, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) {
+        const data = await res.json();
+        const title: string = data.title || '';
+        const author: string = data.author_name || '';
+        return {
+          title,
+          authorName: author,
+          thumbnailUrl: data.thumbnail_url,
+          rawText: [title, author].filter(Boolean).join(' '),
+        };
+      }
+    }
+
+    // ── Instagram / 小紅書 / 其他：透過 allorigins proxy 抓 og:title + og:description ───
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl, {
+      signal: AbortSignal.timeout(6000),
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const html: string = (json?.contents as string) || '';
+      if (!html) return null;
+
+      const ogTitle = (
+        html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)
+      )?.[1]?.trim() || '';
+
+      const ogDesc = (
+        html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
+      )?.[1]?.trim() || '';
+
+      const rawText = [ogTitle, ogDesc].filter(Boolean).join(' ');
+      if (!rawText) return null;
+
+      return { title: ogTitle || undefined, rawText };
+    }
+  } catch (e) {
+    console.warn('[fetchVideoMetadata] failed:', e);
+  }
+
+  return null;
+}
+
 export function parseVideoUrl(input: string): VideoInfo {
   let trimmed = input.trim();
   
