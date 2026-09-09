@@ -1,4 +1,4 @@
-export type VideoPlatform = 'instagram' | 'tiktok' | 'youtube' | 'xiaohongshu' | 'other';
+export type VideoPlatform = 'instagram' | 'tiktok' | 'youtube' | 'facebook' | 'xiaohongshu' | 'other';
 
 export interface ShortVideoSource {
   id: string;

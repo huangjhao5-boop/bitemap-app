@@ -103,7 +103,7 @@ export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadat
       )?.[1]?.trim() || '';
 
       // 排除登入頁與通用空標題
-      const isFake = (t: string) => /instagram|login|登入|tiktok|見つかりません/i.test(t);
+      const isFake = (t: string) => /instagram|facebook|login|登入|註冊|tiktok|見つかりません/i.test(t);
       const cleanTitle = isFake(ogTitle) ? '' : ogTitle;
       const cleanDesc = isFake(ogDesc) ? '' : ogDesc;
 
@@ -139,6 +139,17 @@ export function parseVideoUrl(input: string): VideoInfo {
       displayLabel: 'Instagram Reel',
       badgeColor: 'text-pink-600',
       badgeBg: 'bg-gradient-to-r from-purple-100 to-pink-100 border-pink-200 text-pink-700',
+    };
+  }
+
+  // Facebook Reels / Watch / Videos / fb.watch
+  if (/facebook\.com\/(?:reel|watch|share|videos|\w+\/videos)/i.test(trimmed) || /fb\.watch/i.test(trimmed) || /fb\.com/i.test(trimmed)) {
+    return {
+      platform: 'facebook',
+      cleanUrl: trimmed,
+      displayLabel: 'Facebook 影片 / Reels',
+      badgeColor: 'text-blue-600',
+      badgeBg: 'bg-blue-50 border-blue-200 text-blue-700',
     };
   }
 

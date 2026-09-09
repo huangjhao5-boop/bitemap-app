@@ -443,7 +443,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       const videoUrl = urlMatch ? urlMatch[0] : '';
       const isVideo = Boolean(
         videoUrl &&
-        (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|xiaohongshu\.com|xhslink\.com|douyin\.com/i.test(videoUrl))
+        (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|fb\.com|xiaohongshu\.com|xhslink\.com|douyin\.com/i.test(videoUrl))
       );
 
       // 取得去掉 URL 之後的純文字（例如用戶複製整段貼文：「台北超強拉麵【隱家拉麵】赤峰店必吃 https://...」）
@@ -1715,7 +1715,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     <span>📹 探店短影音 / 外部影片</span>
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    支援 Instagram Reels、TikTok、YouTube Shorts、抖音、小紅書等短影音連結
+                    支援 Instagram Reels、TikTok、YouTube Shorts、Facebook、小紅書等短影音連結
                   </p>
                 </div>
                 <span className="text-[10px] font-black bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full shrink-0">
@@ -1729,7 +1729,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <div className="relative flex-1">
                     <input
                       type="url"
-                      placeholder="貼上短影音連結 (例如：https://instagram.com/reel/... 或 tiktok.com/...)"
+                      placeholder="貼上影片連結 (例如：https://instagram.com/reel/...、tiktok.com/... 或 fb.watch/...)"
                       value={newVideoUrl}
                       onChange={(e) => setNewVideoUrl(e.target.value)}
                       onKeyDown={(e) => {
@@ -1784,7 +1784,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-base shrink-0">
-                              {vid.platform === 'instagram' ? '📱' : vid.platform === 'tiktok' ? '🎵' : vid.platform === 'youtube' ? '🔴' : '🎬'}
+                              {vid.platform === 'instagram' ? '📱' : vid.platform === 'tiktok' ? '🎵' : vid.platform === 'youtube' ? '🔴' : vid.platform === 'facebook' ? '📘' : '🎬'}
                             </span>
                             <div className="min-w-0">
                               <p className="font-black text-slate-900 truncate">
