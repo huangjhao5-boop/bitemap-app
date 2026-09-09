@@ -45,7 +45,26 @@ export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadat
 
     // ── TikTok oEmbed ──────────────────────────────────────────────────────────
     if (/tiktok\.com/i.test(url)) {
-      const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+      let canonicalUrl = url;
+
+      // 📱 手機短網址 (vt.tiktok.com / vm.tiktok.com) 自動嘗試展開成完整長網址
+      if (/vt\.tiktok\.com|vm\.tiktok\.com/i.test(url)) {
+        try {
+          const unshortenRes = await fetch(`https://unshorten.me/json/${encodeURIComponent(url)}`, {
+            signal: AbortSignal.timeout(3000),
+          });
+          if (unshortenRes.ok) {
+            const uData = await unshortenRes.json();
+            if (uData.resolved_url && uData.resolved_url.includes('/video/')) {
+              canonicalUrl = uData.resolved_url;
+            }
+          }
+        } catch {
+          // ignore timeout, continue to try direct oembed
+        }
+      }
+
+      const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(canonicalUrl)}`;
       const res = await fetch(oembed, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const data = await res.json();
