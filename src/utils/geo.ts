@@ -405,10 +405,26 @@ export function getCountryCodeByCity(city: string): string {
 export function detectCity(addrText: string): string {
   const text = (addrText || '').replace(/臺/g, '台');
 
-  // 1. 🇹🇼 Taiwan specific district matching (e.g. 三重, 板橋, 大安, 西屯...)
-  if (text.includes('三重區') || (text.includes('三重') && !text.includes('三重縣') && !text.includes('三重県') && !text.includes('Mie'))) {
+  // 1. 🇯🇵 Japan Mie Prefecture Specific Detection (鈴鹿, 四日市, 伊勢, 松阪, 津市, 三重ラーメン...)
+  if (
+    text.includes('鈴鹿') ||
+    text.includes('四日市') ||
+    text.includes('伊勢') ||
+    text.includes('松阪') ||
+    text.includes('津市') ||
+    text.includes('三重ラーメン') ||
+    text.includes('三重縣') ||
+    text.includes('三重県') ||
+    text.includes('Mie')
+  ) {
+    return '三重縣';
+  }
+
+  // 2. 🇹🇼 Taiwan specific district matching (e.g. 三重, 板橋, 大安, 西屯...)
+  if (text.includes('三重區') || text.includes('新北三重') || text.includes('三重捷運') || text.includes('三重國小') || (text.includes('三重') && (text.includes('新北') || text.includes('台灣') || text.includes('台灣') || text.includes('今大')))) {
     return '新北市 - 三重區';
   }
+  if (text.includes('三重')) return '新北市 - 三重區';
   if (text.includes('板橋')) return '新北市 - 板橋區';
   if (text.includes('中和')) return '新北市 - 中和區';
   if (text.includes('永和')) return '新北市 - 永和區';
@@ -436,8 +452,7 @@ export function detectCity(addrText: string): string {
   if (text.includes('中壢')) return '桃園市 - 中壢區';
   if (text.includes('竹北')) return '新竹縣 - 竹北市';
 
-  // 2. 🇯🇵 Japan 47 Prefectures Detection
-  if (text.includes('三重縣') || text.includes('三重県') || text.includes('Mie')) return '三重縣';
+  // 3. 🇯🇵 Japan 47 Prefectures Detection
   if (text.includes('愛知') || text.includes('名古屋') || text.includes('Aichi') || text.includes('Nagoya')) return '愛知縣 (名古屋)';
   if (text.includes('東京') || text.includes('Tokyo') || text.includes('新宿') || text.includes('澀谷') || text.includes('銀座')) return '東京都';
   if (text.includes('大阪') || text.includes('Osaka') || text.includes('難波') || text.includes('梅田')) return '大阪府';

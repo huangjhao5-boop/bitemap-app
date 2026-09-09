@@ -295,6 +295,19 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
     });
   }
 
+  // 提取如『茹で卵中華そば』950円、『めし』100円等括號品項
+  const bracketDishes = Array.from(cleanText.matchAll(/[『「【]([^』」】]+)[』」】]\s*([0-9,]+円|\$[0-9]+)?/g));
+  for (const bd of bracketDishes) {
+    const dName = bd[1].trim();
+    if (dName !== res.name && dName.length >= 2 && dName.length <= 20) {
+      const price = bd[2] ? ` (${bd[2]})` : '';
+      const fullDish = dName + price;
+      if (!res.mustEatDishes.includes(fullDish) && !fullDish.includes('ラーメン') && !fullDish.includes('オープン')) {
+        res.mustEatDishes.push(fullDish);
+      }
+    }
+  }
+
   // 6. Extract Avoid Dishes / Blacklist
   const avoidPatterns = /(?:避雷|勿點|不推|踩雷|雷|超鹹|難吃)[：:\s]*([^\n。，]+)/g;
   let am;
@@ -308,9 +321,18 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
   }
 
   // 7. Extract Address
-  const addrMatch = cleanText.match(/(?:地址|位置|在)[：:\s]*([^\n。]+)/);
-  if (addrMatch && (addrMatch[1].includes('路') || addrMatch[1].includes('街') || addrMatch[1].includes('區') || addrMatch[1].includes('號'))) {
+  const addrMatch = cleanText.match(/(?:地址|位置|在|位於|場所)[：:\s]*([^\n。]+)/);
+  if (addrMatch && (addrMatch[1].includes('路') || addrMatch[1].includes('街') || addrMatch[1].includes('區') || addrMatch[1].includes('號') || addrMatch[1].includes('市') || addrMatch[1].includes('町'))) {
     res.address = addrMatch[1].trim();
+  }
+
+  // 日語地址提取（如：鈴鹿市三日市）
+  if (!res.address) {
+    const jpDistMatch = cleanText.match(/(?:今回|今日|昨日|ここ|場所)?(?:は|の|に|で|へ)?([一-龠ぁ-んァ-ヶ]{2,5}(?:市|区|町|村)[一-龠ぁ-んァ-ヶ0-9丁目]*?)(?=[にでのへを、，\s]|[0-9]+[\/月]|$)/);
+    if (jpDistMatch && jpDistMatch[1].length >= 2 && jpDistMatch[1].length <= 20 && !jpDistMatch[1].startsWith('http')) {
+      const dist = jpDistMatch[1].trim();
+      res.address = (res.city && !dist.includes(res.city) ? `${res.city} ` : '') + dist;
+    }
   }
 
   // 8. Personal notes fallback
