@@ -335,6 +335,7 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   success: boolean;
   message: string;
   account?: AccountRecord;
+  accountFoundLocally?: boolean;
 } {
   let cleanId = (foodieId || '').trim().toLowerCase();
   let cleanPin = String(pinCode || '').trim();
@@ -379,7 +380,8 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
     const savedKeys = Object.keys(registry);
     return { 
       success: false, 
-      message: `查無吃貨 ID【${foodieId}】！本機已存帳號：${savedKeys.join(', ')}。若這是新帳號請點選「註冊新 ID」。` 
+      message: `查無吃貨 ID【${foodieId}】！本機已存帳號：${savedKeys.join(', ')}。若這是新帳號請點選「註冊新 ID」。`,
+      accountFoundLocally: false,
     };
   }
 
@@ -387,14 +389,27 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
 
   // ✅ 強制驗證 PIN — 不允許空 PIN 直接登入
   if (!cleanPin) {
-    return { success: false, message: `請輸入 4 碼安全 PIN 才能登入！（找不到 PIN？請聯絡你設定帳號時的裝置）` };
+    return { 
+      success: false, 
+      message: `請輸入 4 碼安全 PIN 才能登入！（找不到 PIN？請聯絡你設定帳號時的裝置）`,
+      accountFoundLocally: true,
+    };
   }
 
   if (storedPin !== cleanPin) {
-    return { success: false, message: `4 碼安全 PIN 密碼錯誤！請重新輸入。` };
+    return { 
+      success: false, 
+      message: `4 碼安全 PIN 密碼錯誤！請重新輸入。`,
+      accountFoundLocally: true,
+    };
   }
 
-  return { success: true, message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, account: acc };
+  return { 
+    success: true, 
+    message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, 
+    account: acc,
+    accountFoundLocally: true,
+  };
 }
 
 // 🔍 Search Pure Foodie ID for Friend Request

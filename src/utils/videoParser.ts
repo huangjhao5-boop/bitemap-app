@@ -1,4 +1,5 @@
 import type { VideoPlatform } from '../types';
+import { detectCity } from './geo';
 
 export interface VideoInfo {
   platform: VideoPlatform;
@@ -28,7 +29,7 @@ export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadat
     // ── YouTube oEmbed ─────────────────────────────────────────────────────────
     if (/youtube\.com|youtu\.be/i.test(url)) {
       const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-      const res = await fetch(oembed, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(oembed, { signal: AbortSignal.timeout(4000) });
       if (res.ok) {
         const data = await res.json();
         const title: string = data.title || '';
@@ -43,26 +44,28 @@ export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadat
     }
 
     // ── TikTok oEmbed ──────────────────────────────────────────────────────────
-    if (/tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com/i.test(url)) {
+    if (/tiktok\.com/i.test(url)) {
       const oembed = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
-      const res = await fetch(oembed, { signal: AbortSignal.timeout(6000) });
+      const res = await fetch(oembed, { signal: AbortSignal.timeout(3500) });
       if (res.ok) {
         const data = await res.json();
         const title: string = data.title || '';
         const author: string = data.author_name || '';
-        return {
-          title,
-          authorName: author,
-          thumbnailUrl: data.thumbnail_url,
-          rawText: [title, author].filter(Boolean).join(' '),
-        };
+        if (title && !title.toLowerCase().includes('something went wrong')) {
+          return {
+            title,
+            authorName: author,
+            thumbnailUrl: data.thumbnail_url,
+            rawText: [title, author].filter(Boolean).join(' '),
+          };
+        }
       }
     }
 
-    // ── Instagram / 小紅書 / 其他：透過 allorigins proxy 抓 og:title + og:description ───
+    // ── Instagram / 小紅書 / 其他：透過 allorigins proxy 抓 og:title ───
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     const res = await fetch(proxyUrl, {
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(3500),
       headers: { Accept: 'application/json' },
     });
     if (res.ok) {
@@ -80,13 +83,18 @@ export async function fetchVideoMetadata(videoUrl: string): Promise<VideoMetadat
         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i)
       )?.[1]?.trim() || '';
 
-      const rawText = [ogTitle, ogDesc].filter(Boolean).join(' ');
+      // 排除登入頁與通用空標題
+      const isFake = (t: string) => /instagram|login|登入|tiktok|見つかりません/i.test(t);
+      const cleanTitle = isFake(ogTitle) ? '' : ogTitle;
+      const cleanDesc = isFake(ogDesc) ? '' : ogDesc;
+
+      const rawText = [cleanTitle, cleanDesc].filter(Boolean).join(' ');
       if (!rawText) return null;
 
-      return { title: ogTitle || undefined, rawText };
+      return { title: cleanTitle || undefined, rawText };
     }
   } catch (e) {
-    console.warn('[fetchVideoMetadata] failed:', e);
+    // Timeout or network block: normal for anti-scraping platforms
   }
 
   return null;
@@ -184,34 +192,61 @@ export interface ExtractedRestaurantInfo {
 }
 
 export function extractRestaurantInfoFromText(input: string): ExtractedRestaurantInfo {
-  const text = input.trim();
+  const raw = input.trim();
   const res: ExtractedRestaurantInfo = {
     mustEatDishes: [],
     avoidDishes: [],
   };
 
   // 1. Extract URL if present
-  const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+  const urlMatch = raw.match(/https?:\/\/[^\s"'<>]+/i);
   if (urlMatch) {
     res.videoUrl = urlMatch[0];
   }
 
-  // 2. Extract City
-  const cities = ['台北市', '新北市', '台中市', '台南市', '高雄市', '新竹市', '桃園市', '東京', '大阪', '京都', '福岡'];
-  for (const city of cities) {
-    if (text.includes(city) || text.includes(city.replace('市', ''))) {
-      res.city = city;
-      break;
+  // 2. Clean text without URLs for better shop name & detail matching
+  const cleanText = raw.replace(/https?:\/\/[^\s"'<>]+/gi, ' ').trim();
+
+  // 3. Extract City using the smart city detector
+  const detectedCity = detectCity(cleanText);
+  if (detectedCity && detectedCity !== '台北市') {
+    res.city = detectedCity;
+  } else if (cleanText.includes('台北') || cleanText.includes('臺北')) {
+    res.city = '台北市';
+  }
+
+  // 4. Extract Name
+  // Priority A: Explicit tag like 店名：xxx, 餐廳：xxx, 這家叫：xxx
+  const explicitMatch = cleanText.match(/(?:店名|餐廳名稱|餐廳|店家|這家叫|吃這家|推薦)[：:\s]*([^\n,，。#\s]+)/);
+  if (explicitMatch && explicitMatch[1].length <= 25 && !explicitMatch[1].startsWith('http')) {
+    res.name = explicitMatch[1].trim();
+  }
+
+  // Priority B: Name in brackets like 【...】 or 「...」 or 《...》 or 『...』
+  if (!res.name) {
+    const bracketMatch = cleanText.match(/[【「《『]([^】」》』]+)[】」》』]/);
+    if (bracketMatch && bracketMatch[1].length <= 25 && !bracketMatch[1].startsWith('http')) {
+      res.name = bracketMatch[1].trim();
     }
   }
 
-  // 3. Extract Name from brackets like 【...】 or 「...」 or 《...》
-  const bracketMatch = text.match(/[【「《『]([^】」》』]+)[】」》』]/);
-  if (bracketMatch && bracketMatch[1].length <= 25) {
-    res.name = bracketMatch[1].trim();
+  // Priority C: Hashtags (e.g. #隱家拉麵 #赤峰店)
+  if (!res.name) {
+    const hashtags = Array.from(cleanText.matchAll(/#([^\s#]+)/g)).map((m) => m[1]);
+    for (const tag of hashtags) {
+      const lower = tag.toLowerCase();
+      if (
+        !['美食', '探店', '推薦', '必吃', '吃貨', '日常', 'shorts', 'reels', 'tiktok', 'fyp', 'food', 'foodie', '台北美食', '台中美食', '高雄美食', '日本美食'].includes(lower) &&
+        tag.length >= 2 &&
+        tag.length <= 22
+      ) {
+        res.name = tag.trim();
+        break;
+      }
+    }
   }
 
-  // 4. Extract Category heuristics
+  // Priority D: Category heuristics
   const categories = [
     { key: '拉麵', label: '日式拉麵' },
     { key: '燒肉', label: '燒肉居酒屋' },
@@ -224,24 +259,25 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
     { key: '泰式', label: '泰式料理' },
     { key: '義大利麵', label: '義式料理' },
     { key: '小吃', label: '在地小吃' },
+    { key: '珍珠', label: '甜點午茶' },
+    { key: 'タピオカ', label: '甜點午茶' },
   ];
   for (const cat of categories) {
-    if (text.includes(cat.key)) {
+    if (cleanText.includes(cat.key)) {
       res.category = cat.label;
       break;
     }
   }
 
-  // If no name extracted from bracket, search for keywords
+  // Priority E: Fallback search for lines with keywords
   if (!res.name) {
-    const lines = text.split(/[\n,，。]/).map((l) => l.trim()).filter(Boolean);
+    const lines = cleanText.split(/[\n,，。]/).map((l) => l.trim()).filter(Boolean);
     for (const line of lines) {
       if (
-        (line.includes('店') || line.includes('屋') || line.includes('館') || line.includes('拉麵') || line.includes('燒肉')) &&
-        !line.startsWith('http') &&
-        line.length <= 20
+        (line.includes('店') || line.includes('屋') || line.includes('館') || line.includes('拉麵') || line.includes('燒肉') || line.includes('食堂') || line.includes('居酒屋') || line.includes('茶')) &&
+        line.length <= 25
       ) {
-        res.name = line.replace(/^[#@探店美食推薦\s]+/, '').trim();
+        res.name = line.replace(/^[#@探店美食推薦必吃\s]+/, '').trim();
         break;
       }
     }
@@ -250,7 +286,7 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
   // 5. Extract Must-Eat Dishes
   const mustEatPatterns = /(?:必點|必吃|推薦|招牌|名物)[：:\s]*([^\n。，]+)/g;
   let m;
-  while ((m = mustEatPatterns.exec(text)) !== null) {
+  while ((m = mustEatPatterns.exec(cleanText)) !== null) {
     const items = m[1].split(/[,，、\s]+/).filter((x) => x.trim().length > 1 && x.trim().length < 25);
     items.forEach((it) => {
       if (!res.mustEatDishes.includes(it.trim())) {
@@ -262,7 +298,7 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
   // 6. Extract Avoid Dishes / Blacklist
   const avoidPatterns = /(?:避雷|勿點|不推|踩雷|雷|超鹹|難吃)[：:\s]*([^\n。，]+)/g;
   let am;
-  while ((am = avoidPatterns.exec(text)) !== null) {
+  while ((am = avoidPatterns.exec(cleanText)) !== null) {
     const items = am[1].split(/[,，、\s]+/).filter((x) => x.trim().length > 1 && x.trim().length < 25);
     items.forEach((it) => {
       if (!res.avoidDishes.includes(it.trim())) {
@@ -272,14 +308,14 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
   }
 
   // 7. Extract Address
-  const addrMatch = text.match(/(?:地址|位置|在)[：:\s]*([^\n。]+)/);
+  const addrMatch = cleanText.match(/(?:地址|位置|在)[：:\s]*([^\n。]+)/);
   if (addrMatch && (addrMatch[1].includes('路') || addrMatch[1].includes('街') || addrMatch[1].includes('區') || addrMatch[1].includes('號'))) {
     res.address = addrMatch[1].trim();
   }
 
   // 8. Personal notes fallback
-  if (text.length > 30) {
-    res.personalNotes = text.slice(0, 200);
+  if (cleanText.length > 25) {
+    res.personalNotes = cleanText.slice(0, 200);
   }
 
   return res;

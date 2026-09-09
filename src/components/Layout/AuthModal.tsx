@@ -71,6 +71,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    // ✅ 沒輸入密碼時立即擋下提示，絕不進入「驗證中...」或發起雲端查詢
+    if (!pin) {
+      setStatusMessage({ type: 'error', text: '請輸入 4 碼安全 PIN 密碼才能登入！' });
+      return;
+    }
+
     setStatusMessage({ type: 'success', text: '🔍 正在驗證吃貨帳號與安全 PIN...' });
 
     // 1. Check local registry first
@@ -86,18 +92,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // 2. If not found locally or failed, check Cloud Firestore (Cross-Device Support!)
+    // 若本機已確認有此帳號但 PIN 碼錯誤，直接顯示錯誤訊息，不進入雲端查詢
+    if (res.accountFoundLocally && !res.success) {
+      setStatusMessage({ type: 'error', text: res.message });
+      return;
+    }
+
+    // 2. If not found locally, check Cloud Firestore (Cross-Device Support!)
     try {
       const cloudRes = await fetchFoodieAccountFromCloud(id);
       if (cloudRes.success && cloudRes.account) {
         const cloudAcc = cloudRes.account;
         const storedPin = String(cloudAcc.pinCode || '8888').trim();
-
-        // ✅ 強制驗證 PIN（空 PIN 不允許登入雲端帳號）
-        if (!pin) {
-          setStatusMessage({ type: 'error', text: `請輸入 4 碼安全 PIN 才能登入！` });
-          return;
-        }
 
         if (storedPin !== pin) {
           setStatusMessage({ type: 'error', text: `4 碼安全 PIN 密碼錯誤！請確認後重新輸入。` });

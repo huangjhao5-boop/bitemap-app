@@ -97,6 +97,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   };
 
   const [smartInputText, setSmartInputText] = useState('');
+  const [isSmartAutoFilling, setIsSmartAutoFilling] = useState(false);
+  const [smartAutoFillNotice, setSmartAutoFillNotice] = useState<string | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const [menuImages, setMenuImages] = useState<string[]>([]);
@@ -405,123 +407,154 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     const rawInput = smartInputText.trim();
     if (!rawInput) return;
 
-    // ─── 🎬 偵測純影片 URL：直接走「加入影片」路徑，完全不寫入筆記 ───
-    const isVideoUrl =
-      /instagram\.com\/(reel|reels|p)\//i.test(rawInput) ||
-      /tiktok\.com\//i.test(rawInput) ||
-      /vt\.tiktok\.com\//i.test(rawInput) ||
-      /vm\.tiktok\.com\//i.test(rawInput) ||
-      /youtube\.com\/(shorts|watch)/i.test(rawInput) ||
-      /youtu\.be\//i.test(rawInput) ||
-      /xiaohongshu\.com|xhslink\.com/i.test(rawInput) ||
-      /douyin\.com/i.test(rawInput);
+    setIsSmartAutoFilling(true);
+    setSmartAutoFillNotice(null);
 
-    if (isVideoUrl) {
+    try {
+      // 1. Google Maps / Share Link 優先解析
+      if (
+        rawInput.includes('share.google') ||
+        rawInput.includes('goo.gl') ||
+        rawInput.includes('google.com/maps') ||
+        rawInput.includes('google.com/search')
+      ) {
+        try {
+          const gCard = await resolveGooglePlaceUrl(rawInput);
+          if (gCard) {
+            if (gCard.name) setName(gCard.name);
+            if (gCard.category) setCategory(gCard.category);
+            if (gCard.city) handleCityChange(gCard.city);
+            if (gCard.address) setAddress(gCard.address);
+            if (gCard.lat) setLat(gCard.lat);
+            if (gCard.lng) setLng(gCard.lng);
+            if (gCard.googleMapsUrl) setGoogleMapsUrl(gCard.googleMapsUrl);
+            setSmartInputText('');
+            setAutoFillSuccess(true);
+            setTimeout(() => setAutoFillSuccess(false), 3000);
+            return;
+          }
+        } catch (err) {
+          console.warn('Google URL auto-fill failed', err);
+        }
+      }
+
+      // 2. 擷取影片 URL（若有）
       const urlMatch = rawInput.match(/https?:\/\/[^\s"'<>]+/i);
-      const cleanUrl = urlMatch ? urlMatch[0] : rawInput;
-      const parsed = parseVideoUrl(cleanUrl);
+      const videoUrl = urlMatch ? urlMatch[0] : '';
+      const isVideo = Boolean(
+        videoUrl &&
+        (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|xiaohongshu\.com|xhslink\.com|douyin\.com/i.test(videoUrl))
+      );
 
-      // 🤖 嘗試從影片取得標題/說明，自動解析店家資訊
-      const meta = await fetchVideoMetadata(cleanUrl);
-      let videoTitle = parsed.displayLabel;
+      // 取得去掉 URL 之後的純文字（例如用戶複製整段貼文：「台北超強拉麵【隱家拉麵】赤峰店必吃 https://...」）
+      const textWithoutUrl = rawInput.replace(/https?:\/\/[^\s"'<>]+/gi, ' ').trim();
 
-      if (meta?.rawText) {
-        const extracted = extractRestaurantInfoFromText(meta.rawText);
-        // 自動帶入解析到的店家資訊（不覆蓋用戶已填寫的欄位）
-        if (extracted.name && !name) setName(extracted.name);
-        if (extracted.category && !category) setCategory(extracted.category);
-        if (extracted.city) handleCityChange(extracted.city);
-        if (extracted.address && !address) setAddress(extracted.address);
-        if (extracted.mustEatDishes.length > 0) {
-          setMustEatDishes((prev) => Array.from(new Set([...prev, ...extracted.mustEatDishes])));
+      let videoMetaTitle: string | undefined = undefined;
+      let videoMetaAuthor: string | undefined = undefined;
+      let videoMetaRawText = '';
+
+      if (isVideo && videoUrl) {
+        try {
+          const meta = await fetchVideoMetadata(videoUrl);
+          if (meta) {
+            videoMetaTitle = meta.title;
+            videoMetaAuthor = meta.authorName;
+            videoMetaRawText = meta.rawText || '';
+          }
+        } catch (e) {
+          console.warn('fetchVideoMetadata error', e);
         }
-        if (extracted.avoidDishes.length > 0) {
-          setAvoidDishes((prev) => Array.from(new Set([...prev, ...extracted.avoidDishes])));
-        }
-        // 使用真實影片標題
-        if (meta.title) videoTitle = meta.title;
-        // 創作者名稱 → 自動填入創作者欄位（若有）
-        if (meta.authorName) setNewVideoCreator(meta.authorName);
+
+        const parsed = parseVideoUrl(videoUrl);
+        const newVid: ShortVideoSource = {
+          id: 'v_' + Date.now(),
+          platform: parsed.platform,
+          url: videoUrl,
+          title: videoMetaTitle || (parsed.displayLabel + (videoMetaAuthor ? ` (@${videoMetaAuthor})` : '')),
+          creatorName: videoMetaAuthor,
+        };
+        setVideos((prev) => [...prev, newVid]);
+        if (videoMetaAuthor && !newVideoCreator) setNewVideoCreator(videoMetaAuthor);
       }
 
-      const newVid: ShortVideoSource = {
-        id: 'v_' + Date.now(),
-        platform: parsed.platform,
-        url: cleanUrl,
-        title: videoTitle,
-        creatorName: meta?.authorName,
-        thumbnailUrl: meta?.thumbnailUrl,
-      };
-      setVideos((prev) => [...prev, newVid]);
+      // 3. 結合使用者貼入的文字與影片抓到的文字，進行智慧解析
+      const combinedText = [textWithoutUrl, videoMetaRawText].filter(Boolean).join('\n');
+      const extracted = extractRestaurantInfoFromText(combinedText || rawInput);
+
+      let foundInfo = false;
+
+      if (extracted.name) {
+        setName(extracted.name);
+        foundInfo = true;
+      }
+      if (extracted.category) {
+        setCategory(extracted.category);
+        foundInfo = true;
+      }
+      if (extracted.city) {
+        handleCityChange(extracted.city);
+        foundInfo = true;
+      }
+      if (extracted.address) {
+        setAddress(extracted.address);
+        foundInfo = true;
+      }
+      if (extracted.mustEatDishes.length > 0) {
+        setMustEatDishes((prev) => Array.from(new Set([...prev, ...extracted.mustEatDishes])));
+        foundInfo = true;
+      }
+      if (extracted.avoidDishes.length > 0) {
+        setAvoidDishes((prev) => Array.from(new Set([...prev, ...extracted.avoidDishes])));
+        foundInfo = true;
+      }
+
+      // 4. 若解析出店名但無地址，自動線上搜尋地址與座標（省去手動打字）
+      if (extracted.name && !extracted.address) {
+        try {
+          const placeResults = await searchGooglePlacesOnline(extracted.name);
+          if (placeResults.length > 0) {
+            const best = placeResults[0];
+            if (best.address && !best.address.includes('查無詳細門牌')) {
+              setAddress(best.address);
+            }
+            if (best.city) handleCityChange(best.city);
+            if (best.lat) setLat(best.lat);
+            if (best.lng) setLng(best.lng);
+            if (best.googleMapsUrl) setGoogleMapsUrl(best.googleMapsUrl);
+            if (best.category && !extracted.category) setCategory(best.category);
+          }
+        } catch (e) {
+          console.warn('Auto place search error', e);
+        }
+      }
+
+      // 筆記紀錄純文字
+      if (textWithoutUrl.length > 10 && !personalNotes) {
+        setPersonalNotes(textWithoutUrl.slice(0, 200));
+      }
+
       setSmartInputText('');
-      setAutoFillSuccess(true);
-      setTimeout(() => setAutoFillSuccess(false), 2500);
-      return;
-    }
 
-    // 🌐 Google Maps / Share Link → 店家資訊自動帶入
-    if (
-      rawInput.includes('share.google') ||
-      rawInput.includes('goo.gl') ||
-      rawInput.includes('google.com/maps') ||
-      rawInput.includes('google.com/search')
-    ) {
-      try {
-        const gCard = await resolveGooglePlaceUrl(rawInput);
-        if (gCard) {
-          if (gCard.name) setName(gCard.name);
-          if (gCard.category) setCategory(gCard.category);
-          if (gCard.city) handleCityChange(gCard.city);
-          if (gCard.address) setAddress(gCard.address);
-          if (gCard.lat) setLat(gCard.lat);
-          if (gCard.lng) setLng(gCard.lng);
-          if (gCard.googleMapsUrl) setGoogleMapsUrl(gCard.googleMapsUrl);
-          setSmartInputText('');
-          setAutoFillSuccess(true);
-          setTimeout(() => setAutoFillSuccess(false), 3000);
-          return;
-        }
-      } catch (err) {
-        console.warn('Google URL auto-fill failed', err);
+      if (foundInfo) {
+        setAutoFillSuccess(true);
+        setTimeout(() => setAutoFillSuccess(false), 3000);
+      } else if (isVideo) {
+        // 成功加入影片但無法從單一短網址讀取店家文字（Instagram / TikTok 原廠封鎖限制）
+        setSmartAutoFillNotice(
+          lang === 'zh-TW'
+            ? '🎬 已成功加入短影音！⚠️ 因 Instagram / TikTok 官方隱私防爬蟲限制，若「只貼上影片連結」無法直接讀取貼文內文。建議您：在上方搜尋欄輸入店名，或在貼上時「連同貼文介紹文字一起複製貼入」，系統即可自動解析店名、地址與必吃品項！'
+            : '🎬 動画を追加しました！Instagram/TikTokの仕様上、URLのみではテキスト情報を自動取得できません。上の検索バーで店名を検索するか、投稿文と一緒に貼り付けてください。'
+        );
+      } else {
+        setSmartAutoFillNotice(
+          lang === 'zh-TW'
+            ? '未辨識到明確的店名或品項。請使用上方「Google 智慧搜店」搜尋店名，或手動補充下方欄位！'
+            : '店舗情報を特定できませんでした。上の検索バーをご利用ください。'
+        );
       }
+    } finally {
+      setIsSmartAutoFilling(false);
     }
-
-    // 📝 一般文字 → 解析店家名稱、城市、必吃品項等
-    const extracted = extractRestaurantInfoFromText(rawInput);
-
-    if (extracted.name) setName(extracted.name);
-    if (extracted.category) setCategory(extracted.category);
-    if (extracted.city) handleCityChange(extracted.city);
-    if (extracted.address) setAddress(extracted.address);
-    if (extracted.mustEatDishes.length > 0) {
-      setMustEatDishes((prev) => Array.from(new Set([...prev, ...extracted.mustEatDishes])));
-    }
-    if (extracted.avoidDishes.length > 0) {
-      setAvoidDishes((prev) => Array.from(new Set([...prev, ...extracted.avoidDishes])));
-    }
-
-    // 有影片 URL → 加入影片列表（不寫入筆記）
-    if (extracted.videoUrl) {
-      const parsed = parseVideoUrl(extracted.videoUrl);
-      const newVid: ShortVideoSource = {
-        id: 'v_' + Date.now(),
-        platform: parsed.platform,
-        url: extracted.videoUrl,
-        title: extracted.name ? `${extracted.name} 介紹` : parsed.displayLabel,
-      };
-      setVideos((prev) => [...prev, newVid]);
-      // 只把純文字描述（去掉 URL 後的部分）存入筆記
-      const textOnly = rawInput.replace(/https?:\/\/[^\s"'<>]+/gi, '').trim();
-      if (textOnly.length > 10 && !personalNotes) {
-        setPersonalNotes(textOnly.slice(0, 200));
-      }
-    } else if (extracted.personalNotes && !personalNotes) {
-      setPersonalNotes(extracted.personalNotes);
-    }
-
-    setSmartInputText('');
-    setAutoFillSuccess(true);
-    setTimeout(() => setAutoFillSuccess(false), 3000);
   };
 
   const handleAddMustEat = () => {
@@ -1014,17 +1047,29 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder={lang === 'zh-TW' ? '貼上 IG Reels / TikTok 網址，例如：https://www.instagram.com/reel/...' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
+                      placeholder={lang === 'zh-TW' ? '貼上短影音網址或社群貼文（可連同貼文描述一起貼入，自動辨識店名與地址）' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
                       value={smartInputText}
                       onChange={(e) => setSmartInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSmartAutoFill();
+                        }
+                      }}
                       className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-amber-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 bg-white font-medium shadow-2xs"
                     />
                     <button
                       type="button"
                       onClick={handleSmartAutoFill}
-                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer"
+                      disabled={isSmartAutoFilling || !smartInputText.trim()}
+                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
                     >
-                      {autoFillSuccess ? (
+                      {isSmartAutoFilling ? (
+                        <>
+                          <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>{lang === 'zh-TW' ? 'AI 解析中...' : '解析中...'}</span>
+                        </>
+                      ) : autoFillSuccess ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
                           <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
@@ -1037,6 +1082,23 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       )}
                     </button>
                   </div>
+
+                  {/* 提示訊息橫幅（如遇平台防爬蟲限制時友善提示用戶） */}
+                  {smartAutoFillNotice && (
+                    <div className="bg-amber-100/90 border border-amber-300 text-amber-950 rounded-xl p-3 text-xs flex items-start justify-between gap-2 shadow-2xs">
+                      <div className="flex items-start gap-2">
+                        <span className="text-base shrink-0">💡</span>
+                        <p className="leading-relaxed font-medium">{smartAutoFillNotice}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSmartAutoFillNotice(null)}
+                        className="text-amber-700 hover:text-amber-950 font-black px-1.5 py-0.5 text-xs rounded-md"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
