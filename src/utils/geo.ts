@@ -454,7 +454,29 @@ export function detectCity(addrText: string): string {
 
   // 3. 🇯🇵 Japan 47 Prefectures Detection
   if (text.includes('愛知') || text.includes('名古屋') || text.includes('Aichi') || text.includes('Nagoya')) return '愛知縣 (名古屋)';
-  if (text.includes('東京') || text.includes('Tokyo') || text.includes('新宿') || text.includes('澀谷') || text.includes('銀座')) return '東京都';
+  if (
+    text.includes('東京') ||
+    text.includes('Tokyo') ||
+    text.includes('八王子') ||
+    text.includes('初沢町') ||
+    text.includes('新宿') ||
+    text.includes('澀谷') ||
+    text.includes('渋谷') ||
+    text.includes('銀座') ||
+    text.includes('秋葉原') ||
+    text.includes('上野') ||
+    text.includes('池袋') ||
+    text.includes('浅草') ||
+    text.includes('六本木') ||
+    text.includes('品川') ||
+    text.includes('中野') ||
+    text.includes('杉並') ||
+    text.includes('世田谷') ||
+    text.includes('吉祥寺') ||
+    text.includes('立川') ||
+    text.includes('町田') ||
+    text.includes('築地')
+  ) return '東京都';
   if (text.includes('大阪') || text.includes('Osaka') || text.includes('難波') || text.includes('梅田')) return '大阪府';
   if (text.includes('京都') || text.includes('Kyoto')) return '京都府';
   if (text.includes('福岡') || text.includes('博多') || text.includes('Fukuoka')) return '福岡縣 (博多)';
@@ -530,7 +552,10 @@ export function detectCity(addrText: string): string {
   if (text.includes('香港') || text.includes('Hong Kong')) return '香港';
   if (text.includes('澳門') || text.includes('Macau')) return '澳門';
   if (text.includes('曼谷') || text.includes('Bangkok')) return '曼谷';
-  if (text.includes('新加坡') || text.includes('Singapore')) return '新加坡';
+  // 日本國家回退（避免被誤判為台北市）
+  if (text.includes('日本') || text.includes('Japan') || text.includes('JP') || /[ぁ-んァ-ヶ]/.test(text)) {
+    return '東京都';
+  }
 
   return '台北市';
 }

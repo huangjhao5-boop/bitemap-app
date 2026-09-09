@@ -19,18 +19,18 @@ export interface PlaceSearchResult {
 // 🍜 Guess category from name and amenity
 export function guessCategory(name: string, amenity: string = ''): string {
   const text = (name + ' ' + amenity).toLowerCase();
-  if (text.includes('拉麵') || text.includes('麵') || text.includes('ramen') || text.includes('udon') || text.includes('蕎麥')) return '日式拉麵';
-  if (text.includes('炒飯') || text.includes('chahan') || text.includes('中華') || text.includes('餃子')) return '中華料理 / 炒飯專門';
-  if (text.includes('燒肉') || text.includes('牛排') || text.includes('肉') || text.includes('bbq') || text.includes('steak') || text.includes('串燒') || text.includes('燒烤')) return '和牛燒肉';
-  if (text.includes('火鍋') || text.includes('鍋') || text.includes('麻辣') || text.includes('hotpot') || text.includes('しゃぶ')) return '火鍋鍋物';
-  if (text.includes('日料') || text.includes('壽司') || text.includes('sushi') || text.includes('生魚片') || text.includes('居酒屋') || text.includes('海鮮') || text.includes('丼飯')) return '日式料理';
-  if (text.includes('咖啡') || text.includes('早午餐') || text.includes('cafe') || text.includes('coffee') || text.includes('brunch') || text.includes('tea')) return '咖啡早午餐';
-  if (text.includes('甜點') || text.includes('蛋糕') || text.includes('冰') || text.includes('dessert') || text.includes('bakery') || text.includes('麵包') || text.includes('豆花') || text.includes('刨冰') || text.includes('舒芙蕾')) return '甜點午茶';
-  if (text.includes('披薩') || text.includes('義式') || text.includes('pizza') || text.includes('義大利麵') || text.includes('pasta')) return '義式料理';
-  if (text.includes('漢堡') || text.includes('美式') || text.includes('burger') || text.includes('薯條')) return '美式漢堡';
+  if (text.includes('拉麵') || text.includes('ラーメン') || text.includes('らーめん') || text.includes('つけ麺') || text.includes('中華そば') || text.includes('麵') || text.includes('ramen') || text.includes('udon') || text.includes('蕎麥') || text.includes('うどん') || text.includes('そば')) return '日式拉麵';
+  if (text.includes('炒飯') || text.includes('chahan') || text.includes('チャーハン') || text.includes('中華') || text.includes('餃子')) return '中華料理 / 炒飯專門';
+  if (text.includes('燒肉') || text.includes('焼肉') || text.includes('ホルモン') || text.includes('牛排') || text.includes('肉') || text.includes('bbq') || text.includes('steak') || text.includes('串燒') || text.includes('燒烤') || text.includes('焼き鳥')) return '和牛燒肉';
+  if (text.includes('火鍋') || text.includes('鍋') || text.includes('麻辣') || text.includes('hotpot') || text.includes('しゃぶ') || text.includes('すき焼き')) return '火鍋鍋物';
+  if (text.includes('日料') || text.includes('壽司') || text.includes('すし') || text.includes('sushi') || text.includes('生魚片') || text.includes('居酒屋') || text.includes('海鮮') || text.includes('丼飯') || text.includes('天ぷら') || text.includes('とんかつ') || text.includes('定食') || text.includes('屋台')) return '日式料理';
+  if (text.includes('咖啡') || text.includes('早午餐') || text.includes('cafe') || text.includes('coffee') || text.includes('brunch') || text.includes('tea') || text.includes('喫茶')) return '咖啡早午餐';
+  if (text.includes('甜點') || text.includes('蛋糕') || text.includes('冰') || text.includes('dessert') || text.includes('bakery') || text.includes('麵包') || text.includes('豆花') || text.includes('刨冰') || text.includes('舒芙蕾') || text.includes('スイーツ') || text.includes('パフェ')) return '甜點午茶';
+  if (text.includes('披薩') || text.includes('義式') || text.includes('pizza') || text.includes('義大利麵') || text.includes('pasta') || text.includes('パスタ')) return '義式料理';
+  if (text.includes('漢堡') || text.includes('美式') || text.includes('burger') || text.includes('バーガー') || text.includes('薯條')) return '美式漢堡';
   if (text.includes('酒吧') || text.includes('酒') || text.includes('bar') || text.includes('bistro') || text.includes('餐酒館') || text.includes('pub')) return '微醺酒吧';
   if (text.includes('牛肉麵') || text.includes('小吃') || text.includes('便當') || text.includes('滷肉飯') || text.includes('夜市') || text.includes('水餃') || text.includes('熱炒') || text.includes('雞肉飯') || text.includes('肉圓')) return '台灣道地小吃';
-  if (text.includes('泰式') || text.includes('越式') || text.includes('韓式') || text.includes('港式') || text.includes('飲茶') || text.includes('咖哩') || text.includes('curry')) return '異國美食';
+  if (text.includes('泰式') || text.includes('越式') || text.includes('韓式') || text.includes('港式') || text.includes('飲茶') || text.includes('咖哩') || text.includes('curry') || text.includes('カレー')) return '異國美食';
   return '精選美食';
 }
 
@@ -645,9 +645,19 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
         const lat = coords[1];
 
         const rawName = props.name || cleanQ;
-        const street = props.street || props.district || props.suburb || '';
-        const cityCandidate = props.city || props.state || props.county || '';
-        const city = detectCity(cityCandidate + ' ' + street + ' ' + (props.country || ''));
+        const street = props.street || '';
+        const fullLocationText = [
+          props.country,
+          props.state,
+          props.city,
+          props.county,
+          props.district,
+          props.locality,
+          props.suburb,
+          street,
+          rawName,
+        ].filter(Boolean).join(' ');
+        const city = detectCity(fullLocationText);
 
         // Region sanity filter
         if (queryHasJapan && (city.includes('台北') || city.includes('新北') || city.includes('台中') || city.includes('高雄') || city.includes('台南'))) {
@@ -657,9 +667,19 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
           return;
         }
 
-        let fullAddress = [city, props.district || props.suburb, street, props.housenumber ? props.housenumber + '號' : '']
-          .filter(Boolean)
-          .join('');
+        const isJapan = props.country === '日本' || props.country === 'Japan' || props.countrycode === 'JP' || city.includes('東京都') || city.includes('大阪府') || city.includes('京都府') || city.includes('縣') || city.includes('県');
+
+        let fullAddress = '';
+        if (isJapan) {
+          const pref = (props.state && props.state !== '日本') ? props.state : city;
+          const municipal = props.city && props.city !== pref ? props.city : '';
+          const locality = props.locality || props.suburb || (props.district && props.district !== props.city ? props.district : '') || '';
+          const block = [street, props.housenumber].filter(Boolean).join('-');
+          fullAddress = [pref, municipal, locality, block].filter(Boolean).join('');
+        } else {
+          const house = props.housenumber ? props.housenumber + '號' : '';
+          fullAddress = [city, props.district || props.suburb, street, house].filter(Boolean).join('');
+        }
 
         if (!fullAddress || fullAddress === city) {
           fullAddress = `${city} ${street || props.name || ''}`.trim();
@@ -710,7 +730,18 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
       data.forEach((item: any, idx: number) => {
         const rawName = item.name || (item.display_name ? item.display_name.split(',')[0] : cleanQ);
         const cleanName = rawName.trim();
-        const city = detectCity((item.display_name || '') + ' ' + (item.address?.city || '') + ' ' + (item.address?.state || ''));
+        const fullLocationText = [
+          item.address?.country,
+          item.address?.state,
+          item.address?.province,
+          item.address?.city,
+          item.address?.town,
+          item.address?.suburb,
+          item.address?.neighbourhood,
+          item.display_name,
+          cleanName,
+        ].filter(Boolean).join(' ');
+        const city = detectCity(fullLocationText);
 
         // Region sanity filter
         if (queryHasJapan && (city.includes('台北') || city.includes('新北') || city.includes('台中') || city.includes('高雄') || city.includes('台南'))) {
@@ -720,13 +751,23 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
           return;
         }
 
+        const isJapan = item.address?.country_code === 'jp' || item.address?.country === '日本' || city.includes('東京都') || city.includes('大阪府') || city.includes('京都府') || city.includes('縣') || city.includes('県');
+
         let formattedAddress = item.display_name || '';
         if (item.address) {
-          const road = item.address.road || '';
-          const house = item.address.house_number ? item.address.house_number + '號' : '';
-          const suburb = item.address.suburb || item.address.neighbourhood || '';
-          if (road) {
-            formattedAddress = `${city}${suburb}${road}${house}`;
+          if (isJapan) {
+            const pref = item.address.state || item.address.province || city;
+            const municipal = (item.address.city || item.address.town || '') !== pref ? (item.address.city || item.address.town || '') : '';
+            const locality = item.address.suburb || item.address.neighbourhood || '';
+            const block = [item.address.road, item.address.house_number].filter(Boolean).join('-');
+            formattedAddress = [pref, municipal, locality, block].filter(Boolean).join('');
+          } else {
+            const road = item.address.road || '';
+            const house = item.address.house_number ? item.address.house_number + '號' : '';
+            const suburb = item.address.suburb || item.address.neighbourhood || '';
+            if (road) {
+              formattedAddress = `${city}${suburb}${road}${house}`;
+            }
           }
         }
 

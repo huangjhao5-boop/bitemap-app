@@ -508,8 +508,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         foundInfo = true;
       }
 
-      // 4. 若解析出店名但無地址，自動線上搜尋地址與座標（省去手動打字）
-      if (extracted.name && !extracted.address) {
+      // 4. 若解析出店名，自動線上向 Google Places / OSM 搜尋地址、座標與官方店名
+      if (extracted.name) {
         try {
           const placeResults = await searchGooglePlacesOnline(extracted.name);
           if (placeResults.length > 0) {
@@ -521,7 +521,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             if (best.lat) setLat(best.lat);
             if (best.lng) setLng(best.lng);
             if (best.googleMapsUrl) setGoogleMapsUrl(best.googleMapsUrl);
-            if (best.category && !extracted.category) setCategory(best.category);
+            if (best.category && (best.category !== '精選美食' || !category || category === '精選美食')) {
+              setCategory(best.category);
+            }
+            // 若搜尋結果有更完整的官方名稱（例如「屋台ラーメン しゅんやっちゃん」），自動升級
+            if (best.name && best.name.includes(extracted.name) && best.name.length > extracted.name.length) {
+              setName(best.name);
+            }
           }
         } catch (e) {
           console.warn('Auto place search error', e);
