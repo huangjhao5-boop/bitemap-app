@@ -508,26 +508,45 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         foundInfo = true;
       }
 
-      // 4. 若解析出店名，自動線上向 Google Places / OSM 搜尋地址、座標與官方店名
+      // 4. 若解析出店名，線上嚴格比對真實店家資訊（杜絕亂填錯誤地址）
+      let hasConfidentOnlineMatch = false;
       if (extracted.name) {
         try {
-          const placeResults = await searchGooglePlacesOnline(extracted.name);
-          if (placeResults.length > 0) {
-            const best = placeResults[0];
-            if (best.address && !best.address.includes('查無詳細門牌')) {
-              setAddress(best.address);
+          // includeFallback = false: 不注入任何假 fallback 卡片，只查詢真實搜尋結果
+          const placeResults = await searchGooglePlacesOnline(extracted.name, false);
+
+          // 嚴格判斷店名相符度（完全相等或互相包含），杜絕 OSM 隨機抓取無關地點亂填
+          const isConfidentMatch = (qName?: string, rName?: string) => {
+            if (!qName || !rName) return false;
+            const q = qName.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
+            const r = rName.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
+            if (!q || !r) return false;
+            return q === r || q.includes(r) || r.includes(q);
+          };
+
+          const matchingPlace = placeResults.find(
+            (p) => p.source !== 'custom' && isConfidentMatch(extracted.name, p.name)
+          );
+
+          if (matchingPlace) {
+            hasConfidentOnlineMatch = true;
+            if (matchingPlace.address && !matchingPlace.address.includes('查無詳細門牌') && !matchingPlace.address.includes('精選店家')) {
+              setAddress(matchingPlace.address);
             }
-            if (best.city) handleCityChange(best.city);
-            if (best.lat) setLat(best.lat);
-            if (best.lng) setLng(best.lng);
-            if (best.googleMapsUrl) setGoogleMapsUrl(best.googleMapsUrl);
-            if (best.category && (best.category !== '精選美食' || !category || category === '精選美食')) {
-              setCategory(best.category);
+            if (matchingPlace.city) handleCityChange(matchingPlace.city);
+            if (matchingPlace.lat) setLat(matchingPlace.lat);
+            if (matchingPlace.lng) setLng(matchingPlace.lng);
+            if (matchingPlace.googleMapsUrl) setGoogleMapsUrl(matchingPlace.googleMapsUrl);
+            if (matchingPlace.category && (matchingPlace.category !== '精選美食' || !category || category === '精選美食')) {
+              setCategory(matchingPlace.category);
             }
             // 若搜尋結果有更完整的官方名稱（例如「屋台ラーメン しゅんやっちゃん」），自動升級
-            if (best.name && best.name.includes(extracted.name) && best.name.length > extracted.name.length) {
-              setName(best.name);
+            if (matchingPlace.name && matchingPlace.name.includes(extracted.name) && matchingPlace.name.length > extracted.name.length) {
+              setName(matchingPlace.name);
             }
+          } else {
+            // 線上圖資庫無完全吻合的店家：將店名預填入上方 Google 智慧搜店，方便使用者直接點選搜店或手動確認，絕不亂填門牌
+            setPlaceSearchQuery(extracted.name);
           }
         } catch (e) {
           console.warn('Auto place search error', e);
@@ -544,6 +563,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       if (foundInfo) {
         setAutoFillSuccess(true);
         setTimeout(() => setAutoFillSuccess(false), 3000);
+        if (extracted.name && !hasConfidentOnlineMatch && !extracted.address) {
+          setSmartAutoFillNotice(
+            lang === 'zh-TW'
+              ? `✨ 已成功解析店名「${extracted.name}」與餐點！\n⚠️ 公開地圖資料庫尚無此店家的門牌地址。為避免亂填錯誤資訊，地址欄已為您保留空白。您可直接在上方「Google 智慧搜店」確認或手動補充門牌！`
+              : `✨ 店名「${extracted.name}」を抽出しました！地図データに完全一致する店舗が見つからないため、住所は空白にしています。上の検索バーでご確認ください。`
+          );
+        }
       } else if (isVideo) {
         // 成功加入影片但無法從單一短網址讀取店家文字（Instagram / TikTok 原廠封鎖限制）
         setSmartAutoFillNotice(

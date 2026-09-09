@@ -514,7 +514,7 @@ export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearch
 }
 
 // 🔍 Search Places Online via Multi-Engine (Curated + Photon Fuzzy + Nominatim POI + Link Resolver)
-export async function searchGooglePlacesOnline(query: string): Promise<PlaceSearchResult[]> {
+export async function searchGooglePlacesOnline(query: string, includeFallback = true): Promise<PlaceSearchResult[]> {
   const cleanQ = query.trim();
   if (!cleanQ || cleanQ.length < 1) return [];
 
@@ -626,7 +626,7 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
   // Check if query explicitly targets a specific country or region
   const queryHasJapan = /愛知|名古屋|東京|大阪|京都|福岡|博多|北海道|札幌|沖繩|橫濱|神戶|廣島|日本|三重縣|三重県|Mie/i.test(cleanQ);
   const queryHasTaiwan = /台灣|台北|新北|三重區|三重店|今大|板橋|台中|台南|高雄|桃園|新竹/i.test(cleanQ) && !cleanQ.includes('日本 三重') && !cleanQ.includes('三重縣');
-  const targetCity = detectCity(cleanQ);
+  const targetCity = detectCity(cleanQ, queryHasJapan ? '東京都' : '台北市');
 
   // 3. Photon Engine Search
   const photonPromise = (async (): Promise<PlaceSearchResult[]> => {
@@ -657,7 +657,9 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
           street,
           rawName,
         ].filter(Boolean).join(' ');
-        const city = detectCity(fullLocationText);
+
+        const isJapan = props.country === '日本' || props.country === 'Japan' || props.countrycode === 'JP' || queryHasJapan || /[\u3040-\u30ff]/.test(fullLocationText);
+        const city = detectCity(fullLocationText, isJapan ? (props.state || '東京都') : '台北市');
 
         // Region sanity filter
         if (queryHasJapan && (city.includes('台北') || city.includes('新北') || city.includes('台中') || city.includes('高雄') || city.includes('台南'))) {
@@ -666,8 +668,6 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
         if (queryHasTaiwan && (city.includes('東京都') || city.includes('大阪府') || city.includes('愛知縣') || city.includes('京都府'))) {
           return;
         }
-
-        const isJapan = props.country === '日本' || props.country === 'Japan' || props.countrycode === 'JP' || city.includes('東京都') || city.includes('大阪府') || city.includes('京都府') || city.includes('縣') || city.includes('県');
 
         let fullAddress = '';
         if (isJapan) {
@@ -741,7 +741,8 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
           item.display_name,
           cleanName,
         ].filter(Boolean).join(' ');
-        const city = detectCity(fullLocationText);
+        const isJapan = item.address?.country_code === 'jp' || item.address?.country === '日本' || queryHasJapan || /[\u3040-\u30ff]/.test(fullLocationText);
+        const city = detectCity(fullLocationText, isJapan ? (item.address?.state || '東京都') : '台北市');
 
         // Region sanity filter
         if (queryHasJapan && (city.includes('台北') || city.includes('新北') || city.includes('台中') || city.includes('高雄') || city.includes('台南'))) {
@@ -750,8 +751,6 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
         if (queryHasTaiwan && (city.includes('東京都') || city.includes('大阪府') || city.includes('愛知縣') || city.includes('京都府'))) {
           return;
         }
-
-        const isJapan = item.address?.country_code === 'jp' || item.address?.country === '日本' || city.includes('東京都') || city.includes('大阪府') || city.includes('京都府') || city.includes('縣') || city.includes('県');
 
         let formattedAddress = item.display_name || '';
         if (item.address) {
@@ -814,8 +813,28 @@ export async function searchGooglePlacesOnline(query: string): Promise<PlaceSear
     }
   });
 
+  // Sort results by relevance to search query
+  results.sort((a, b) => {
+    const aLower = a.name.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
+    const bLower = b.name.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
+    const qLower = cleanQ.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
+
+    const aExact = aLower === qLower;
+    const bExact = bLower === qLower;
+    if (aExact && !bExact) return -1;
+    if (!aExact && bExact) return 1;
+
+    const aContains = aLower.includes(qLower) || qLower.includes(aLower);
+    const bContains = bLower.includes(qLower) || qLower.includes(bLower);
+    if (aContains && !bContains) return -1;
+    if (!aContains && bContains) return 1;
+
+    return 0;
+  });
+
   // Fallback: If no results after filtering, construct a clean candidate card in the target region
-  if (results.length === 0 && cleanQ.length > 0) {
+  // (Only when includeFallback is true, e.g. manual user search in search bar)
+  if (includeFallback && results.length === 0 && cleanQ.length > 0) {
     const detected = targetCity;
     const category = guessCategory(cleanQ);
     const coords = CITY_COORDS[detected] || { lat: 25.0478, lng: 121.5319 };

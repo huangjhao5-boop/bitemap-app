@@ -402,8 +402,9 @@ export function getCountryCodeByCity(city: string): string {
 }
 
 // 🧭 Smart City & District Detection
-export function detectCity(addrText: string): string {
-  const text = (addrText || '').replace(/臺/g, '台');
+export function detectCity(addrText: string, fallback: string = '台北市'): string {
+  if (!addrText || !addrText.trim()) return fallback;
+  const text = addrText.replace(/臺/g, '台');
 
   // 1. 🇯🇵 Japan Mie Prefecture Specific Detection (鈴鹿, 四日市, 伊勢, 松阪, 津市, 三重ラーメン...)
   if (
@@ -557,7 +558,7 @@ export function detectCity(addrText: string): string {
     return '東京都';
   }
 
-  return '台北市';
+  return fallback;
 }
 
 // 🧭 Find nearest city name from GPS coordinates (Taiwan, Japan, Global)

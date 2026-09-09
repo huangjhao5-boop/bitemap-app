@@ -237,12 +237,10 @@ export function extractRestaurantInfoFromText(input: string): ExtractedRestauran
   // 2. Clean text without URLs for better shop name & detail matching
   const cleanText = raw.replace(/https?:\/\/[^\s"'<>]+/gi, ' ').trim();
 
-  // 3. Extract City using the smart city detector
-  const detectedCity = detectCity(cleanText);
-  if (detectedCity && detectedCity !== '台北市') {
+  // 3. Extract City using the smart city detector (only when explicitly detected, no blind fallback)
+  const detectedCity = detectCity(cleanText, '');
+  if (detectedCity) {
     res.city = detectedCity;
-  } else if (cleanText.includes('台北') || cleanText.includes('臺北')) {
-    res.city = '台北市';
   }
 
   // 4. Extract Name
