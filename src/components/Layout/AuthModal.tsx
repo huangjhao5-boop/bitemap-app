@@ -92,8 +92,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (cloudRes.success && cloudRes.account) {
         const cloudAcc = cloudRes.account;
         const storedPin = String(cloudAcc.pinCode || '8888').trim();
-        
-        if (pin && storedPin && storedPin !== pin) {
+
+        // ✅ 強制驗證 PIN（空 PIN 不允許登入雲端帳號）
+        if (!pin) {
+          setStatusMessage({ type: 'error', text: `請輸入 4 碼安全 PIN 才能登入！` });
+          return;
+        }
+
+        if (storedPin !== pin) {
           setStatusMessage({ type: 'error', text: `4 碼安全 PIN 密碼錯誤！請確認後重新輸入。` });
           return;
         }

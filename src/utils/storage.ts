@@ -355,7 +355,7 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   const registry = loadAccountRegistry();
   
   // Find case-insensitive match
-  let accKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanId);
+  const accKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanId);
   let acc = accKey ? registry[accKey] : undefined;
 
   // Fallback: check current active profile in localStorage
@@ -376,7 +376,6 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   }
 
   if (!acc) {
-    // If only one account exists in registry, help user understand
     const savedKeys = Object.keys(registry);
     return { 
       success: false, 
@@ -385,10 +384,14 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   }
 
   const storedPin = String(acc.pinCode || '8888').trim();
-  
-  // Allow login if PIN matches or if empty (for convenient local use)
-  if (cleanPin && storedPin && storedPin !== cleanPin) {
-    return { success: false, message: `認證失敗！4 碼安全 PIN 密碼不符 (輸入: ${cleanPin})，請重新輸入。` };
+
+  // ✅ 強制驗證 PIN — 不允許空 PIN 直接登入
+  if (!cleanPin) {
+    return { success: false, message: `請輸入 4 碼安全 PIN 才能登入！（找不到 PIN？請聯絡你設定帳號時的裝置）` };
+  }
+
+  if (storedPin !== cleanPin) {
+    return { success: false, message: `4 碼安全 PIN 密碼錯誤！請重新輸入。` };
   }
 
   return { success: true, message: `🎉 驗證成功！歡迎回來【${acc.profile.name}】！`, account: acc };

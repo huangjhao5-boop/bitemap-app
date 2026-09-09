@@ -402,17 +402,46 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   };
 
   const handleSmartAutoFill = async () => {
-    if (!smartInputText.trim()) return;
+    const rawInput = smartInputText.trim();
+    if (!rawInput) return;
 
-    // 🌐 If input is a Google Share Link / Google Maps URL, resolve directly
+    // ─── 🎬 偵測純影片 URL：直接走「加入影片」路徑，完全不寫入筆記 ───
+    const isVideoUrl =
+      /instagram\.com\/(reel|reels|p)\//i.test(rawInput) ||
+      /tiktok\.com\//i.test(rawInput) ||
+      /vt\.tiktok\.com\//i.test(rawInput) ||
+      /vm\.tiktok\.com\//i.test(rawInput) ||
+      /youtube\.com\/(shorts|watch)/i.test(rawInput) ||
+      /youtu\.be\//i.test(rawInput) ||
+      /xiaohongshu\.com|xhslink\.com/i.test(rawInput) ||
+      /douyin\.com/i.test(rawInput);
+
+    if (isVideoUrl) {
+      const urlMatch = rawInput.match(/https?:\/\/[^\s"'<>]+/i);
+      const cleanUrl = urlMatch ? urlMatch[0] : rawInput;
+      const parsed = parseVideoUrl(cleanUrl);
+      const newVid: ShortVideoSource = {
+        id: 'v_' + Date.now(),
+        platform: parsed.platform,
+        url: cleanUrl,
+        title: parsed.displayLabel,
+      };
+      setVideos((prev) => [...prev, newVid]);
+      setSmartInputText('');
+      setAutoFillSuccess(true);
+      setTimeout(() => setAutoFillSuccess(false), 2500);
+      return;
+    }
+
+    // 🌐 Google Maps / Share Link → 店家資訊自動帶入
     if (
-      smartInputText.includes('share.google') ||
-      smartInputText.includes('goo.gl') ||
-      smartInputText.includes('google.com/maps') ||
-      smartInputText.includes('google.com/search')
+      rawInput.includes('share.google') ||
+      rawInput.includes('goo.gl') ||
+      rawInput.includes('google.com/maps') ||
+      rawInput.includes('google.com/search')
     ) {
       try {
-        const gCard = await resolveGooglePlaceUrl(smartInputText.trim());
+        const gCard = await resolveGooglePlaceUrl(rawInput);
         if (gCard) {
           if (gCard.name) setName(gCard.name);
           if (gCard.category) setCategory(gCard.category);
@@ -421,6 +450,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           if (gCard.lat) setLat(gCard.lat);
           if (gCard.lng) setLng(gCard.lng);
           if (gCard.googleMapsUrl) setGoogleMapsUrl(gCard.googleMapsUrl);
+          setSmartInputText('');
           setAutoFillSuccess(true);
           setTimeout(() => setAutoFillSuccess(false), 3000);
           return;
@@ -430,13 +460,12 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       }
     }
 
-    const extracted = extractRestaurantInfoFromText(smartInputText);
+    // 📝 一般文字 → 解析店家名稱、城市、必吃品項等
+    const extracted = extractRestaurantInfoFromText(rawInput);
 
     if (extracted.name) setName(extracted.name);
     if (extracted.category) setCategory(extracted.category);
-    if (extracted.city) {
-      handleCityChange(extracted.city);
-    }
+    if (extracted.city) handleCityChange(extracted.city);
     if (extracted.address) setAddress(extracted.address);
     if (extracted.mustEatDishes.length > 0) {
       setMustEatDishes((prev) => Array.from(new Set([...prev, ...extracted.mustEatDishes])));
@@ -444,10 +473,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (extracted.avoidDishes.length > 0) {
       setAvoidDishes((prev) => Array.from(new Set([...prev, ...extracted.avoidDishes])));
     }
-    if (extracted.personalNotes && !personalNotes) {
-      setPersonalNotes(extracted.personalNotes);
-    }
 
+    // 有影片 URL → 加入影片列表（不寫入筆記）
     if (extracted.videoUrl) {
       const parsed = parseVideoUrl(extracted.videoUrl);
       const newVid: ShortVideoSource = {
@@ -457,8 +484,16 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         title: extracted.name ? `${extracted.name} 介紹` : parsed.displayLabel,
       };
       setVideos((prev) => [...prev, newVid]);
+      // 只把純文字描述（去掉 URL 後的部分）存入筆記
+      const textOnly = rawInput.replace(/https?:\/\/[^\s"'<>]+/gi, '').trim();
+      if (textOnly.length > 10 && !personalNotes) {
+        setPersonalNotes(textOnly.slice(0, 200));
+      }
+    } else if (extracted.personalNotes && !personalNotes) {
+      setPersonalNotes(extracted.personalNotes);
     }
 
+    setSmartInputText('');
     setAutoFillSuccess(true);
     setTimeout(() => setAutoFillSuccess(false), 3000);
   };
