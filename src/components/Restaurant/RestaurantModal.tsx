@@ -14,7 +14,6 @@ import {
   RotateCw, 
   ThumbsDown, 
   Bookmark, 
-  HelpCircle,
   Sparkles,
   Wand2,
   Check,
@@ -69,6 +68,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [placeSearchQuery, setPlaceSearchQuery] = useState('');
   const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const handleSearchPlacesInModal = async () => {
     if (!placeSearchQuery.trim()) return;
@@ -144,13 +145,12 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [recommendedByFriendIds, setRecommendedByFriendIds] = useState<string[]>([]);
   const [dinedWithFriendIds, setDinedWithFriendIds] = useState<string[]>([]);
 
-          useEffect(() => {
+  useEffect(() => {
     if (editingRestaurant) {
       const contributions = editingRestaurant.contributions || [];
       const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
       const isGuest = !cleanMyId || cleanMyId === 'guest';
 
-      // 🔍 1. Find if current user already has a contribution in this aggregated spot
       let hasMyRecord = false;
       let myIdx = -1;
 
@@ -159,10 +159,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         hasMyRecord = myIdx !== -1;
       }
 
-      let initialIdx = hasMyRecord ? myIdx : 0;
+      const initialIdx = hasMyRecord ? myIdx : 0;
       let isMine = hasMyRecord;
 
-      // 🔍 2. If single spot without contributions pre-aggregated:
       if (!hasMyRecord && contributions.length === 0) {
         const authorId = (editingRestaurant.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
         if (!isGuest && authorId && authorId === cleanMyId) {
@@ -235,11 +234,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     }
   }, [editingRestaurant, isOpen, lang, currentFoodieId, currentUserName, currentUserAvatar]);
 
-  // Switch between different foodies' reviews for the same restaurant
   const handleSelectReview = (idx: number) => {
     if (!editingRestaurant?.contributions || !editingRestaurant.contributions[idx]) return;
     const c = editingRestaurant.contributions[idx];
-    const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     setActiveReviewIndex(idx);
     setIsReadOnlyMode(!c.isMine);
     setCurrentAuthorInfo({
@@ -255,12 +252,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (c.menuDishes) setMenuDishes(c.menuDishes);
   };
 
-    // 📌 一鍵收進我的口袋名單 (Clone and switch into editable draft for current user)
   const handleCloneToMyPocket = () => {
-    const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     setIsReadOnlyMode(false);
-    setPersonalNotes(''); // Clear notes so user writes own evaluation
-    setVisitCount(0);
+    setPersonalNotes('');
+    setVisitCount(1);
     setRatingTag('wishlist');
     setVisibility('public');
     alert(lang === 'zh-TW'
@@ -271,16 +266,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
     if (CITY_COORDINATES[newCity]) {
-      const offset = (Math.random() - 0.5) * 0.015;
-      setLat(CITY_COORDINATES[newCity].lat + offset);
-      setLng(CITY_COORDINATES[newCity].lng + offset);
+      setLat(CITY_COORDINATES[newCity].lat);
+      setLng(CITY_COORDINATES[newCity].lng);
     }
   };
 
-  // Smart Auto-Fill Logic
-  
-  
-  // 📷 Handle Menu Photo Upload & Auto Parsing
   const handleMenuPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -303,7 +293,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     }
   };
 
-  // 📝 Parse Raw Text to Dishes
   const handleParseMenuText = () => {
     if (!menuTextInput.trim()) return;
     const extracted = parseMenuTextToDishes(menuTextInput);
@@ -318,7 +307,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     }
   };
 
-  // 🏷️ Set Dish Rating & Auto Sync to Must-Eat / Avoid lists
   const handleSetDishRating = (dishId: string, rating?: DishRating) => {
     setMenuDishes((prev) =>
       prev.map((d) => {
@@ -343,28 +331,17 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     );
   };
 
-  // ✏️ Update Dish Name (Manual correction)
   const handleUpdateDishName = (dishId: string, newName: string) => {
     setMenuDishes((prev) =>
       prev.map((d) => (d.id === dishId ? { ...d, name: newName } : d))
     );
   };
 
-  // 🗑️ Remove Dish Item
   const handleRemoveDishItem = (dishId: string) => {
     setMenuDishes((prev) => prev.filter((d) => d.id !== dishId));
   };
 
-  // ➕ Add Single Custom Dish
-  const handleAddCustomDish = () => {
-    const newDish: DishItem = {
-      id: 'dish_' + Date.now(),
-      name: '',
-      rating: undefined,
-    };
-    setMenuDishes((prev) => [...prev, newDish]);
-  };
-
+  // 🛡️ 極致優化：安全壓縮演算法 (1200px 視網膜畫質 + 0.72 壓縮率，控制在 ~150KB，絕不塞爆 LocalStorage 與 Firebase)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -374,27 +351,26 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 2560; // Ultra high-resolution crisp photo
-        const MAX_HEIGHT = 2560;
+        const MAX_DIM = 1200;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+          if (width > MAX_DIM) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
           }
         } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
+          if (height > MAX_DIM) {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
           }
         }
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
         setCoverImage(dataUrl);
       };
       img.src = event.target?.result as string;
@@ -411,7 +387,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     setSmartAutoFillNotice(null);
 
     try {
-      // 1. Google Maps / Share Link 優先解析
       if (
         rawInput.includes('share.google') ||
         rawInput.includes('goo.gl') ||
@@ -438,7 +413,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         }
       }
 
-      // 2. 擷取影片 URL（若有）
       const urlMatch = rawInput.match(/https?:\/\/[^\s"'<>]+/i);
       const videoUrl = urlMatch ? urlMatch[0] : '';
       const isVideo = Boolean(
@@ -446,7 +420,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|fb\.com|xiaohongshu\.com|xhslink\.com|douyin\.com/i.test(videoUrl))
       );
 
-      // 取得去掉 URL 之後的純文字（例如用戶複製整段貼文：「台北超強拉麵【隱家拉麵】赤峰店必吃 https://...」）
       const textWithoutUrl = rawInput.replace(/https?:\/\/[^\s"'<>]+/gi, ' ').trim();
 
       let videoMetaTitle: string | undefined = undefined;
@@ -477,7 +450,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         if (videoMetaAuthor && !newVideoCreator) setNewVideoCreator(videoMetaAuthor);
       }
 
-      // 3. 結合使用者貼入的文字與影片抓到的文字，進行智慧解析
       const combinedText = [textWithoutUrl, videoMetaRawText].filter(Boolean).join('\n');
       const extracted = extractRestaurantInfoFromText(combinedText || rawInput);
 
@@ -508,14 +480,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         foundInfo = true;
       }
 
-      // 4. 若解析出店名，線上嚴格比對真實店家資訊（杜絕亂填錯誤地址）
       let hasConfidentOnlineMatch = false;
       if (extracted.name) {
         try {
-          // includeFallback = false: 不注入任何假 fallback 卡片，只查詢真實搜尋結果
           const placeResults = await searchGooglePlacesOnline(extracted.name, false);
 
-          // 嚴格判斷店名相符度（完全相等或互相包含），杜絕 OSM 隨機抓取無關地點亂填
           const isConfidentMatch = (qName?: string, rName?: string) => {
             if (!qName || !rName) return false;
             const q = qName.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
@@ -540,12 +509,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             if (matchingPlace.category && (matchingPlace.category !== '精選美食' || !category || category === '精選美食')) {
               setCategory(matchingPlace.category);
             }
-            // 若搜尋結果有更完整的官方名稱（例如「屋台ラーメン しゅんやっちゃん」），自動升級
             if (matchingPlace.name && matchingPlace.name.includes(extracted.name) && matchingPlace.name.length > extracted.name.length) {
               setName(matchingPlace.name);
             }
           } else {
-            // 線上圖資庫無完全吻合的店家：將店名預填入上方 Google 智慧搜店，方便使用者直接點選搜店或手動確認，絕不亂填門牌
             setPlaceSearchQuery(extracted.name);
           }
         } catch (e) {
@@ -553,7 +520,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         }
       }
 
-      // 筆記紀錄純文字
       if (textWithoutUrl.length > 10 && !personalNotes) {
         setPersonalNotes(textWithoutUrl.slice(0, 200));
       }
@@ -571,7 +537,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           );
         }
       } else if (isVideo) {
-        // 成功加入影片但無法從單一短網址讀取店家文字（Instagram / TikTok 原廠封鎖限制）
         setSmartAutoFillNotice(
           lang === 'zh-TW'
             ? '🎬 已成功加入短影音！⚠️ 因 Instagram / TikTok 官方隱私防爬蟲限制，若「只貼上影片連結」無法直接讀取貼文內文。建議您：在上方搜尋欄輸入店名，或在貼上時「連同貼文介紹文字一起複製貼入」，系統即可自動解析店名、地址與必吃品項！'
@@ -589,31 +554,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     }
   };
 
-  const handleAddMustEat = () => {
-    if (!newMustEatInput.trim()) return;
-    setMustEatDishes([...mustEatDishes, newMustEatInput.trim()]);
-    setNewMustEatInput('');
-  };
-
-  const handleRemoveMustEat = (index: number) => {
-    setMustEatDishes(mustEatDishes.filter((_, i) => i !== index));
-  };
-
-  const handleAddAvoidDish = () => {
-    if (!newAvoidInput.trim()) return;
-    setAvoidDishes([...avoidDishes, newAvoidInput.trim()]);
-    setNewAvoidInput('');
-  };
-
-  const handleRemoveAvoidDish = (index: number) => {
-    setAvoidDishes(avoidDishes.filter((_, i) => i !== index));
-  };
-
   const handleAddVideo = () => {
     const raw = newVideoUrl.trim();
     if (!raw) return;
 
-    // Smart clean URL if user pasted mobile share snippet
     const urlMatch = raw.match(/https?:\/\/[^\s"'<>]+/i);
     const cleanUrl = urlMatch ? urlMatch[0] : raw;
 
@@ -622,7 +566,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       ? newVideoHighlights.split(/[,， 、]+/).filter(Boolean)
       : undefined;
 
-    // If title is empty but raw input had text before/after URL, use it
     let fallbackTitle = newVideoTitle.trim();
     if (!fallbackTitle && raw !== cleanUrl) {
       const extra = raw.replace(cleanUrl, '').replace(/^[\s,，#]+/g, '').replace(/[\s,，#]+$/g, '').trim();
@@ -651,9 +594,15 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     setVideos(videos.filter((v) => v.id !== id));
   };
 
-    const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  // 🛡️ 強化版表單提交：防呆檢查，當店名為空時精確提示並聚焦
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (!name.trim()) {
+      alert(lang === 'zh-TW' ? '⚠️ 請輸入「店家名稱」後再儲存！' : '⚠️ 店舗名を入力してください！');
+      nameInputRef.current?.focus();
+      return;
+    }
 
     const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     const myContribution = editingRestaurant?.contributions?.find((c) => c.isMine);
@@ -702,6 +651,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
       <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+        
         {/* Header */}
         <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
           <div className="flex items-center gap-2">
@@ -722,10 +672,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           </button>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════
-            👥 多吃貨心得切換籤頁 (永遠顯示，無論編輯或唯讀模式)
-            只要這間店有 2 位以上吃貨留下紀錄就顯示
-            ══════════════════════════════════════════════════════════ */}
+        {/* 👥 多吃貨心得切換籤頁 */}
         {editingRestaurant?.contributions && editingRestaurant.contributions.length > 1 && (
           <div className="bg-gradient-to-r from-purple-900 to-indigo-900 px-5 py-3 border-b border-purple-700 space-y-2 shrink-0">
             <div className="flex items-center justify-between">
@@ -763,13 +710,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         )}
 
         {isReadOnlyMode ? (
-          /* ═══════════════════════════════════════════════════════════════════════════
-             📖 唯讀吃貨心得檢視模式 (Clean Read-Only View, NO form inputs!)
-             ═══════════════════════════════════════════════════════════════════════════ */
+          /* 📖 唯讀模式 */
           <div className="p-6 overflow-y-auto space-y-5 flex-1 bg-slate-50/50">
-
-
-                        {/* 🔒 唯讀提示與一鍵複製按鈕橫幅 */}
             <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 p-4 rounded-2xl border-2 border-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-10 h-10 rounded-full bg-white border-2 border-amber-300 overflow-hidden flex items-center justify-center text-lg shrink-0 shadow-2xs">
@@ -812,7 +754,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               )}
             </div>
 
-            {/* 店家核心資訊小卡 */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -868,7 +809,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               )}
             </div>
 
-            {/* 必吃與雷菜展示 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 space-y-2">
                 <span className="text-xs font-black text-amber-900 flex items-center gap-1">
@@ -907,7 +847,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             </div>
 
-            {/* 心得筆記展示 */}
             {personalNotes && (
               <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1.5">
                 <span className="text-xs font-black text-slate-700 block">📝 吃貨私房心得筆記：</span>
@@ -917,7 +856,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             )}
 
-            {/* 📷 菜單照片展示 (高清放大) */}
             {menuImages.length > 0 && (
               <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -946,7 +884,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             )}
 
-            {/* 📋 菜單品項與評分 */}
             {menuDishes.length > 0 && (
               <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
                 <span className="text-xs font-black text-slate-800 block">📋 菜單品項與即時評分 ({menuDishes.length})：</span>
@@ -972,7 +909,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             )}
 
-            {/* 探店短影音展示 */}
             {videos.length > 0 && (
               <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
                 <span className="text-xs font-black text-slate-700 block">📹 探店短影音 ({videos.length})：</span>
@@ -986,7 +922,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 transition-colors text-xs"
                     >
                       <span className="font-bold text-slate-800 truncate">
-                        🎬 {v.title || v.creatorName ? `${v.creatorName || ''} - ${v.title || '探店推薦'}` : v.url}
+                        🎬 {v.title || v.creatorName ? `${v.creatorName ? `@${v.creatorName} · ` : ''}${v.title || '探店推薦'}` : v.url}
                       </span>
                       <span className="text-purple-600 font-bold shrink-0 ml-2">點擊觀看 ↗</span>
                     </a>
@@ -996,14 +932,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             )}
           </div>
         ) : (
-          /* ═══════════════════════════════════════════════════════════════════════════
-             ✍️ 編輯 / 新增模式 (Full Editable Form)
-             ═══════════════════════════════════════════════════════════════════════════ */
-          <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-5 flex-1">
-                                    {/* 🪄 Smart Auto-Fill & Google Place Search Banner */}
+          /* ✍️ 編輯與新增模式 */
+          <form 
+            id="restaurant-modal-form"
+            onSubmit={handleSubmit} 
+            className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-5 flex-1"
+          >
             {!editingRestaurant && (
               <div className="space-y-3">
-                {/* 🔍 Google Place Search Bar */}
                 <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 space-y-2.5 shadow-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
@@ -1039,7 +975,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Dropdown Suggestions */}
                   {placeSearchResults.length > 0 && (
                     <div className="bg-white rounded-xl border border-indigo-200 shadow-md divide-y divide-slate-100 max-h-48 overflow-y-auto mt-2">
                       {placeSearchResults.map((place) => (
@@ -1064,7 +999,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   )}
                 </div>
 
-                {/* 🪄 IG / TikTok URL Auto-Fill */}
                 <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-indigo-50 border border-amber-200/80 rounded-2xl p-4 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
@@ -1115,7 +1049,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     </button>
                   </div>
 
-                  {/* 提示訊息橫幅（如遇平台防爬蟲限制時友善提示用戶） */}
                   {smartAutoFillNotice && (
                     <div className="bg-amber-100/90 border border-amber-300 text-amber-950 rounded-xl p-3 text-xs flex items-start justify-between gap-2 shadow-2xs">
                       <div className="flex items-start gap-2">
@@ -1125,7 +1058,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setSmartAutoFillNotice(null)}
-                        className="text-amber-700 hover:text-amber-950 font-black px-1.5 py-0.5 text-xs rounded-md"
+                        className="text-amber-700 hover:text-amber-950 font-black px-1.5 py-0.5 text-xs rounded-md cursor-pointer"
                       >
                         ✕
                       </button>
@@ -1144,7 +1077,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </h3>
               </div>
 
-              {/* 🌐 Visibility Selector */}
+              {/* 🌐 公開範圍設定 */}
               <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-purple-50/70 to-blue-50/70 border border-indigo-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
@@ -1201,9 +1134,10 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {t.labelSpotName}
+                    {t.labelSpotName} *
                   </label>
                   <input
+                    ref={nameInputRef}
                     type="text"
                     required
                     placeholder={lang === 'zh-TW' ? '例如：隱家拉麵 赤峰店' : '例：一蘭 新宿中央東口店'}
@@ -1376,7 +1310,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             {/* 🌟 必吃與雷菜 */}
             <div className="space-y-4 pt-2 border-t border-slate-200">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* 必吃菜色 */}
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-amber-900 flex items-center gap-1">
                     <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -1407,7 +1340,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           setNewMustEatInput('');
                         }
                       }}
-                      className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold"
+                      className="px-3 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold cursor-pointer"
                     >
                       新增
                     </button>
@@ -1416,13 +1349,12 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     {mustEatDishes.map((d, idx) => (
                       <span key={idx} className="bg-amber-100 text-amber-950 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
                         {d}
-                        <button type="button" onClick={() => setMustEatDishes(mustEatDishes.filter((_, i) => i !== idx))} className="text-amber-700 hover:text-red-500">×</button>
+                        <button type="button" onClick={() => setMustEatDishes(mustEatDishes.filter((_, i) => i !== idx))} className="text-amber-700 hover:text-red-500 cursor-pointer">×</button>
                       </span>
                     ))}
                   </div>
                 </div>
 
-                {/* 踩雷菜色 */}
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-rose-900 flex items-center gap-1">
                     <ThumbsDown className="w-3.5 h-3.5 text-rose-500" />
@@ -1453,7 +1385,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           setNewAvoidInput('');
                         }
                       }}
-                      className="px-3 py-2 bg-rose-500 text-white rounded-xl text-xs font-bold"
+                      className="px-3 py-2 bg-rose-500 text-white rounded-xl text-xs font-bold cursor-pointer"
                     >
                       新增
                     </button>
@@ -1462,7 +1394,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     {avoidDishes.map((d, idx) => (
                       <span key={idx} className="bg-rose-100 text-rose-950 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
                         {d}
-                        <button type="button" onClick={() => setAvoidDishes(avoidDishes.filter((_, i) => i !== idx))} className="text-rose-700 hover:text-red-500">×</button>
+                        <button type="button" onClick={() => setAvoidDishes(avoidDishes.filter((_, i) => i !== idx))} className="text-rose-700 hover:text-red-500 cursor-pointer">×</button>
                       </span>
                     ))}
                   </div>
@@ -1470,7 +1402,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               </div>
             </div>
 
-            {/* 📷 封面與環境美食照片上傳 (高清無損) */}
+            {/* 📷 封面照片上傳 */}
             <div className="space-y-3 pt-2 border-t border-slate-200">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -1481,7 +1413,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setImageInputMode('upload')}
-                    className={`px-2 py-0.5 rounded-md transition-all ${
+                    className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
                       imageInputMode === 'upload' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500'
                     }`}
                   >
@@ -1490,7 +1422,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setImageInputMode('url')}
-                    className={`px-2 py-0.5 rounded-md transition-all ${
+                    className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
                       imageInputMode === 'url' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500'
                     }`}
                   >
@@ -1514,7 +1446,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Camera className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>選擇高解析度照片 (支援 2K/4K)</span>
+                    <span>選擇清晰照片 (智慧優化儲存)</span>
                   </button>
                   {coverImage && (
                     <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
@@ -1569,7 +1501,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     <span>📷 菜單照片上傳與菜色智慧評分</span>
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    上傳菜單照片高清保存，可標記個別菜色為「必吃」或「避雷」
+                    上傳菜單照片保存，可標記個別菜色為「必吃」或「避雷」
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1592,7 +1524,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </div>
               </div>
 
-              {/* Uploaded Menu Photos Thumbnails */}
               {menuImages.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-bold text-slate-600 block">已上傳菜單 ({menuImages.length} 張)：</span>
@@ -1609,7 +1540,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setZoomedImage(mImg)}
-                            className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-[10px] font-bold"
+                            className="p-1.5 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-[10px] font-bold cursor-pointer"
                             title="放大"
                           >
                             🔍
@@ -1617,7 +1548,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setMenuImages(menuImages.filter((_, i) => i !== idx))}
-                            className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold"
+                            className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer"
                             title="刪除"
                           >
                             🗑️
@@ -1629,7 +1560,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </div>
               )}
 
-              {/* Fallback Text Menu Parser Button */}
               {!showTextMenuInput ? (
                 <button
                   type="button"
@@ -1652,7 +1582,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowTextMenuInput(false)}
-                      className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 font-bold"
+                      className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 font-bold cursor-pointer"
                     >
                       取消
                     </button>
@@ -1660,7 +1590,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       type="button"
                       onClick={handleParseMenuText}
                       disabled={!menuTextInput.trim()}
-                      className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+                      className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold disabled:opacity-50 cursor-pointer"
                     >
                       解析並加入菜單
                     </button>
@@ -1668,7 +1598,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </div>
               )}
 
-              {/* Parsed / Added Dishes List with Interactive 1-Click Rating */}
               {menuDishes.length > 0 && (
                 <div className="space-y-2 pt-2 border-t border-indigo-100">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-700">
@@ -1725,7 +1654,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveDishItem(dish.id)}
-                            className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors cursor-pointer"
                             title="刪除"
                           >
                             ×
@@ -1738,7 +1667,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               )}
             </div>
 
-            {/* 📹 探店短影音 / 外部影片 (TikTok / IG Reels / YouTube Shorts) */}
+            {/* 📹 探店短影音 */}
             <div className="space-y-3 pt-2 border-t border-slate-200 bg-gradient-to-r from-pink-50/50 via-rose-50/50 to-purple-50/50 p-4 rounded-2xl border border-pink-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -1755,7 +1684,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </span>
               </div>
 
-              {/* Video URL Input Box */}
               <div className="space-y-2 bg-white p-3 rounded-xl border border-rose-200/80 shadow-2xs">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -1802,7 +1730,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 </div>
               </div>
 
-              {/* List of Added Videos */}
               {videos.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-[11px] font-bold text-slate-700 block">已加入的探店影片 ({videos.length})：</span>
@@ -1870,9 +1797,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           </form>
         )}
 
-                {/* Footer */}
+        {/* Footer */}
         <div className="px-4 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 sm:gap-3 shrink-0 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
-          {/* Left: Delete My Pocket Record Button (if user owns a record in this restaurant) */}
           <div>
             {Boolean(
               editingRestaurant?.contributions?.some((c) => c.isMine) || 
@@ -1896,7 +1822,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             )}
           </div>
 
-          {/* Right: Cancel / Save / Clone Buttons */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1931,7 +1856,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             ) : (
               <button
                 type="button"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 className="px-6 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 transition-all active:scale-95 cursor-pointer"
               >
                 {editingRestaurant ? t.btnSave : '儲存到我的口袋'}
@@ -1941,7 +1866,6 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         </div>
       </div>
 
-      {/* 🔍 High-Resolution Lightbox Modal (Click to View Crisp Full-Screen Photo) */}
       {zoomedImage && (
         <div
           className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
@@ -1966,4 +1890,3 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     </div>
   );
 };
-
