@@ -1,34 +1,48 @@
 import type { Restaurant, RestaurantContribution } from '../types';
 
 /**
- * Normalizes a restaurant to a unique location/place key
- * Matches by cleaned Google Maps URL or (City + Normalized Name)
+ * 智慧地點歸一化演算法 (Smart Location Key)
+ * 結合「高精度 GPS 網格 (~150m)」與「清洗後的店名」，
+ * 確保：同一家店能精準合併，但「同城市的不同分店」絕不會被誤吸進同一個圖釘！
  */
 export function normalizeRestaurantKey(r: Restaurant): string {
+  // 1. 若有有效經緯度，以 ~150 公尺為半徑建立地理網格 (小數點後 3 位約為 110 公尺)
+  const lat = Number(r.lat);
+  const lng = Number(r.lng);
+  const hasValidCoords = isFinite(lat) && isFinite(lng) && (lat !== 0 || lng !== 0);
+
+  const cleanName = (r.name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\(.*?\)|（.*?）|\[.*?\]|【.*?】|「.*?」|『.*?』/g, '')
+    .replace(/[\s\-_—·.,]/g, '');
+
+  if (hasValidCoords) {
+    // 地理網格 + 核心店名：不同分店因經緯度不同，絕對不會誤判為同一間！
+    const geoGrid = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
+    return `geo_${geoGrid}_${cleanName}`;
+  }
+
+  // 2. 若無經緯度，解析 Google Maps 搜尋參數
   if (r.googleMapsUrl && r.googleMapsUrl.trim()) {
     try {
       const url = new URL(r.googleMapsUrl.trim());
-      const query = url.searchParams.get('query') || url.searchParams.get('q') || url.pathname;
-      if (query && query.length > 5) {
+      const query = url.searchParams.get('query') || url.searchParams.get('q');
+      if (query && query.length > 3) {
         return 'gmap_' + query.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
       }
     } catch {}
   }
 
+  // 3. 最後兜底：城市 + 店名 + 地址前 6 碼 (避免無座標時連鎖店撞車)
   const cleanCity = (r.city || '').trim().toLowerCase();
-  const cleanName = (r.name || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\(.*?\)|（.*?）|\[.*?\]|【.*?】|「.*?」|『.*?』/g, '')
-    .replace(/[\s\-_—·.,]/g, '')
-    .replace(/(總店|分店|旗艦店|門市|赤峰店|信義店|中山店|復興店|站前店|一號店|二號店)$/, '');
-
-  return `${cleanCity}_${cleanName}`;
+  const cleanAddr = (r.address || '').trim().toLowerCase().replace(/[\s\-_—·.,]/g, '').slice(0, 8);
+  return `${cleanCity}_${cleanName}_${cleanAddr}`;
 }
 
 /**
- * Aggregates restaurants from multiple sources (Self, Friends, Global Community)
- * Combines identical restaurants into a single map point & list card with a multi-foodie reviews collection!
+ * 餐廳聚合引擎 (Multi-Foodie Review Aggregator)
+ * 將同一地點的好友、社群、個人評分融合，並將所有人推薦的必吃菜色智慧匯流！
  */
 export function aggregateRestaurants(
   restaurants: Restaurant[],
@@ -87,14 +101,14 @@ export function aggregateRestaurants(
       continue;
     }
 
-    // Multiple foodies added the SAME restaurant!
-    // 1. Pick Primary Restaurant (Prefer current user's version, else first in group)
+    // 🌟 多位吃貨共同評比同一間餐廳！
+    // 1. 決定主顯主體 (優先採納使用者自己的紀錄，其次採納造訪次數最高或資訊最完整者)
     let primary = group.find((r) => checkIsMine(r));
     if (!primary) {
-      primary = group[0];
+      primary = [...group].sort((a, b) => (b.visitCount || 0) - (a.visitCount || 0))[0];
     }
 
-    // 2. Build contributions list
+    // 2. 構建所有吃貨的共筆評論庫
     const contributions: RestaurantContribution[] = [];
     const seenAuthors = new Set<string>();
 
@@ -119,7 +133,6 @@ export function aggregateRestaurants(
       updatedAt: primary.updatedAt,
     });
 
-    // Add other foodies' reviews
     for (const other of group) {
       if (other.id === primary.id) continue;
       const otherIsMine = checkIsMine(other);
@@ -145,14 +158,22 @@ export function aggregateRestaurants(
       });
     }
 
-    // 3. Aggregate all unique videos
+    // 3. 🚀 智慧匯流：融合全體好友的「必吃菜」與「避雷菜」，絕不遺漏任何吃貨情報！
+    const allMustEat = Array.from(
+      new Set(group.flatMap((r) => r.mustEatDishes || []).filter((d) => Boolean(d && d.trim())))
+    );
+    const allAvoid = Array.from(
+      new Set(group.flatMap((r) => r.avoidDishes || []).filter((d) => Boolean(d && d.trim())))
+    );
+
+    // 4. 融合所有獨家短影音
     const allVideos = [...(primary.videos || [])];
     const seenVideoUrls = new Set(allVideos.map((v) => v.url));
 
     for (const r of group) {
       if (r.id === primary.id) continue;
       (r.videos || []).forEach((v) => {
-        if (!seenVideoUrls.has(v.url)) {
+        if (v && v.url && !seenVideoUrls.has(v.url)) {
           seenVideoUrls.add(v.url);
           allVideos.push(v);
         }
@@ -161,6 +182,8 @@ export function aggregateRestaurants(
 
     aggregatedList.push({
       ...primary,
+      mustEatDishes: allMustEat.length > 0 ? allMustEat : primary.mustEatDishes,
+      avoidDishes: allAvoid.length > 0 ? allAvoid : primary.avoidDishes,
       videos: allVideos,
       contributions,
     });
