@@ -88,15 +88,11 @@ export function App() {
     };
   });
 
-  
-  
-  
-        // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync & Dynamic Nickname Updates
+  // ⚡ 0-Second Real-Time Instant 2-Way WebSocket Listener for Mutual Cloud Friend Sync & Dynamic Nickname Updates
   useEffect(() => {
     const myId = userProfile.foodieId;
     if (!myId || myId === 'guest' || myId.trim() === '') return;
 
-    // Refresh friends' latest nicknames and taste tags from cloud on mount
     syncFriendsWithLatestProfiles(friends).then((latestFriends) => {
       if (latestFriends && latestFriends.length > 0) {
         setFriends(latestFriends);
@@ -107,7 +103,6 @@ export function App() {
     let unsub: (() => void) | null = null;
     listenToMutualFriendSync(
       myId,
-      // 1. Incoming Friend Requests handler
       (incoming) => {
         setFriendRequests((prev) => {
           const existingIds = new Set(prev.map((r) => r.id));
@@ -129,7 +124,6 @@ export function App() {
           return prev;
         });
       },
-      // 2. Outgoing Request Accepted handler (Auto-add target to sender's friend list with real nickname)
       (acceptedFriend) => {
         setFriends((prevFriends) => {
           const alreadyInList = prevFriends.some(
@@ -144,7 +138,6 @@ export function App() {
           return prevFriends;
         });
       },
-      // 3. Cloud Unfriend Sync (Auto-remove friend if either party unfriend)
       (unfriendedFoodieId) => {
         const cleanUnfriend = unfriendedFoodieId.toLowerCase().trim();
         setFriends((prevFriends) => {
@@ -162,7 +155,6 @@ export function App() {
           return prevFriends;
         });
       },
-      // 4. 🌐 Real-Time Live Profile Sync (Updates Friend's Nickname, Avatar, and Taste Tags in 0.1s!)
       (updatedProfile) => {
         const cleanId = updatedProfile.foodieId.toLowerCase().trim();
         setFriends((prevFriends) => {
@@ -227,7 +219,7 @@ export function App() {
     checkRedirect();
   }, []);
 
-    // 🌐 0.1-Second Real-Time WebSocket Stream for Community Public Restaurants
+  // 🌐 0.1-Second Real-Time WebSocket Stream for Community Public Restaurants
   useEffect(() => {
     purgeMockTestData();
     let unsub: (() => void) | null = null;
@@ -242,7 +234,7 @@ export function App() {
     };
   }, []);
 
-  // 🗺️ 0.1-Second Real-Time WebSocket Stream for Friends Shared Food Maps
+  // 🗺️ 0.1-Second Real-Time WebSocket Stream for Friends Shared Food Maps (已優化：單一監聽器)
   useEffect(() => {
     let unsub: (() => void) | null = null;
     if (friends && friends.length > 0) {
@@ -261,7 +253,7 @@ export function App() {
     };
   }, [friends]);
 
-    // 🚀 Immediate Startup Sync: If local restaurants exist and user is logged in, immediately push to cloud
+  // 🚀 Immediate Startup Sync: If local restaurants exist and user is logged in, immediately push to cloud
   useEffect(() => {
     if (userProfile.foodieId && userProfile.foodieId !== 'guest' && restaurants.length > 0) {
       const cleanId = userProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
@@ -280,7 +272,6 @@ export function App() {
         console.log('🚀 Successfully auto-uploaded all local restaurants to cloud Firestore!');
       }).catch(() => {});
 
-      // Publish all public restaurants to global community collection
       cleanList.forEach((r) => {
         if (r.visibility === 'public') {
           publishPublicRestaurantToCloud(r, userProfile).catch(() => {});
@@ -289,7 +280,7 @@ export function App() {
     }
   }, [userProfile.foodieId, restaurants.length]);
 
-  // 🔄 Continuous Auto-Sync to Cloud Firestore (Guarantees Friends always see latest public/shared spots)
+  // 🔄 Continuous Auto-Sync to Cloud Firestore
   useEffect(() => {
     if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
       const cleanId = userProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
@@ -311,7 +302,7 @@ export function App() {
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedFriendId, setSelectedFriendId] = useState('all');
   const [listViewMode, setListViewMode] = useState<'cards' | 'compact'>('compact');
-  const [sortOption, setSortOption] = useState<SortOption>('distance'); // Default Nearest
+  const [sortOption, setSortOption] = useState<SortOption>('distance');
   const [friendsRestaurants, setFriendsRestaurants] = useState<Restaurant[]>([]);
   const [communityRestaurants, setCommunityRestaurants] = useState<Restaurant[]>([]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'mine' | 'friends'>('all');
@@ -330,9 +321,9 @@ export function App() {
   const [sharingRestaurant, setSharingRestaurant] = useState<Restaurant | null>(null);
   const [targetMapRestaurant, setTargetMapRestaurant] = useState<Restaurant | null>(null);
 
-  // Auto-detect browser GPS location if permitted
+  // Auto-detect browser GPS location if permitted (已優化：高精度晶片 + 15秒超時容錯)
   useEffect(() => {
-        if (navigator.geolocation) {
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const lat = pos.coords.latitude;
@@ -347,9 +338,13 @@ export function App() {
           });
         },
         (err) => {
-          console.log('Geolocation not available, using default city center', err.message);
+          console.warn('Geolocation warning, fallback to default center:', err.message);
         },
-        { timeout: 6000 }
+        { 
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 60000 
+        }
       );
     }
   }, []);
@@ -415,7 +410,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-      // 🔴 Sign Out / Logout
+  // 🔴 Sign Out / Logout
   const handleLogout = async () => {
     try {
       await signOutGoogle();
@@ -445,7 +440,6 @@ export function App() {
     setMeetups([]);
     saveMeetups([]);
 
-    // Clear local registry session
     localStorage.removeItem('bitemap_active_account');
 
     alert(lang === 'zh-TW' ? '👋 已安全登出帳號！目前已切換為遊客模式。' : '👋 ログアウトしました。ゲストモードに切り替わりました。');
@@ -487,7 +481,6 @@ export function App() {
     setMeetups([]);
     saveMeetups([]);
 
-    // Clear all accounts from local storage
     localStorage.clear();
     saveUserProfile(guestProfile);
 
@@ -510,7 +503,6 @@ export function App() {
     saveRestaurants(updated);
     setLastSyncTime(triggerAutoSync());
 
-    // 🌐 If public visibility, push to Community Discovery Cloud!
     if (restaurant.visibility === 'public') {
       publishPublicRestaurantToCloud(restaurant, userProfile).catch((e: any) =>
         console.log('Publish public restaurant failed', e)
@@ -518,18 +510,16 @@ export function App() {
     }
   };
 
-    const handleDeleteRestaurant = (id: string) => {
+  const handleDeleteRestaurant = (id: string) => {
     const confirmMsg = lang === 'zh-TW' ? '確定要從您的口袋名單中刪除這間餐廳紀錄嗎？' : 'このグルメ記録を削除しますか？';
     if (confirm(confirmMsg)) {
       const deletedRestaurant = restaurants.find((r) => r.id === id);
       const cleanMyId = (userProfile.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
 
-      // 1. Remove from local user pocket
       const updated = restaurants.filter((r) => r.id !== id);
       setRestaurants(updated);
       saveRestaurants(updated);
 
-      // 2. Instantly remove from local community live state if it belonged to user
       if (deletedRestaurant) {
         const deletedKey = normalizeRestaurantKey(deletedRestaurant);
         setCommunityRestaurants((prev) =>
@@ -537,7 +527,6 @@ export function App() {
         );
       }
 
-      // 3. Sync deletion to Cloud Firestore
       if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
         saveFoodieAccountToCloud({
           foodieId: cleanMyId,
@@ -548,7 +537,6 @@ export function App() {
           meetups,
         }).catch(() => {});
 
-        // Unpublish from public stream
         publishPublicRestaurantToCloud({ id, visibility: 'private' } as any, userProfile).catch(() => {});
       }
 
@@ -574,8 +562,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-
-    const handleAcceptFriendRequest = (req: FriendRequest) => {
+  const handleAcceptFriendRequest = (req: FriendRequest) => {
     respondToCloudFriendRequest(req.id, 'accepted', userProfile, req.senderFoodieId);
     
     const newFriend: Friend = {
@@ -615,7 +602,7 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-      const handleSendFriendRequest = async (targetFoodieId: string): Promise<{ success: boolean; message: string }> => {
+  const handleSendFriendRequest = async (targetFoodieId: string): Promise<{ success: boolean; message: string }> => {
     const cleanId = targetFoodieId.trim().toLowerCase().replace(/[@#\s]/g, '');
     if (!cleanId) return { success: false, message: '請輸入好友的吃貨 ID！' };
 
@@ -624,13 +611,11 @@ export function App() {
       return { success: false, message: '不能添加自己的吃貨 ID 唷！' };
     }
 
-    // 1. Check if already friends
     const alreadyFriend = friends.some((f) => (f.foodieId || '').toLowerCase().replace(/[@#\s]/g, '') === cleanId);
     if (alreadyFriend) {
       return { success: false, message: `⚠️ 您與【${cleanId}】已經是吃貨好友囉！無須重複添加。` };
     }
 
-    // 2. Build request object
     const newIncomingRequest: FriendRequest = {
       id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       senderFoodieId: userProfile.foodieId || 'foodie',
@@ -643,24 +628,18 @@ export function App() {
       status: 'pending',
     };
 
-    // 3. Optionally verify cloud account existence (non-blocking: if Firestore not enabled yet, skip)
     let targetDisplayName = cleanId;
     try {
       const cloudCheck = await fetchFoodieAccountFromCloud(cleanId);
       if (cloudCheck.success && cloudCheck.account) {
-        // Cloud confirmed: use real name
         targetDisplayName = cloudCheck.account.profile?.name || cleanId;
       } else {
-        // Cloud says not found — could be: Firestore not enabled, or account not yet synced
-        // We still allow sending the request (recipient may have different device/browser)
         console.warn(`Cloud check: ID [${cleanId}] not found in cloud registry. Sending anyway.`);
       }
     } catch {
-      // Cloud unreachable — skip verification, still send
       console.warn('Cloud verification skipped (Firestore not available). Sending friend request directly.');
     }
 
-    // 4. Send to Firestore
     try {
       const sendRes = await sendCloudFriendRequest(newIncomingRequest, cleanId);
       if (!sendRes.success) {
@@ -717,13 +696,11 @@ export function App() {
       });
       setLastSyncTime(triggerAutoSync());
 
-      // Sync deletion to cloud so other party's phone also removes this friendship
       if (userProfile.foodieId && targetFriend?.foodieId) {
         deleteCloudFriendship(userProfile.foodieId, targetFriend.foodieId);
       }
     }
   };
-
 
   const handleSaveMeetup = (meetup: DiningMeetup) => {
     const updated = [meetup, ...meetups];
@@ -800,8 +777,6 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-
-
   const handleLoginSuccess = (account: AccountRecord) => {
     setUserProfile(account.profile);
     saveUserProfile(account.profile);
@@ -822,12 +797,11 @@ export function App() {
     setLastSyncTime(triggerAutoSync());
   };
 
-    const handleSaveUserProfile = (profile: UserProfile) => {
+  const handleSaveUserProfile = (profile: UserProfile) => {
     setUserProfile(profile);
     saveUserProfile(profile);
     setLastSyncTime(triggerAutoSync());
 
-    // 🌐 Automatically sync latest Nickname, Avatar, and Taste Tags to Cloud Public Profile!
     saveFoodieAccountToCloud({
       foodieId: profile.foodieId || 'my_id',
       pinCode: profile.pinCode || '8888',
@@ -848,8 +822,6 @@ export function App() {
     }
   };
 
-
-    // 📬 Pure Active Pending Friend Requests (Filtered: Strictly excludes anyone who is already in friends list!)
   const validPendingRequests = useMemo(() => {
     return friendRequests.filter((r) => {
       if (r.status !== 'pending') return false;
@@ -861,26 +833,8 @@ export function App() {
     });
   }, [friendRequests, friends]);
 
-    // 🗺️ 0.1-Second Real-Time WebSocket Stream for Friends' Shared Food Maps
-  useEffect(() => {
-    if (friends.length === 0) {
-      setFriendsRestaurants([]);
-      return;
-    }
-    let unsub: (() => void) | null = null;
-    listenToFriendsRestaurantsRealtime(friends, (sharedList) => {
-      setFriendsRestaurants(sharedList);
-    }).then((cleanup) => {
-      unsub = cleanup;
-    });
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [friends]);
-
-            // 🌍 Global Combined Restaurants (All unique spots across Self, Friends, and Global Community)
-    const allCombinedGlobalList = useMemo(() => {
+  // 🌍 Global Combined Restaurants (已解除黑名單，所有餐廳正常收錄)
+  const allCombinedGlobalList = useMemo(() => {
     const rawList: Restaurant[] = [];
     const seenAuthorSpot = new Set<string>();
 
@@ -889,7 +843,6 @@ export function App() {
 
     // Priority 1: User's own restaurants
     restaurants.forEach((r) => {
-      if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
       const authorKey = (cleanMyId || 'me') + '_' + normalizeRestaurantKey(r);
       if (!seenAuthorSpot.has(authorKey)) {
         seenAuthorSpot.add(authorKey);
@@ -902,10 +855,9 @@ export function App() {
       }
     });
 
-    // Priority 2: Friends' restaurants (ONLY if NOT guest!)
+    // Priority 2: Friends' restaurants
     if (!isGuest && friends.length > 0) {
       friendsRestaurants.forEach((r) => {
-        if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
         const authorKey = (r.authorFoodieId || r.id) + '_' + normalizeRestaurantKey(r);
         if (!seenAuthorSpot.has(authorKey)) {
           seenAuthorSpot.add(authorKey);
@@ -916,7 +868,6 @@ export function App() {
 
     // Priority 3: Global Community restaurants
     communityRestaurants.forEach((r) => {
-      if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return;
       const authorKey = (r.authorFoodieId || 'pub_' + r.id) + '_' + normalizeRestaurantKey(r);
       if (!seenAuthorSpot.has(authorKey)) {
         seenAuthorSpot.add(authorKey);
@@ -981,7 +932,6 @@ export function App() {
 
   // Deep Filtered & Multi-Mode Sorted Restaurants
   const filteredAndSortedRestaurants = useMemo(() => {
-    // 1. Filter
     const filtered = allCombinedRestaurants.filter((r) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -1027,7 +977,7 @@ export function App() {
         if (!matchesExact && !matchesSub) return false;
       }
 
-            if (selectedFriendId !== 'all') {
+      if (selectedFriendId !== 'all') {
         const selectedFriend = friends.find(
           (f) => f.id === selectedFriendId || (f.foodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '') === selectedFriendId.toLowerCase().trim().replace(/[@#\s]/g, '')
         );
@@ -1053,7 +1003,6 @@ export function App() {
       return true;
     });
 
-    // 2. Sort by sortOption
     return [...filtered].sort((a, b) => {
       if (sortOption === 'distance') {
         const distA = calculateDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng);
@@ -1105,7 +1054,7 @@ export function App() {
 
   const handleCitySelectWithCoords = (city: string) => {
     setSelectedCity(city);
-        if (city !== 'all' && CITY_COORDS[city]) {
+    if (city !== 'all' && CITY_COORDS[city]) {
       setUserLocation({
         lat: CITY_COORDS[city].lat,
         lng: CITY_COORDS[city].lng,
@@ -1191,7 +1140,6 @@ export function App() {
               lang={lang}
             />
 
-            {/* Split View Map + Real-time Interactive Sidebar List */}
             <FoodMap
               restaurants={filteredAndSortedRestaurants}
               friends={friends}
@@ -1233,13 +1181,11 @@ export function App() {
               lang={lang}
             />
 
-            {/* List Header with Count and View Mode Toggle */}
             <div className="flex items-center justify-between px-1">
               <div className="text-xs font-black text-slate-600">
                 <span>{lang === 'zh-TW' ? `🍽️ 共 ${filteredAndSortedRestaurants.length} 間美食紀錄` : `全 ${filteredAndSortedRestaurants.length} 件`}</span>
               </div>
 
-              {/* View Mode Toggle: Compact Rows vs Photo Cards */}
               <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-2xl">
                 <button
                   onClick={() => setListViewMode('compact')}
@@ -1296,7 +1242,6 @@ export function App() {
                 )}
               </div>
             ) : listViewMode === 'compact' ? (
-              /* 📑 橫式緊湊純文字/關鍵字條列清單 (一頁看 15~20 間) */
               <div className="space-y-2">
                 {filteredAndSortedRestaurants.map((restaurant) => (
                   <RestaurantCompactRow
@@ -1317,7 +1262,6 @@ export function App() {
                 ))}
               </div>
             ) : (
-              /* 🔲 大圖卡片網格 */
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                 {filteredAndSortedRestaurants.map((restaurant) => (
                   <RestaurantCard
@@ -1380,7 +1324,6 @@ export function App() {
         )}
       </main>
 
-            {/* 🏷️ App Footer with Producer & Disclaimer */}
       <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 text-center text-xs text-slate-500 space-y-1.5 mt-8">
         <div className="flex items-center justify-center gap-2 flex-wrap font-bold">
           <span className="text-slate-900 font-black">BiteMap 短影音美食地圖</span>
@@ -1402,9 +1345,7 @@ export function App() {
         </p>
       </footer>
 
-
-
-                  <GooglePlaceSearchModal
+      <GooglePlaceSearchModal
         isOpen={isPlaceSearchModalOpen}
         onClose={() => setIsPlaceSearchModalOpen(false)}
         onAddRestaurant={(r) => {
