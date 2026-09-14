@@ -1,4 +1,3 @@
-
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, UserProfile } from '../types';
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
@@ -38,7 +37,7 @@ export function saveFriendRequests(requests: FriendRequest[]): void {
   }
 }
 
-// 🪪 Generate Friend Invite Base64 Token
+// 🪪 產生好友邀請 Token (安全 Base64)
 export function generateFriendInviteToken(profile: UserProfile): string {
   try {
     const payload = {
@@ -57,10 +56,13 @@ export function generateFriendInviteToken(profile: UserProfile): string {
   }
 }
 
-// 📥 Parse Friend Invite Token
+// 📥 智慧容錯解析好友邀請 Token (完美防禦 LINE / FB 轉址污染)
 export function parseFriendInviteToken(token: string): FriendRequest | null {
   try {
-    const jsonStr = decodeURIComponent(atob(token));
+    if (!token) return null;
+    // 解決 LINE / FB 等通訊軟體將 '+' 轉為空白或 URL 縮網址之容錯
+    const cleanToken = token.trim().replace(/ /g, '+');
+    const jsonStr = decodeURIComponent(atob(cleanToken));
     const data = JSON.parse(jsonStr);
     if (!data.foodieId || !data.name) return null;
     return {
@@ -68,22 +70,19 @@ export function parseFriendInviteToken(token: string): FriendRequest | null {
       senderFoodieId: data.foodieId,
       senderName: data.name,
       senderAvatar: data.avatar || '🥢',
-      favoriteTags: data.favoriteTags || [],
-      dislikedTags: data.dislikedTags || [],
+      favoriteTags: Array.isArray(data.favoriteTags) ? data.favoriteTags : [],
+      dislikedTags: Array.isArray(data.dislikedTags) ? data.dislikedTags : [],
       bio: data.bio || '',
       sentAt: new Date().toISOString().split('T')[0],
       status: 'pending',
     };
   } catch (err) {
-    console.error('Failed to parse friend token', err);
+    console.warn('Failed to parse friend token, token may be corrupted:', err);
     return null;
   }
 }
 
-
-
 export const INITIAL_FRIENDS: Friend[] = [];
-
 export const INITIAL_RESTAURANTS: Restaurant[] = [];
 
 const STORAGE_KEYS = {
@@ -92,8 +91,6 @@ const STORAGE_KEYS = {
   USER_PROFILE: 'bitemap_user_profile_v1',
   LAST_SYNC: 'bitemap_last_sync_v1',
 };
-
-
 
 export function getAutoSyncTime(): string {
   return localStorage.getItem(STORAGE_KEYS.LAST_SYNC) || new Date().toLocaleTimeString();
@@ -104,7 +101,6 @@ export function triggerAutoSync(): string {
   localStorage.setItem(STORAGE_KEYS.LAST_SYNC, timeStr);
   return timeStr;
 }
-
 
 export function loadUserProfile(): UserProfile {
   try {
@@ -134,12 +130,13 @@ export function saveUserProfile(profile: any): void {
   }
 }
 
-
+// 🛡️ 具備舊版向下相容與無痛遷移機制的載入
 export function loadRestaurants(): Restaurant[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
+    const saved = localStorage.getItem(STORAGE_KEYS.RESTAURANTS) || localStorage.getItem('bitemap_restaurants');
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (err) {
     console.error('Failed to load restaurants from localStorage:', err);
@@ -161,7 +158,7 @@ export function loadFriends(): Friend[] {
     if (!profile.foodieId || profile.foodieId === 'guest') {
       return [];
     }
-    const saved = localStorage.getItem(STORAGE_KEYS.FRIENDS);
+    const saved = localStorage.getItem(STORAGE_KEYS.FRIENDS) || localStorage.getItem('bitemap_friends');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
@@ -204,7 +201,6 @@ export function importBackupData(jsonString: string): { success: boolean; messag
   try {
     const parsed = JSON.parse(jsonString);
 
-    // If it's a public share pack from a friend, safely MERGE without overwriting personal notes or existing friends!
     if (parsed.isPublicPack && Array.isArray(parsed.restaurants)) {
       const currentList = loadRestaurants();
       const existingIds = new Set(currentList.map((r) => r.id));
@@ -227,7 +223,6 @@ export function importBackupData(jsonString: string): { success: boolean; messag
       };
     }
 
-    // Full Private Backup Import
     if (Array.isArray(parsed.restaurants)) {
       saveRestaurants(parsed.restaurants);
     }
@@ -242,7 +237,6 @@ export function importBackupData(jsonString: string): { success: boolean; messag
     return { success: false, message: `匯入失敗：${err.message}` };
   }
 }
-
 
 export const INITIAL_MEETUPS: DiningMeetup[] = [];
 
@@ -266,7 +260,6 @@ export function saveMeetups(meetups: DiningMeetup[]): void {
     console.error('Failed to save meetups', err);
   }
 }
-
 
 export interface AccountRecord {
   foodieId: string;
@@ -298,7 +291,6 @@ export function saveAccountRegistry(registry: Record<string, AccountRecord>): vo
   }
 }
 
-// 🔐 Save or Register Account to Registry (100% Failproof)
 export function registerOrUpdateAccount(
   profile: UserProfile,
   restaurants?: Restaurant[],
@@ -330,7 +322,6 @@ export function registerOrUpdateAccount(
   saveUserProfile(record.profile);
 }
 
-// 🔑 Login Account (Intelligent extraction, case-insensitive, forgiving PIN)
 export function authenticateAndLoginAccount(foodieId: string, pinCode?: string): {
   success: boolean;
   message: string;
@@ -340,7 +331,6 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   let cleanId = (foodieId || '').trim().toLowerCase();
   let cleanPin = String(pinCode || '').trim();
 
-  // If user typed ID#PIN into ID input (e.g. "boop#1234")
   if (cleanId.includes('#')) {
     const parts = cleanId.split('#');
     cleanId = parts[0].trim();
@@ -355,11 +345,9 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
 
   const registry = loadAccountRegistry();
   
-  // Find case-insensitive match
   const accKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanId);
   let acc = accKey ? registry[accKey] : undefined;
 
-  // Fallback: check current active profile in localStorage
   if (!acc) {
     const current = loadUserProfile();
     if (current.foodieId && current.foodieId.toLowerCase() === cleanId) {
@@ -387,7 +375,6 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
 
   const storedPin = String(acc.pinCode || '8888').trim();
 
-  // ✅ 強制驗證 PIN — 不允許空 PIN 直接登入
   if (!cleanPin) {
     return { 
       success: false, 
@@ -412,17 +399,23 @@ export function authenticateAndLoginAccount(foodieId: string, pinCode?: string):
   };
 }
 
-// 🔍 Search Pure Foodie ID for Friend Request
+// 🔍 查好友 ID (已修復大小寫相容，不再因為大小寫查無此人)
 export function findFoodieProfileById(targetFoodieId: string): UserProfile | null {
+  if (!targetFoodieId) return null;
+  const cleanTarget = targetFoodieId.trim().toLowerCase();
   const registry = loadAccountRegistry();
-  const acc = registry[targetFoodieId];
-  return acc ? acc.profile : null;
+  
+  const foundKey = Object.keys(registry).find((k) => k.toLowerCase() === cleanTarget);
+  if (foundKey && registry[foundKey]) {
+    return registry[foundKey].profile;
+  }
+  return null;
 }
 
-
+// 🧹 清理假資料腳本 (已拔除「詹記 / TAMED」硬編碼刪除邏輯，確保真實店家永不被誤殺)
 export function purgeMockTestData(): void {
   try {
-    // 1. Clean Restaurants
+    // 1. 清理測試餐廳 (只清理明確的 mock_ 與測試字元)
     ['bitemap_restaurants_v1', 'bitemap_restaurants'].forEach((key) => {
       const raw = localStorage.getItem(key);
       if (raw) {
@@ -433,7 +426,6 @@ export function purgeMockTestData(): void {
               if (['r1', 'r2', 'r3', 'r4', 'as', 'asas', 'asd'].includes(r.id)) return false;
               if (r.id?.startsWith('mock_')) return false;
               if (['as', 'asas', 'asd'].includes(r.name?.toLowerCase())) return false;
-              if (r.name?.includes('TAMED') || r.name?.includes('詹記')) return false;
               return true;
             });
             localStorage.setItem('bitemap_restaurants_v1', JSON.stringify(realOnly));
@@ -442,7 +434,7 @@ export function purgeMockTestData(): void {
       }
     });
 
-    // 2. Clean Friends
+    // 2. 清理測試好友
     ['bitemap_friends_v1', 'bitemap_friends'].forEach((key) => {
       const rawFriends = localStorage.getItem(key);
       if (rawFriends) {
@@ -456,7 +448,7 @@ export function purgeMockTestData(): void {
       }
     });
 
-    // 3. Clean Meetups / Social Board (Purge m1, m2, mock_)
+    // 3. 清理測試聚餐
     ['bitemap_meetups_v1', 'bitemap_meetups'].forEach((key) => {
       const rawMeetups = localStorage.getItem(key);
       if (rawMeetups) {
@@ -471,7 +463,7 @@ export function purgeMockTestData(): void {
       }
     });
 
-    // 4. Clean Friend Requests
+    // 4. 清理測試好友邀請
     const rawFreq = localStorage.getItem('bitemap_friend_requests_v1');
     if (rawFreq) {
       try {
@@ -483,7 +475,7 @@ export function purgeMockTestData(): void {
       } catch {}
     }
 
-    // 5. Clean Account Registry
+    // 5. 清理測試帳號
     const rawAcc = localStorage.getItem('bitemap_account_registry_v1');
     if (rawAcc) {
       try {
