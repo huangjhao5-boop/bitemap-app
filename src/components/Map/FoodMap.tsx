@@ -9,7 +9,6 @@ import { extractSearchMatch } from '../../utils/searchHelper';
 import { 
   Navigation, 
   LocateFixed,
-  Crosshair,
   Star, 
   AlertTriangle,
   Share2,
@@ -39,7 +38,6 @@ interface FoodMapProps {
   targetRestaurant?: Restaurant | null;
 }
 
-// Category-Based Pin Color & Emoji Dispatcher
 function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
   let bgColor = 'bg-amber-500';
   let emoji = '🥢';
@@ -123,15 +121,13 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
 
   return L.divIcon({
     html,
-    className: '',
+    className: 'bg-transparent border-0',
     iconSize: [80, 52],
     iconAnchor: [40, 48],
     popupAnchor: [0, -48],
   });
 }
 
-
-// 📍 GPS Locate Me Button — pure HTML button, OUTSIDE MapContainer, always clickable
 function LocateMeControl({ 
   userLocation, 
   lang,
@@ -145,7 +141,6 @@ function LocateMeControl({
 
   const handleLocateMe = () => {
     setIsLocating(true);
-    // Immediately fly to cached location for instant response
     onLocate([userLocation.lat, userLocation.lng]);
 
     if (navigator.geolocation) {
@@ -182,7 +177,17 @@ function LocateMeControl({
   );
 }
 
-// 🎯 Marker Focus & Navigation Controller: Auto-fly and open popup on selection
+// 🚀 全新加入：解決按鈕按了地圖不會動的關鍵控制器！
+function FlyToLocationController({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, 16, { duration: 0.8 });
+    }
+  }, [position, map]);
+  return null;
+}
+
 function MarkerFocusController({ 
   selectedRestaurant,
   markerRefs 
@@ -201,10 +206,8 @@ function MarkerFocusController({
     const lat = Number(selectedRestaurant.lat) || 25.033;
     const lng = Number(selectedRestaurant.lng) || 121.5654;
 
-    // 1. Smoothly fly directly to the selected restaurant
     map.flyTo([lat, lng], 16, { duration: 0.7 });
 
-    // 2. Open the popup for the selected marker
     setTimeout(() => {
       const marker = markerRefs.current[selectedRestaurant.id];
       if (marker) {
@@ -223,7 +226,6 @@ function MapViewController({
 }) {
   const map = useMap();
 
-  // 📱 Fix Mobile & Responsive Viewport Alignment & Proportions
   useEffect(() => {
     map.invalidateSize();
     const t1 = setTimeout(() => map.invalidateSize(), 50);
@@ -259,7 +261,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   onShareRestaurant,
   targetRestaurant,
 }) => {
-    const t = translations[lang];
+  const t = translations[lang];
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(
     targetRestaurant || null
   );
@@ -269,14 +271,12 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
 
-  // When targetRestaurant changes from outside navigation
   useEffect(() => {
     if (targetRestaurant) {
       setSelectedRestaurant(targetRestaurant);
     }
   }, [targetRestaurant]);
 
-  // When restaurants list changes, only clear selection if the previously selected one is gone.
   useEffect(() => {
     if (restaurants.length === 0) {
       setSelectedRestaurant(null);
@@ -301,7 +301,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   return (
     <div className="relative w-full h-[calc(100vh-180px)] min-h-[460px] sm:min-h-[560px] landscape:h-[calc(100vh-130px)] landscape:min-h-[380px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex">
       
-      {/* 🖥️ Desktop Collapsible Floating Sidebar (Left Side) */}
+      {/* 🖥️ 桌面側邊欄 */}
       <div
         className={`hidden sm:flex md:flex lg:flex landscape:flex flex-col z-30 transition-all duration-300 ease-in-out ${
           isSidebarOpen ? 'w-80 md:w-88 lg:w-96 landscape:w-80' : 'w-0'
@@ -309,7 +309,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
       >
         {isSidebarOpen && (
           <div className="w-80 md:w-88 lg:w-96 landscape:w-80 h-full flex flex-col">
-            {/* Sidebar Header */}
             <div className="p-3.5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-base">🗺️</span>
@@ -325,14 +324,13 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
+                className="p-1 rounded-lg hover:bg-white/20 text-slate-300 hover:text-white transition-colors cursor-pointer"
                 title="收合清單"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Scrollable Restaurant Items */}
             <div className="flex-1 overflow-y-auto p-2.5 space-y-2 divide-y divide-slate-100">
               {restaurants.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-xs space-y-2">
@@ -401,7 +399,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-amber-600 transition-colors truncate">
                             {restaurant.name}
                           </h4>
-                          {/* Author / Recommender Badge */}
+
                           {restaurant.authorName && (() => {
                             const isFriend = friends.some(
                               (f) => (f.foodieId || '').toLowerCase() === (restaurant.authorFoodieId || '').toLowerCase()
@@ -417,7 +415,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                             );
                           })()}
 
-                          {/* 🎯 Deep Search Match Snippet Highlight */}
                           {matchHighlight && (
                             <div className={`p-1.5 rounded-xl border text-[11px] font-medium space-y-0.5 ${matchHighlight.badgeColor}`}>
                               <span className="font-bold text-[10px] block opacity-80">{matchHighlight.label}</span>
@@ -449,11 +446,10 @@ export const FoodMap: React.FC<FoodMapProps> = ({
         )}
       </div>
 
-      {/* 🖥️ Desktop Expand Button (When sidebar is collapsed) */}
       {!isSidebarOpen && (
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="hidden sm:flex md:flex lg:flex landscape:flex absolute top-4 left-4 z-30 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 items-center gap-1.5 text-xs font-bold transition-transform active:scale-95 animate-fadeIn"
+          className="hidden sm:flex md:flex lg:flex landscape:flex absolute top-4 left-4 z-30 bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 items-center gap-1.5 text-xs font-bold transition-transform active:scale-95 cursor-pointer animate-fadeIn"
         >
           <List className="w-4 h-4 text-amber-400" />
           <span>{lang === 'zh-TW' ? `展開店家清單 (${restaurants.length})` : `店舗一覧を表示 (${restaurants.length})`}</span>
@@ -461,7 +457,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
         </button>
       )}
 
-      {/* 🗺️ Main Full-Viewport Leaflet Map */}
+      {/* 🗺️ 地圖本體 */}
       <div className="flex-1 h-full w-full min-w-0 relative z-10 overflow-hidden">
         <MapContainer
           center={defaultCenter}
@@ -476,8 +472,10 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
           <MapViewController isSidebarOpen={isSidebarOpen} />
           <MarkerFocusController selectedRestaurant={selectedRestaurant} markerRefs={markerRefs} />
+          {/* ✅ 啟用地圖平滑飛向現在位置控制器 */}
+          <FlyToLocationController position={flyToPosition} />
 
-          {/* 🔵 User Current GPS Pulsing Location Radar */}
+          {/* 🔵 使用者即時雷達 */}
           <Marker
             position={[userLocation.lat, userLocation.lng]}
             icon={L.divIcon({
@@ -487,7 +485,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                   <div class="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-lg ring-2 ring-blue-300"></div>
                 </div>
               `,
-              className: '',
+              className: 'bg-transparent border-0',
               iconSize: [32, 32],
               iconAnchor: [16, 16],
             })}
@@ -498,8 +496,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               </div>
             </Popup>
           </Marker>
-
-
 
           {restaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
@@ -548,63 +544,61 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </p>
                     </div>
 
-                                                                                  {/* 👥 Multi-Foodie Contributions or Single Author Banner */}
-                      {restaurant.contributions && restaurant.contributions.length > 1 ? (
-                        <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-2 rounded-xl border border-purple-200 space-y-1.5 shadow-2xs">
-                          <div className="flex items-center justify-between text-[11px] font-black text-purple-950">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3.5 h-3.5 text-purple-600" />
-                              <span>共 {restaurant.contributions.length} 位吃貨共筆評價：</span>
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {restaurant.contributions.map((c, i) => (
-                              <span
-                                key={i}
-                                className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 border ${
-                                  c.isMine
-                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                    : 'bg-white text-slate-800 border-purple-200'
-                                }`}
-                              >
-                                <span>{c.isMine ? '👑 我' : c.authorName}</span>
-                                <span className="font-mono">
-                                  {c.ratingTag === 'must_eat' ? '🔥必吃' : c.ratingTag === 'frequent_visit' ? '🔄愛店' : c.ratingTag === 'avoid_again' ? '☠️黑名單' : '📌口袋'}
-                                </span>
-                              </span>
-                            ))}
-                          </div>
+                    {restaurant.contributions && restaurant.contributions.length > 1 ? (
+                      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 p-2 rounded-xl border border-purple-200 space-y-1.5 shadow-2xs">
+                        <div className="flex items-center justify-between text-[11px] font-black text-purple-950">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5 text-purple-600" />
+                            <span>共 {restaurant.contributions.length} 位吃貨共筆評價：</span>
+                          </span>
                         </div>
-                      ) : (restaurant.authorName || recommender) ? (() => {
-                        const authorId = (restaurant.authorFoodieId || '').toLowerCase().trim();
-                        const isFriend = friends.length > 0 && friends.some((f) => (f.foodieId || '').toLowerCase().trim() === authorId);
-                        const displayName = restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name);
-                        return (
-                          <div className={`text-[11px] p-2 rounded-xl border font-bold flex items-center gap-1.5 shadow-2xs ${
-                            isFriend 
-                              ? 'text-purple-900 bg-purple-50 border-purple-200' 
-                              : 'text-indigo-900 bg-indigo-50 border-indigo-200'
-                          }`}>
-                            <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
-                              {(() => {
-                                const av = restaurant.authorAvatar || recommender?.avatar;
-                                if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
-                                  return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
-                                }
-                                return <span>{av || '🥢'}</span>;
-                              })()}
-                            </div>
-                            <span className="truncate">
-                              {isFriend ? '👥 好友' : '🌐 社群吃貨'}【{displayName}】分享
+                        <div className="flex flex-wrap gap-1">
+                          {restaurant.contributions.map((c, i) => (
+                            <span
+                              key={i}
+                              className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 border ${
+                                c.isMine
+                                  ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                  : 'bg-white text-slate-800 border-purple-200'
+                              }`}
+                            >
+                              <span>{c.isMine ? '👑 我' : c.authorName}</span>
+                              <span className="font-mono">
+                                {c.ratingTag === 'must_eat' ? '🔥必吃' : c.ratingTag === 'frequent_visit' ? '🔄愛店' : c.ratingTag === 'avoid_again' ? '☠️黑名單' : '📌口袋'}
+                              </span>
                             </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (restaurant.authorName || recommender) ? (() => {
+                      const authorId = (restaurant.authorFoodieId || '').toLowerCase().trim();
+                      const isFriend = friends.length > 0 && friends.some((f) => (f.foodieId || '').toLowerCase().trim() === authorId);
+                      const displayName = restaurant.authorName || (recommender?.customNickname ? `${recommender.customNickname} (${recommender.name})` : recommender?.name);
+                      return (
+                        <div className={`text-[11px] p-2 rounded-xl border font-bold flex items-center gap-1.5 shadow-2xs ${
+                          isFriend 
+                            ? 'text-purple-900 bg-purple-50 border-purple-200' 
+                            : 'text-indigo-900 bg-indigo-50 border-indigo-200'
+                        }`}>
+                          <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                            {(() => {
+                              const av = restaurant.authorAvatar || recommender?.avatar;
+                              if (av && (av.startsWith('data:') || av.startsWith('http') || av.length > 20)) {
+                                return <img src={av} alt="avatar" className="w-full h-full object-cover" />;
+                              }
+                              return <span>{av || '🥢'}</span>;
+                            })()}
                           </div>
-                        );
-                      })() : null}
+                          <span className="truncate">
+                            {isFriend ? '👥 好友' : '🌐 社群吃貨'}【{displayName}】分享
+                          </span>
+                        </div>
+                      );
+                    })() : null}
 
-                    {/* Must-Eat Dishes */}
                     {restaurant.mustEatDishes && restaurant.mustEatDishes.length > 0 && (
                       <div className="bg-amber-50 p-2 rounded-lg border border-amber-200/60">
-                        <span className="text-[10px] font-bold text-amber-900 block mb-1 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-amber-900 mb-1 flex items-center gap-1">
                           <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                           <span>{t.mustEatDishesTitle}</span>
                         </span>
@@ -621,10 +615,9 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </div>
                     )}
 
-                    {/* Avoid Dishes */}
                     {restaurant.avoidDishes && restaurant.avoidDishes.length > 0 && (
                       <div className="bg-rose-50 p-2 rounded-lg border border-rose-200/60">
-                        <span className="text-[10px] font-bold text-rose-900 block mb-1 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-rose-900 mb-1 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3 text-rose-500" />
                           <span>{t.avoidDishesTitle}</span>
                         </span>
@@ -641,7 +634,6 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </div>
                     )}
 
-                    {/* Action buttons */}
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
                       <a
                         href={googleMapsSearchUrl}
@@ -655,7 +647,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
                       <button
                         onClick={() => onShareRestaurant(restaurant)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                         title={t.shareText}
                       >
                         <Share2 className="w-3.5 h-3.5" />
@@ -663,7 +655,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
 
                       <button
                         onClick={() => onEditRestaurant(restaurant)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                         title={t.editSpot}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -676,17 +668,17 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           })}
         </MapContainer>
 
-        {/* 📍 GPS Locate Me button - absolute overlay on top of map, outside MapContainer */}
+        {/* 📍 GPS Locate Me button */}
         <LocateMeControl userLocation={userLocation} lang={lang} onLocate={setFlyToPosition} />
 
-        {/* 📱 Mobile Floating Bottom Quick Card */}
+        {/* 📱 手機底部浮動卡片 */}
         <div className="lg:hidden absolute bottom-3 inset-x-3 z-30 space-y-2">
           {!isMobileDrawerOpen ? (
             <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 space-y-2.5 animate-fadeIn">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setIsMobileDrawerOpen(true)}
-                  className="flex items-center gap-1.5 text-xs font-black text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl active:scale-95 transition-all"
+                  className="flex items-center gap-1.5 text-xs font-black text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl active:scale-95 transition-all cursor-pointer"
                 >
                   <List className="w-3.5 h-3.5 text-amber-600" />
                   <span>{searchQuery ? `🔍 評比清單 (${restaurants.length})` : `📋 查看全部清單 (${restaurants.length})`}</span>
@@ -756,7 +748,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                 </div>
                 <button
                   onClick={() => setIsMobileDrawerOpen(false)}
-                  className="p-1 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                  className="p-1 rounded-lg bg-white/10 text-white hover:bg-white/20 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -778,7 +770,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                     <div
                       key={restaurant.id}
                       onClick={() => handleSelectRestaurant(restaurant)}
-                      className={`pt-2 first:pt-0 p-2 rounded-xl transition-all ${
+                      className={`pt-2 first:pt-0 p-2 rounded-xl transition-all cursor-pointer ${
                         isSelected ? 'bg-amber-50 ring-2 ring-amber-400' : 'hover:bg-slate-50'
                       }`}
                     >
