@@ -87,24 +87,28 @@ export const GroupDiningMatcher: React.FC<GroupDiningMatcherProps> = ({
         const conflictDislikes: { friendName: string; tag: string }[] = [];
 
         selectedFriends.forEach((f) => {
-          f.favoriteTags.forEach((fav) => {
+          (f.favoriteTags || []).forEach((fav) => {
+            if (!fav) return;
             if (
-              r.category.includes(fav) ||
-              r.name.includes(fav) ||
-              r.mustEatDishes.some((dish) => dish.includes(fav)) ||
-              r.personalNotes.includes(fav)
+              (r.category || '').includes(fav) ||
+              (r.name || '').includes(fav) ||
+              (r.mustEatDishes || []).some((dish) => dish && dish.includes(fav)) ||
+              (r.personalNotes || '').includes(fav)
             ) {
               score += 3;
               if (!matchedLikes.includes(fav)) matchedLikes.push(`${f.name}: ${fav}`);
             }
           });
 
-          f.dislikedTags.forEach((dis) => {
+          (f.dislikedTags || []).forEach((dis) => {
+            if (!dis) return;
             const cleanTag = dis.replace(/^(不吃|怕|完全不吃|NG)/, '');
             if (
-              r.category.includes(cleanTag) ||
-              r.name.includes(cleanTag) ||
-              r.mustEatDishes.some((dish) => dish.includes(cleanTag))
+              cleanTag && (
+                (r.category || '').includes(cleanTag) ||
+                (r.name || '').includes(cleanTag) ||
+                (r.mustEatDishes || []).some((dish) => dish && dish.includes(cleanTag))
+              )
             ) {
               score -= 5;
               conflictDislikes.push({ friendName: f.name, tag: dis });

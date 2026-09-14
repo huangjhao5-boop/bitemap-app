@@ -111,6 +111,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [autoFillSuccess, setAutoFillSuccess] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState(lang === 'zh-TW' ? '日式拉麵' : 'ラーメン');
@@ -258,8 +260,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     setVisitCount(1);
     setRatingTag('wishlist');
     setVisibility('public');
-    alert(lang === 'zh-TW'
-      ? '🎉 已將此店家基本資料複製為您的個人草稿！您可以填寫自己的評分、必吃菜色與筆記並儲存到我的口袋。'
+    setCopyNotice(lang === 'zh-TW'
+      ? '🎉 已將此店家基本資料複製為個人草稿！您可以填寫自己的評分、必吃菜色與筆記並儲存到口袋名單。'
       : '🎉 口コミを自分用にコピーしました！自由に編集して保存できます。');
   };
 
@@ -599,10 +601,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (e) e.preventDefault();
 
     if (!name.trim()) {
-      alert(lang === 'zh-TW' ? '⚠️ 請輸入「店家名稱」後再儲存！' : '⚠️ 店舗名を入力してください！');
+      setNameError(lang === 'zh-TW' ? '請輸入店家名稱後再儲存！' : '店舗名を入力してください！');
       nameInputRef.current?.focus();
       return;
     }
+    setNameError(null);
 
     const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     const myContribution = editingRestaurant?.contributions?.find((c) => c.isMine);
@@ -938,6 +941,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             onSubmit={handleSubmit} 
             className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-5 flex-1"
           >
+            {copyNotice && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl p-3 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                <span>{copyNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setCopyNotice(null)}
+                  className="text-emerald-700 hover:text-emerald-950 font-bold px-1.5 py-0.5 text-xs rounded-md cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {!editingRestaurant && (
               <div className="space-y-3">
                 <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-2xl p-4 space-y-2.5 shadow-xs">
@@ -1133,17 +1148,29 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {t.labelSpotName} *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      {t.labelSpotName} *
+                    </label>
+                    {nameError && (
+                      <span className="text-[11px] font-bold text-rose-600 animate-pulse">
+                        ⚠️ {nameError}
+                      </span>
+                    )}
+                  </div>
                   <input
                     ref={nameInputRef}
                     type="text"
                     required
                     placeholder={lang === 'zh-TW' ? '例如：隱家拉麵 赤峰店' : '例：一蘭 新宿中央東口店'}
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
+                    className={`w-full text-sm px-3.5 py-2.5 rounded-xl border focus:outline-hidden focus:ring-2 bg-white transition-all ${
+                      nameError ? 'border-rose-400 focus:ring-rose-400 ring-1 ring-rose-300' : 'border-slate-300 focus:ring-indigo-500'
+                    }`}
                   />
                 </div>
 

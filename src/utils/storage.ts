@@ -1,4 +1,5 @@
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, UserProfile } from '../types';
+import { verifyPinCode } from './security';
 
 export const DEFAULT_USER_PROFILE: UserProfile = {
   foodieId: 'guest',

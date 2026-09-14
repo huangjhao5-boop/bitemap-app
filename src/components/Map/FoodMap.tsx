@@ -95,7 +95,13 @@ function getCategoryPinVisual(category: string, tag: Restaurant['ratingTag']) {
   return { bgColor, emoji, ringColor };
 }
 
+const pinIconCache = new Map<string, L.DivIcon>();
+
 function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
+  const cacheKey = `${restaurant.id}_${restaurant.category}_${restaurant.ratingTag}_${restaurant.name}_${isSelected ? '1' : '0'}`;
+  const cached = pinIconCache.get(cacheKey);
+  if (cached) return cached;
+
   const { bgColor, emoji, ringColor } = getCategoryPinVisual(restaurant.category, restaurant.ratingTag);
   const selectedClass = isSelected ? 'scale-125 ring-4 ring-indigo-500 shadow-xl shadow-indigo-500/40 z-50 animate-pulse' : 'group-hover:scale-110';
 
@@ -119,13 +125,20 @@ function createCustomPin(restaurant: Restaurant, isSelected: boolean) {
     </div>
   `;
 
-  return L.divIcon({
+  const icon = L.divIcon({
     html,
     className: 'bg-transparent border-0',
     iconSize: [80, 52],
     iconAnchor: [40, 48],
     popupAnchor: [0, -48],
   });
+
+  // 限制快取大小，防止記憶體外洩
+  if (pinIconCache.size > 500) {
+    pinIconCache.clear();
+  }
+  pinIconCache.set(cacheKey, icon);
+  return icon;
 }
 
 function LocateMeControl({ 
@@ -251,6 +264,39 @@ function MapViewController({
   return null;
 }
 
+function MapBoundsController({
+  onBoundsChange,
+}: {
+  onBoundsChange: (bounds: L.LatLngBounds) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    let timer: any = null;
+    const update = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          const b = map.getBounds();
+          onBoundsChange(b);
+        } catch {}
+      }, 150); // 150ms 防抖，地圖滑動時不阻塞
+    };
+
+    update();
+    map.on('moveend', update);
+    map.on('zoomend', update);
+
+    return () => {
+      clearTimeout(timer);
+      map.off('moveend', update);
+      map.off('zoomend', update);
+    };
+  }, [map, onBoundsChange]);
+
+  return null;
+}
+
 export const FoodMap: React.FC<FoodMapProps> = ({
   restaurants,
   friends,
@@ -270,6 +316,25 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
+  const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+
+  // 計算可見區域內的餐廳標記 (超過 40 家時啟動視角裁剪，提升縮放平移幀率，選中者始終保留)
+  const visibleRestaurants = useMemo(() => {
+    if (!mapBounds || restaurants.length <= 40) return restaurants;
+    // 稍微擴展邊界 0.05 度，避免邊緣閃爍
+    const pad = 0.05;
+    const south = mapBounds.getSouth() - pad;
+    const north = mapBounds.getNorth() + pad;
+    const west = mapBounds.getWest() - pad;
+    const east = mapBounds.getEast() + pad;
+
+    return restaurants.filter((r) => {
+      if (selectedRestaurant?.id === r.id) return true;
+      const lat = Number(r.lat) || 0;
+      const lng = Number(r.lng) || 0;
+      return lat >= south && lat <= north && lng >= west && lng <= east;
+    });
+  }, [restaurants, mapBounds, selectedRestaurant]);
 
   useEffect(() => {
     if (targetRestaurant) {
@@ -299,11 +364,11 @@ export const FoodMap: React.FC<FoodMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-180px)] min-h-[460px] sm:min-h-[560px] landscape:h-[calc(100vh-130px)] landscape:min-h-[380px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex">
+    <div className="relative w-full h-[calc(100dvh-200px)] min-h-[460px] sm:h-[calc(100vh-180px)] sm:min-h-[560px] landscape:h-[calc(100dvh-120px)] landscape:min-h-[360px] rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-slate-50 flex isolate">
       
-      {/* 🖥️ 桌面側邊欄 */}
+      {/* 🖥️ 桌面/橫向側邊欄 (避免在 iPad 直向 768px 與手機抽屜重疊衝突) */}
       <div
-        className={`hidden sm:flex md:flex lg:flex landscape:flex flex-col z-30 transition-all duration-300 ease-in-out ${
+        className={`hidden lg:flex landscape:flex flex-col z-30 transition-all duration-300 ease-in-out ${
           isSidebarOpen ? 'w-80 md:w-88 lg:w-96 landscape:w-80' : 'w-0'
         } h-full bg-white border-r border-slate-200 shadow-lg overflow-hidden relative`}
       >
@@ -471,6 +536,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
           />
 
           <MapViewController isSidebarOpen={isSidebarOpen} />
+          <MapBoundsController onBoundsChange={setMapBounds} />
           <MarkerFocusController selectedRestaurant={selectedRestaurant} markerRefs={markerRefs} />
           {/* ✅ 啟用地圖平滑飛向現在位置控制器 */}
           <FlyToLocationController position={flyToPosition} />
@@ -497,7 +563,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
             </Popup>
           </Marker>
 
-          {restaurants.map((restaurant) => {
+          {visibleRestaurants.map((restaurant) => {
             const isSelected = selectedRestaurant?.id === restaurant.id;
             const googleMapsSearchUrl =
               restaurant.googleMapsUrl ||
@@ -646,16 +712,22 @@ export const FoodMap: React.FC<FoodMapProps> = ({
                       </a>
 
                       <button
-                        onClick={() => onShareRestaurant(restaurant)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onShareRestaurant(restaurant);
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer active:scale-95"
                         title={t.shareText}
                       >
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
 
                       <button
-                        onClick={() => onEditRestaurant(restaurant)}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditRestaurant(restaurant);
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer active:scale-95"
                         title={t.editSpot}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -671,8 +743,8 @@ export const FoodMap: React.FC<FoodMapProps> = ({
         {/* 📍 GPS Locate Me button */}
         <LocateMeControl userLocation={userLocation} lang={lang} onLocate={setFlyToPosition} />
 
-        {/* 📱 手機底部浮動卡片 */}
-        <div className="lg:hidden absolute bottom-3 inset-x-3 z-30 space-y-2">
+        {/* 📱 手機/平板直向 底部浮動卡片 (與桌面側邊欄互斥，支援 iPhone 安全區) */}
+        <div className="lg:hidden landscape:hidden absolute bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] inset-x-3 z-30 space-y-2">
           {!isMobileDrawerOpen ? (
             <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 space-y-2.5 animate-fadeIn">
               <div className="flex items-center justify-between">
@@ -738,7 +810,7 @@ export const FoodMap: React.FC<FoodMapProps> = ({
               )}
             </div>
           ) : (
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-h-[65vh] flex flex-col overflow-hidden animate-fadeIn">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-h-[min(72dvh,560px)] flex flex-col overflow-hidden animate-fadeIn pb-safe">
               <div className="p-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
                   <List className="w-4 h-4 text-amber-400" />

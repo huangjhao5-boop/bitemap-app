@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Friend } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
-import { X, Heart, AlertOctagon, Sparkles, BookOpen, ShieldCheck, Plus } from 'lucide-react';
+import { X, Heart, AlertOctagon, Sparkles, Plus } from 'lucide-react';
 
 interface FriendTasteModalProps {
   isOpen: boolean;
@@ -11,9 +11,6 @@ interface FriendTasteModalProps {
   editingFriend?: Friend | null;
   lang: Language;
 }
-
-const COMMON_FAVORITES_ZH = ['日式拉麵', '和牛燒肉', '麻辣火鍋', '手沖咖啡', '甜點蛋糕', '義大利麵', '早午餐', '居酒屋串燒', '泰式料理', '平價小吃'];
-const COMMON_DISLIKES_ZH = ['不吃香菜', '怕辣 / 完全不吃辣', '生魚片 / 生食', '乳糖不耐', '不吃牛肉', '不吃海鮮', '素食主義', '太甜', '油膩重口味', '內臟類'];
 
 const EMOJI_AVATARS = ['🍜', '🍰', '🥩', '🥗', '🍣', '🍔', '🍺', '🥑', '🍕', '🍢', '🍩', '🥐', '🍦', '🍷'];
 
@@ -32,6 +29,7 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
   const [avatar, setAvatar] = useState('🍜');
   const [cloudFavorites, setCloudFavorites] = useState<string[]>([]);
   const [cloudDislikes, setCloudDislikes] = useState<string[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // 📝 My Personal Observation (Isolated - Local only!)
   const [customNickname, setCustomNickname] = useState('');
@@ -94,9 +92,10 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() && !customNickname.trim()) {
-      alert('請填寫好友名稱或專屬備註！');
+      setErrorMessage(lang === 'zh-TW' ? '請填寫好友名稱或專屬備註！' : '友達の名前またはニックネームを入力してください！');
       return;
     }
+    setErrorMessage(null);
 
     const friendData: Friend = {
       id: editingFriend ? editingFriend.id : 'f_' + Date.now(),
@@ -150,6 +149,18 @@ export const FriendTasteModal: React.FC<FriendTasteModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-5 flex-1">
+          {errorMessage && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold flex items-center justify-between shadow-2xs">
+              <span>⚠️ {errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="text-rose-600 hover:text-rose-900 font-bold px-1 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           {/* Section 1: ☁️ 对方的公开自订资料 (云端同步) */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">

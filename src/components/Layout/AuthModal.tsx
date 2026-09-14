@@ -15,6 +15,7 @@ import {
   saveAccountRegistry,
 } from '../../utils/storage';
 import type { AccountRecord } from '../../utils/storage';
+import { verifyPinCode } from '../../utils/security';
 import { 
   X, 
   KeyRound, 
@@ -103,9 +104,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const cloudRes = await fetchFoodieAccountFromCloud(id);
       if (cloudRes.success && cloudRes.account) {
         const cloudAcc = cloudRes.account;
-        const storedPin = String(cloudAcc.pinCode || '8888').trim();
+        const storedPinOrHash = String(cloudAcc.pinCode || '8888').trim();
+        const isPinValid = await verifyPinCode(pin, storedPinOrHash);
 
-        if (storedPin !== pin) {
+        if (!isPinValid) {
           setStatusMessage({ type: 'error', text: `4 碼安全 PIN 密碼錯誤！請確認後重新輸入。` });
           return;
         }

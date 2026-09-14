@@ -1,0 +1,10 @@
+{
+  "name": "BiteMap",
+  "description": "Short-form video food map and foodie friend taste guide",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

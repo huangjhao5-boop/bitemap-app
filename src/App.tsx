@@ -1,5 +1,5 @@
 import { aggregateRestaurants, normalizeRestaurantKey } from './utils/restaurantAggregator';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Restaurant, Friend, DiningMeetup, FriendRequest, ActiveTab, RestaurantRatingTag, UserProfile, SortOption } from './types';
 import type { Language } from './utils/i18n';
 import { 
@@ -69,10 +69,15 @@ export function App() {
   });
 
   const [userProfile, setUserProfile] = useState<UserProfile>(() => loadUserProfile());
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [meetups, setMeetups] = useState<DiningMeetup[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>(() => loadRestaurants());
+  const [friends, setFriends] = useState<Friend[]>(() => {
+    const p = loadUserProfile();
+    if (!p.foodieId || p.foodieId === 'guest') return [];
+    return loadFriends();
+  });
+  const [meetups, setMeetups] = useState<DiningMeetup[]>(() => loadMeetups());
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>(() => loadFriendRequests());
+  const isInitialDataLoadedRef = useRef(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('map');
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => getAutoSyncTime());
 
@@ -282,6 +287,8 @@ export function App() {
 
   // 🔄 Continuous Auto-Sync to Cloud Firestore
   useEffect(() => {
+    // 🛡️ 防禦開機抹空：只有在完成本地/雲端資料初始化，且帳號合法時才允許同步
+    if (!isInitialDataLoadedRef.current) return;
     if (userProfile.foodieId && userProfile.foodieId !== 'guest') {
       const cleanId = userProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
       saveFoodieAccountToCloud({
@@ -395,6 +402,8 @@ export function App() {
       setFriends(loadFriends());
     }
     setMeetups(loadMeetups());
+    // 🛡️ 標記初始載入完畢，允許後續常態同步
+    isInitialDataLoadedRef.current = true;
   }, []);
 
   const handleLanguageChange = (newLang: Language) => {
@@ -1324,7 +1333,7 @@ export function App() {
         )}
       </main>
 
-      <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 text-center text-xs text-slate-500 space-y-1.5 mt-8">
+      <footer className="w-full bg-white border-t border-slate-200/80 py-4 px-4 pb-safe text-center text-xs text-slate-500 space-y-1.5 mt-8">
         <div className="flex items-center justify-center gap-2 flex-wrap font-bold">
           <span className="text-slate-900 font-black">BiteMap 短影音美食地圖</span>
           <span className="px-2 py-0.2 rounded-md bg-amber-100 text-amber-900 text-[10px] font-mono font-black border border-amber-300">

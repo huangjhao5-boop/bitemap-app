@@ -18,6 +18,13 @@ body {
   touch-action: manipulation;
 }
 
+/* Prevent iOS Safari forced auto-zoom on focus while keeping desktop crisp */
+@media screen and (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* Android & Mobile Safe Area Utility */
 .pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));

@@ -1,4 +1,5 @@
 import type { UserProfile, Restaurant, Friend, DiningMeetup, FriendRequest } from '../types';
+import { hashPinCode } from './security';
 
 export interface FirebaseConfigType {
   apiKey: string;
@@ -11,13 +12,13 @@ export interface FirebaseConfigType {
 }
 
 export const DEFAULT_FIREBASE_CONFIG: FirebaseConfigType = {
-  apiKey: "AIzaSyC4q6Yjitywklgz3zbpA24n5-8IRWb7dxc",
-  authDomain: "bitemap-app.firebaseapp.com",
-  projectId: "bitemap-app",
-  storageBucket: "bitemap-app.firebasestorage.app",
-  messagingSenderId: "1066311073412",
-  appId: "1:1066311073412:web:3dac32861f59b22adc8cd1",
-  measurementId: "G-28VG27WN12"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyC4q6Yjitywklgz3zbpA24n5-8IRWb7dxc",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "bitemap-app.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "bitemap-app",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "bitemap-app.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1066311073412",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1066311073412:web:3dac32861f59b22adc8cd1",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-28VG27WN12"
 };
 
 const STORAGE_KEY_FIREBASE_CONFIG = 'bitemap_firebase_config_v1';
@@ -448,10 +449,11 @@ export async function saveFoodieAccountToCloud(
 
     const cleanId = account.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
+    const hashedPin = await hashPinCode(String(account.pinCode || '8888').trim());
 
     await fb.firestoreMod.setDoc(docRef, {
       foodieId: cleanId,
-      pinCode: String(account.pinCode || '8888').trim(),
+      pinCode: hashedPin,
       profile: account.profile,
       restaurants: account.restaurants || [],
       friends: account.friends || [],
