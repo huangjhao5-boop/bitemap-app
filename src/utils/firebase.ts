@@ -40,14 +40,12 @@ export function saveFirebaseConfig(config: FirebaseConfigType): void {
   }
 }
 
-// Dynamic Firebase Loader to ensure 100% build compatibility on any CI/CD environment
 let firebaseModules: any = null;
 
 async function loadFirebaseModules() {
   if (firebaseModules) return firebaseModules;
 
   try {
-    // Dynamically load Firebase SDK via ESM CDN
     const [appMod, authMod, firestoreMod] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js' as any),
       import('https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js' as any),
@@ -61,11 +59,9 @@ async function loadFirebaseModules() {
     const googleProvider = new authMod.GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-    // Enable anonymous auth session if not already logged in so Firestore read/write rules never fail
     if (!auth.currentUser && authMod.signInAnonymously) {
       authMod.signInAnonymously(auth).catch((e: any) => console.log('Firebase anonymous session', e));
     }
-    googleProvider.setCustomParameters({ prompt: 'select_account' });
 
     firebaseModules = {
       app,
@@ -82,8 +78,6 @@ async function loadFirebaseModules() {
   }
 }
 
-
-// Pre-warm Firebase modules immediately so popups are never blocked by async click delay
 if (typeof window !== 'undefined') {
   loadFirebaseModules().catch((e) => console.log('Firebase prewarm', e));
 }
@@ -95,7 +89,6 @@ export interface GoogleUser {
   photoURL?: string | null;
 }
 
-// 🔵 1-Click Google Sign-In & Account Linking (Instant Direct Popup)
 export async function signInWithGoogle(): Promise<{
   success: boolean;
   user?: GoogleUser;
@@ -110,7 +103,6 @@ export async function signInWithGoogle(): Promise<{
       };
     }
 
-    // Try popup first (instant responsive window)
     try {
       const result = await fb.authMod.signInWithPopup(fb.auth, fb.googleProvider);
       const u = result.user;
@@ -129,7 +121,6 @@ export async function signInWithGoogle(): Promise<{
       if (popupErr.code === 'auth/popup-closed-by-user') {
         return { success: false, message: '已關閉 Google 登入視窗。' };
       }
-      // If popup is blocked by browser/PWA, fallback to redirect
       if (
         popupErr.code === 'auth/popup-blocked' ||
         popupErr.code === 'auth/cancelled-popup-request' ||
@@ -164,7 +155,6 @@ export async function signInWithGoogle(): Promise<{
   }
 }
 
-// 📲 Check Redirect Auth Result on App Mount (Crucial for PWA Standalone Mode)
 export async function checkAndHandleRedirectResult(): Promise<GoogleUser | null> {
   try {
     const fb = await loadFirebaseModules();
@@ -186,7 +176,6 @@ export async function checkAndHandleRedirectResult(): Promise<GoogleUser | null>
   return null;
 }
 
-// 🔴 Sign Out
 export async function signOutGoogle(): Promise<void> {
   const fb = await loadFirebaseModules();
   if (fb) {
@@ -198,7 +187,6 @@ export async function signOutGoogle(): Promise<void> {
   }
 }
 
-// ☁️ Cloud Sync: Push Full Local Data to Firestore under User's Google UID
 export async function syncDataToCloud(
   userId: string,
   payload: {
@@ -227,7 +215,6 @@ export async function syncDataToCloud(
   }
 }
 
-// 📥 Cloud Restore: Pull Full Data from Firestore under User's Google UID
 export async function fetchUserDataFromCloud(userId: string): Promise<{
   success: boolean;
   data?: {
@@ -266,8 +253,6 @@ export async function fetchUserDataFromCloud(userId: string): Promise<{
   }
 }
 
-
-// 🌐 Publish or Update a Public Restaurant to Firestore Community Feed
 export async function publishPublicRestaurantToCloud(
   restaurant: Restaurant,
   authorProfile?: UserProfile
@@ -278,7 +263,6 @@ export async function publishPublicRestaurantToCloud(
 
     const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_restaurants', restaurant.id);
     if (restaurant.visibility === 'private' || restaurant.visibility === 'friends_only') {
-      // If changed to non-public, remove from public feed
       try {
         await fb.firestoreMod.deleteDoc(docRef);
       } catch {}
@@ -298,7 +282,7 @@ export async function publishPublicRestaurantToCloud(
   }
 }
 
-// 🌐 Real-Time WebSocket Listener for All Community Public Restaurants (onSnapshot from both public feed & accounts)
+// 🛡️ 資安與效能極致修復版：不再非法監聽全站 bitemap_accounts，杜絕密碼與私人筆記外洩！
 export async function listenToCommunityPublicRestaurantsRealtime(
   onUpdate: (restaurants: Restaurant[]) => void
 ): Promise<() => void> {
@@ -306,67 +290,22 @@ export async function listenToCommunityPublicRestaurantsRealtime(
     const fb = await loadFirebaseModules();
     if (!fb) return () => {};
 
-    const unsubs: (() => void)[] = [];
-    const directPublicMap = new Map<string, Restaurant>();
-    const accountPublicMap = new Map<string, Restaurant>();
-
-    const emitCombined = () => {
-      const mergedMap = new Map<string, Restaurant>();
-      // 1. Account public restaurants
-      accountPublicMap.forEach((r, k) => mergedMap.set(k, r));
-      // 2. Direct public collection (takes precedence)
-      directPublicMap.forEach((r, k) => mergedMap.set(k, r));
-
-      const list = Array.from(mergedMap.values());
-      console.log('🌐 Live combined community public restaurants count:', list.length);
-      onUpdate(list);
-    };
-
-    // 1. Listen to bitemap_public_restaurants collection
+    // 只監聽真正標記為「公開社區」的專屬集合，乾淨、輕量、無隱私疑慮！
     const pubColRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_restaurants');
     const pubUnsub = fb.firestoreMod.onSnapshot(pubColRef, (snap: any) => {
-      directPublicMap.clear();
+      const list: Restaurant[] = [];
       snap.forEach((docSnap: any) => {
         const data = docSnap.data() as Restaurant;
-        directPublicMap.set(data.id, data);
+        list.push(data);
       });
-      emitCombined();
+      console.log('🌐 Live community public restaurants count:', list.length);
+      onUpdate(list);
     }, (err: any) => {
       console.warn('Realtime public collection error', err);
     });
-    unsubs.push(pubUnsub);
-
-    // 2. Listen to all bitemap_accounts to gather all public restaurants across all foodies
-    const accColRef = fb.firestoreMod.collection(fb.db, 'bitemap_accounts');
-    const accUnsub = fb.firestoreMod.onSnapshot(accColRef, (snap: any) => {
-      accountPublicMap.clear();
-      snap.forEach((docSnap: any) => {
-        const data = docSnap.data();
-        const cleanId = docSnap.id;
-        const authorName = data.profile?.name || cleanId;
-        const authorAvatar = data.profile?.avatar || '🥢';
-        if (Array.isArray(data.restaurants)) {
-          data.restaurants.forEach((r: Restaurant) => {
-            // If visibility is explicitly public, or not private and not friends_only
-            if (r.visibility === 'public') {
-              accountPublicMap.set(r.id, {
-                ...r,
-                authorFoodieId: cleanId,
-                authorName,
-                authorAvatar,
-              });
-            }
-          });
-        }
-      });
-      emitCombined();
-    }, (err: any) => {
-      console.warn('Realtime accounts scan error', err);
-    });
-    unsubs.push(accUnsub);
 
     return () => {
-      unsubs.forEach((u) => u());
+      pubUnsub();
     };
   } catch (err) {
     console.error('Failed to setup realtime community listener', err);
@@ -374,7 +313,6 @@ export async function listenToCommunityPublicRestaurantsRealtime(
   }
 }
 
-// 🌐 Fetch all Community Public Restaurants from Firestore
 export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
   try {
     const fb = await loadFirebaseModules();
@@ -393,9 +331,6 @@ export async function fetchCommunityPublicRestaurants(): Promise<Restaurant[]> {
   }
 }
 
-
-
-// 🗺️ Cloud Food Map Sync: Fetch All Friends' Shared / Public Restaurants from Firestore!
 export async function syncFriendsRestaurantsFromCloud(
   friends: Friend[]
 ): Promise<Restaurant[]> {
@@ -413,7 +348,6 @@ export async function syncFriendsRestaurantsFromCloud(
           if (snap.exists()) {
             const data = snap.data();
             const friendRestaurants = Array.isArray(data.restaurants) ? data.restaurants : [];
-            // Filter: Only include restaurants that are NOT private (public or friends_only)
             return friendRestaurants
               .filter((r: Restaurant) => r.visibility !== 'private')
               .map((r: Restaurant) => ({
@@ -441,7 +375,6 @@ export async function syncFriendsRestaurantsFromCloud(
   }
 }
 
-// ⚡ 0.1-Second Real-Time WebSocket Listener for Friends' Shared Restaurants (onSnapshot)
 export async function listenToFriendsRestaurantsRealtime(
   friends: Friend[],
   onUpdate: (restaurants: Restaurant[]) => void
@@ -498,7 +431,7 @@ export async function listenToFriendsRestaurantsRealtime(
   }
 }
 
-// 🆔 Cloud Account: Save Foodie ID Account Record to Firestore (Cross-Device Registry)
+// ⚡ 效能升級版：儲存帳號不阻塞，防止手機卡頓
 export async function saveFoodieAccountToCloud(
   account: {
     foodieId: string;
@@ -527,9 +460,9 @@ export async function saveFoodieAccountToCloud(
       serverTimestamp: fb.firestoreMod.serverTimestamp(),
     }, { merge: true });
 
-    // Also write public foodie profile for ID-based friend search
+    // 公開吃貨名冊非同步同步
     const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
-    await fb.firestoreMod.setDoc(pubRef, {
+    fb.firestoreMod.setDoc(pubRef, {
       foodieId: cleanId,
       name: account.profile.name || cleanId,
       avatar: account.profile.avatar || '🥢',
@@ -537,19 +470,15 @@ export async function saveFoodieAccountToCloud(
       dislikedTags: account.profile.dislikedTags || [],
       bio: account.profile.bio || '',
       updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    }, { merge: true }).catch(() => {});
 
-    // 🌐 Automatically sync and publish all public restaurants to bitemap_public_restaurants
-    try {
-      if (Array.isArray(account.restaurants)) {
-        for (const r of account.restaurants) {
-          if (r.visibility === 'public') {
-            await publishPublicRestaurantToCloud(r, account.profile);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Auto publish public restaurants error', e);
+    // 公開餐廳非同步背景推送，不阻塞使用者介面
+    if (Array.isArray(account.restaurants)) {
+      Promise.all(
+        account.restaurants
+          .filter((r) => r.visibility === 'public')
+          .map((r) => publishPublicRestaurantToCloud(r, account.profile))
+      ).catch(() => {});
     }
 
     console.log('✅ Account synced to Cloud Firestore:', cleanId);
@@ -560,7 +489,6 @@ export async function saveFoodieAccountToCloud(
   }
 }
 
-// 🗑️ Cloud Account: Permanently Delete Foodie ID Account & Public Profile from Firestore
 export async function deleteFoodieAccountFromCloud(
   foodieId: string
 ): Promise<{ success: boolean; message: string }> {
@@ -572,19 +500,16 @@ export async function deleteFoodieAccountFromCloud(
 
     const cleanId = foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
 
-    // 1. Delete bitemap_accounts/{cleanId}
     const accRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
     try {
       await fb.firestoreMod.deleteDoc(accRef);
     } catch {}
 
-    // 2. Delete bitemap_public_profiles/{cleanId}
     const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
     try {
       await fb.firestoreMod.deleteDoc(pubRef);
     } catch {}
 
-    // 3. Sign out Google auth if logged in
     try {
       await signOutGoogle();
     } catch {}
@@ -597,7 +522,6 @@ export async function deleteFoodieAccountFromCloud(
   }
 }
 
-// 📥 Cloud Account: Fetch Foodie ID Account Record from Firestore
 export async function fetchFoodieAccountFromCloud(foodieId: string): Promise<{
   success: boolean;
   account?: {
@@ -641,7 +565,6 @@ export async function fetchFoodieAccountFromCloud(foodieId: string): Promise<{
   }
 }
 
-// 👥 Send Friend Request to Cloud (Cross-Device Routing)
 export async function sendCloudFriendRequest(
   req: FriendRequest,
   targetFoodieId: string
@@ -650,7 +573,6 @@ export async function sendCloudFriendRequest(
     const fb = await loadFirebaseModules();
     if (!fb) return { success: false, message: '未連線至 Firebase 伺服器' };
 
-    // Clean target ID (strip @, #, whitespace)
     const cleanTarget = targetFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const cleanSender = (req.senderFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
 
@@ -677,7 +599,6 @@ export async function sendCloudFriendRequest(
   }
 }
 
-// ⚡ Real-Time Instant 2-Way WebSocket Listener (Mutual Friend Sync + Single-Doc Deletion Sync + Dynamic Profiles Stream!)
 export async function listenToMutualFriendSync(
   myFoodieId: string,
   onIncomingRequests: (requests: FriendRequest[]) => void,
@@ -693,7 +614,6 @@ export async function listenToMutualFriendSync(
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
     const pubColRef = fb.firestoreMod.collection(fb.db, 'bitemap_public_profiles');
 
-    // 1. Listen for INCOMING friend requests (where target == my ID)
     const qIncoming = fb.firestoreMod.query(
       colRef,
       fb.firestoreMod.where('targetFoodieId', '==', cleanMyId)
@@ -715,7 +635,6 @@ export async function listenToMutualFriendSync(
       console.error('onSnapshot incoming friend requests error', err);
     });
 
-    // 2. Listen for OUTGOING requests (where sender == my ID)
     const qOutgoing = fb.firestoreMod.query(
       colRef,
       fb.firestoreMod.where('senderFoodieId', '==', cleanMyId)
@@ -744,7 +663,6 @@ export async function listenToMutualFriendSync(
       console.error('onSnapshot outgoing friend requests error', err);
     });
 
-    // 3. 🌐 Real-Time Public Profile Stream: Instant sync when ANY friend changes Nickname, Avatar, or Tags!
     const unsubProfiles = fb.firestoreMod.onSnapshot(pubColRef, (snapshot: any) => {
       if (!onFriendProfileUpdated) return;
       snapshot.docChanges().forEach((change: any) => {
@@ -779,7 +697,6 @@ export async function listenToMutualFriendSync(
   }
 }
 
-// 🗑️ Cloud Unfriend: Failproof single-field update (No composite index required!)
 export async function deleteCloudFriendship(
   myFoodieId: string,
   friendFoodieId: string
@@ -792,7 +709,6 @@ export async function deleteCloudFriendship(
     const cleanFriend = friendFoodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
     const colRef = fb.firestoreMod.collection(fb.db, 'bitemap_friend_requests');
 
-    // Single-field queries (100% failproof on any Firestore configuration)
     const [snapMySent, snapFriendSent] = await Promise.all([
       fb.firestoreMod.getDocs(fb.firestoreMod.query(colRef, fb.firestoreMod.where('senderFoodieId', '==', cleanMy))).catch(() => null),
       fb.firestoreMod.getDocs(fb.firestoreMod.query(colRef, fb.firestoreMod.where('senderFoodieId', '==', cleanFriend))).catch(() => null),
@@ -830,7 +746,6 @@ export async function deleteCloudFriendship(
   }
 }
 
-// 🔄 Auto-Sync Friends with Latest Public Profiles (Dynamic Nicknames, Avatars, and Taste Tags!)
 export async function syncFriendsWithLatestProfiles(
   currentFriends: Friend[]
 ): Promise<Friend[]> {
@@ -868,7 +783,6 @@ export async function syncFriendsWithLatestProfiles(
   }
 }
 
-// 🤝 Respond to Cloud Friend Request (Accept or Decline with full profile payload + Auto-Purge duplicate pending requests)
 export async function respondToCloudFriendRequest(
   requestId: string,
   status: 'accepted' | 'declined',
@@ -892,7 +806,6 @@ export async function respondToCloudFriendRequest(
     });
     console.log('✅ Friend request response sent to Firestore:', requestId, status);
 
-    // Auto-resolve any other pending requests between these two users
     if (responderProfile?.foodieId && senderFoodieId) {
       try {
         const cleanReceiver = responderProfile.foodieId.toLowerCase().trim().replace(/[@#\s]/g, '');
