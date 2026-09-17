@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Restaurant, Friend, RestaurantRatingTag, ShortVideoSource, DishItem, DishRating } from '../../types';
 import { parseMenuTextToDishes, processMenuImage } from '../../utils/menuOcr';
-import { COUNTRIES_AND_REGIONS, CITY_COORDS } from '../../utils/geo';
+import { COUNTRIES_AND_REGIONS, CITY_COORDS, detectCity } from '../../utils/geo';
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText, fetchVideoMetadata } from '../../utils/videoParser';
@@ -104,6 +104,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [smartAutoFillNotice, setSmartAutoFillNotice] = useState<string | null>(null);
   const [isOcrAnalyzing, setIsOcrAnalyzing] = useState(false);
   const [ocrCandidateWords, setOcrCandidateWords] = useState<string[]>([]);
+  const [uploadedScreenshotUrl, setUploadedScreenshotUrl] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
@@ -398,46 +399,99 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         return;
       }
 
-      // 1. 自動設為探店精選封面照片
-      setCoverImage(dataUrl);
+      // 1. 保存截圖暫存，不強迫寫入封面照片（避免文字截圖成為難看封面）
+      setUploadedScreenshotUrl(dataUrl);
 
-      // 2. 啟動離線 OCR 圖片字元辨識
+      // 2. 啟動圖片 OCR 辨識與 NLP 文字分析
       try {
         const result = await parseScreenshotWithOcr(dataUrl);
         setOcrCandidateWords(result.candidateWords);
 
-        let found = false;
-        if (result.extractedInfo.name) {
-          setName(result.extractedInfo.name);
-          found = true;
-        }
-        if (result.extractedInfo.category) {
-          setCategory(result.extractedInfo.category);
-          found = true;
-        }
-        if (result.extractedInfo.city) {
-          handleCityChange(result.extractedInfo.city);
-          found = true;
-        }
-        if (result.extractedInfo.address) {
-          setAddress(result.extractedInfo.address);
-          found = true;
-        }
         if (result.extractedInfo.mustEatDishes.length > 0) {
           setMustEatDishes((prev) => Array.from(new Set([...prev, ...result.extractedInfo.mustEatDishes])));
-          found = true;
         }
 
-        if (found) {
-          setSmartAutoFillNotice(`🎉 成功從短影音截圖辨識出店名【${result.extractedInfo.name || '美食探店'}】與細節！已同步設為封面！`);
-        } else if (result.candidateWords.length > 0) {
-          setSmartAutoFillNotice(`📷 短影音截圖已設為封面！下方列出辨識到的文字標籤，點擊文字即可直接帶入店名或地址！`);
-        } else {
-          setSmartAutoFillNotice('📷 短影音截圖已成功設為封面照片！您亦可於上方 Google 搜尋店家名稱。');
+        // 3. 🔥 關鍵核心：自動結合 Google 地圖與 Places 智慧搜尋！
+        const detectedRegion = detectCity(result.rawText, result.extractedInfo.city || '');
+
+        // 動態過濾純地區/行政區候選詞，避免將「高松」、「岡山」、「鈴鹿」、「四日市」、「三重縣」等純地區詞當成店家名稱
+        const nonCityCandidates = result.candidateWords.filter((w) => {
+          if (/^(?:日本|台灣|韓國|中國|香港|澳門|都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(w)) return false;
+          if (/(?:都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(w) && w.length <= 4) return false;
+          const detectedW = detectCity(w, '');
+          if (detectedW && detectedW.includes(w) && w.length <= 4) return false;
+          return true;
+        });
+
+        let extractedName = result.extractedInfo.name || '';
+        const isExtractedNameCity = extractedName && (
+          /(?:都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(extractedName) ||
+          (detectCity(extractedName, '') && detectCity(extractedName, '').includes(extractedName))
+        );
+
+        if (!extractedName || isExtractedNameCity) {
+          extractedName = nonCityCandidates.length > 0 ? nonCityCandidates[0] : (result.candidateWords.length > 0 ? result.candidateWords[0] : '');
+        }
+
+        const searchQuery = [extractedName, detectedRegion].filter(Boolean).join(' ').trim();
+
+        let googleMatchFound = false;
+        if (searchQuery.length >= 2) {
+          try {
+            setPlaceSearchQuery(searchQuery);
+            const googleResults = await searchGooglePlacesOnline(searchQuery, false);
+            if (googleResults.length > 0) {
+              const topMatch = googleResults[0];
+              setName(topMatch.name);
+              setCategory(topMatch.category);
+              setCity(topMatch.city);
+              setAddress(topMatch.address);
+              setLat(topMatch.lat);
+              setLng(topMatch.lng);
+              setGoogleMapsUrl(topMatch.googleMapsUrl);
+              setPriceRange(topMatch.priceRange);
+              setPlaceSearchResults(googleResults);
+
+              googleMatchFound = true;
+              setSmartAutoFillNotice(
+                `🎉 圖片辨識成功！已結合 Google 地圖自動對接官方店家「【${topMatch.name}】（${topMatch.address}）」！並自動同步經緯度、分類與門牌！`
+              );
+            }
+          } catch (gErr) {
+            console.warn('Google places auto lookup error', gErr);
+          }
+        }
+
+        if (!googleMatchFound) {
+          let found = false;
+          if (result.extractedInfo.name) {
+            setName(result.extractedInfo.name);
+            found = true;
+          }
+          if (result.extractedInfo.category) {
+            setCategory(result.extractedInfo.category);
+            found = true;
+          }
+          if (detectedRegion) {
+            handleCityChange(detectedRegion);
+            found = true;
+          }
+          if (result.extractedInfo.address) {
+            setAddress(result.extractedInfo.address);
+            found = true;
+          }
+
+          if (found) {
+            setSmartAutoFillNotice(`🎉 已從截圖辨識出「【${result.extractedInfo.name || '店家細節'}】」！您可以點擊下方欄位按鈕進行微調。`);
+          } else if (result.candidateWords.length > 0) {
+            setSmartAutoFillNotice(`📷 截圖文字解析完成！下方列出辨識到的關鍵字標籤，點擊文字即可帶入店名、地址或搜尋 Google！`);
+          } else {
+            setSmartAutoFillNotice('📷 截圖上傳成功！建議在上方 Google 搜尋框輸入店名帶入官方地址與座標。');
+          }
         }
       } catch (err) {
         console.warn('Screenshot OCR error', err);
-        setSmartAutoFillNotice('📷 短影音截圖已成功設定為封面照片！');
+        setSmartAutoFillNotice('📷 截圖已解析，您可在上方搜尋框輸入店名。');
       } finally {
         setIsOcrAnalyzing(false);
       }
@@ -1168,7 +1222,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     </button>
                   </div>
 
-                  {/* 📸 截圖無法複製文案？拖入/選擇短影音截圖 0-API 自動 OCR 辨識 */}
+                  {/* 📸 截圖上傳與智慧 OCR 辨識區 */}
                   <div className="pt-1 border-t border-amber-200/60 flex flex-col gap-2">
                     <input
                       type="file"
@@ -1186,33 +1240,84 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       {isOcrAnalyzing ? (
                         <>
                           <RotateCw className="w-4 h-4 text-amber-600 animate-spin" />
-                          <span>🔍 正在本機離線辨識截圖文字與店家資訊...</span>
+                          <span>🔍 正在辨識文字並對接 Google 地圖搜尋中...</span>
                         </>
                       ) : (
                         <>
                           <Camera className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
-                          <span>無法複製文字？拖入或點擊上傳【短影音/菜單截圖】（自動 OCR 帶入店名）</span>
+                          <span>無法複製文字？拖入或點擊上傳【短影音/菜單/地圖截圖】（自動 OCR 結合 Google 搜尋）</span>
                         </>
                       )}
                     </div>
 
-                    {/* 💡 辨識出的文字標籤 (點擊可快速帶入店名或地址) */}
+                    {/* 🖼️ 上傳截圖預覽與封面圖切換控制 */}
+                    {uploadedScreenshotUrl && (
+                      <div className="bg-white border border-amber-200 rounded-xl p-2 flex items-center justify-between gap-3 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={uploadedScreenshotUrl}
+                            alt="Screenshot preview"
+                            className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0 cursor-pointer"
+                            onClick={() => setZoomedImage(uploadedScreenshotUrl)}
+                          />
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-slate-800 block truncate">已上傳分析圖片截圖</span>
+                            <span className="text-[10px] text-slate-500 block">文字已萃取，可自由選擇是否設為封面</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (coverImage === uploadedScreenshotUrl) {
+                                setCoverImage('');
+                                setSmartAutoFillNotice('已取消將截圖設為封面圖。');
+                              } else {
+                                setCoverImage(uploadedScreenshotUrl);
+                                setSmartAutoFillNotice('已將此截圖設定為餐廳封面照片！');
+                              }
+                            }}
+                            className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 border ${
+                              coverImage === uploadedScreenshotUrl
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                : 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300'
+                            }`}
+                          >
+                            {coverImage === uploadedScreenshotUrl ? '✓ 已設為封面' : '📷 設為封面圖'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUploadedScreenshotUrl(null);
+                              if (coverImage === uploadedScreenshotUrl) setCoverImage('');
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                            title="移除此截圖"
+                          >
+                            ✕ 移除
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 💡 辨識出的文字標籤 (點擊可快速帶入店名或搜尋 Google) */}
                     {ocrCandidateWords.length > 0 && (
                       <div className="bg-white/90 border border-amber-200 rounded-xl p-2.5 space-y-1.5">
                         <span className="text-[11px] font-black text-amber-900 flex items-center gap-1">
                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                          <span>點擊下方從截圖辨識出的關鍵字，快速帶入欄位：</span>
+                          <span>點擊辨識出的關鍵字標籤，可帶入店名、地址或即時連線 Google 搜店：</span>
                         </span>
-                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                           {ocrCandidateWords.map((word, idx) => (
-                            <div key={idx} className="flex gap-0.5">
+                            <div key={idx} className="flex gap-0.5 shadow-2xs rounded-md overflow-hidden border border-amber-200">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setName(word);
                                   setSmartAutoFillNotice(`已將【${word}】帶入店名！`);
                                 }}
-                                className="text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-950 px-2 py-0.5 rounded-l-md transition-colors cursor-pointer"
+                                className="text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-950 px-2 py-0.5 transition-colors cursor-pointer"
                                 title="點擊設為店名"
                               >
                                 📌 {word}
@@ -1223,10 +1328,21 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                                   setAddress(word);
                                   setSmartAutoFillNotice(`已將【${word}】帶入地址！`);
                                 }}
-                                className="text-[10px] font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-950 px-1.5 py-0.5 rounded-r-md transition-colors cursor-pointer border-l border-amber-200"
+                                className="text-[10px] font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-950 px-1.5 py-0.5 transition-colors cursor-pointer border-l border-amber-200"
                                 title="點擊設為地址"
                               >
                                 🏠 地址
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPlaceSearchQuery(word);
+                                  handleSearchPlacesInModal();
+                                }}
+                                className="text-[10px] font-bold bg-blue-100 hover:bg-blue-200 text-blue-950 px-1.5 py-0.5 transition-colors cursor-pointer border-l border-amber-200"
+                                title="用此關鍵字搜尋 Google 地圖"
+                              >
+                                🔍 搜 Google
                               </button>
                             </div>
                           ))}

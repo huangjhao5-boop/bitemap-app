@@ -518,7 +518,7 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
   const cleanQ = query.trim();
   if (!cleanQ || cleanQ.length < 1) return [];
 
-  const results: PlaceSearchResult[] = [];
+  let results: PlaceSearchResult[] = [];
   const seenKeys = new Set<string>();
 
   // 1. If query is a URL, resolve it directly
@@ -813,31 +813,83 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
     }
   });
 
-  // Sort results by relevance to search query
+  // Dynamic Universal Location Keyword Extraction & Filtering
+  const extractedLocTokens: string[] = [];
+
+  // 1. Match Japanese Administrative Divisions (都道府県 / 市区町村) e.g., 高松市, 岡山県, 金沢市, 鈴鹿市
+  const jpLocs = (cleanQ + ' ' + targetCity).match(/([一-龠ぁ-ゔァ-ヴ]+?(?:都|府|県|市|区|町|村))/g);
+  if (jpLocs) {
+    jpLocs.forEach(loc => {
+      if (loc.length >= 2) {
+        extractedLocTokens.push(loc);
+        const stripped = loc.replace(/(?:都|府|県|市|区|町|村)$/, '');
+        if (stripped.length >= 2) extractedLocTokens.push(stripped);
+      }
+    });
+  }
+
+  // 2. Match Taiwan Administrative Divisions (縣市 / 鄉鎮市區) e.g., 屏東縣, 羅東鎮, 礁溪鄉
+  const twLocs = (cleanQ + ' ' + targetCity).match(/([一-龠]+?(?:縣|市|區|鄉|鎮))/g);
+  if (twLocs) {
+    twLocs.forEach(loc => {
+      if (loc.length >= 2) {
+        extractedLocTokens.push(loc);
+        const stripped = loc.replace(/(?:縣|市|區|鄉|鎮)$/, '');
+        if (stripped.length >= 2) extractedLocTokens.push(stripped);
+      }
+    });
+  }
+
+  // 3. Extract targetCity as token
+  if (targetCity) {
+    const cleanCityToken = targetCity.replace(/[🇹🇼🇯🇵🇰🇷🌏()（）\s-]/g, '').trim();
+    if (cleanCityToken.length >= 2) extractedLocTokens.push(cleanCityToken);
+  }
+
+  const reqLocKw = extractedLocTokens.find(loc => cleanQ.includes(loc) || targetCity.includes(loc));
+
+  if (reqLocKw) {
+    const locMatchedResults = results.filter(r =>
+      r.city.includes(reqLocKw) || r.address.includes(reqLocKw) || r.name.includes(reqLocKw)
+    );
+    if (locMatchedResults.length > 0) {
+      results = locMatchedResults;
+    } else {
+      // Discard results that belong to a conflicting location token
+      results = results.filter(r => {
+        const otherLoc = extractedLocTokens.find(loc => loc !== reqLocKw && (r.city.includes(loc) || r.address.includes(loc) || r.name.includes(loc)));
+        return !otherLoc;
+      });
+    }
+  }
+
+  // Sort results by relevance to search query and location
   results.sort((a, b) => {
+    let scoreA = 0;
+    let scoreB = 0;
+
+    if (reqLocKw) {
+      if (a.city.includes(reqLocKw) || a.address.includes(reqLocKw) || a.name.includes(reqLocKw)) scoreA += 1000;
+      if (b.city.includes(reqLocKw) || b.address.includes(reqLocKw) || b.name.includes(reqLocKw)) scoreB += 1000;
+    }
+
     const aLower = a.name.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
     const bLower = b.name.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
     const qLower = cleanQ.toLowerCase().replace(/[\s\-_・·『』「」【】()（）#@]/g, '');
 
-    const aExact = aLower === qLower;
-    const bExact = bLower === qLower;
-    if (aExact && !bExact) return -1;
-    if (!aExact && bExact) return 1;
+    if (aLower === qLower) scoreA += 500;
+    if (bLower === qLower) scoreB += 500;
+    if (aLower.includes(qLower) || qLower.includes(aLower)) scoreA += 200;
+    if (bLower.includes(qLower) || qLower.includes(bLower)) scoreB += 200;
 
-    const aContains = aLower.includes(qLower) || qLower.includes(aLower);
-    const bContains = bLower.includes(qLower) || qLower.includes(bLower);
-    if (aContains && !bContains) return -1;
-    if (!aContains && bContains) return 1;
-
-    return 0;
+    return scoreB - scoreA;
   });
 
   // Fallback: If no results after filtering, construct a clean candidate card in the target region
-  // (Only when includeFallback is true, e.g. manual user search in search bar)
-  if (includeFallback && results.length === 0 && cleanQ.length > 0) {
+  if (results.length === 0 && cleanQ.length > 0) {
     const detected = targetCity;
     const category = guessCategory(cleanQ);
-    const coords = CITY_COORDS[detected] || { lat: 25.0478, lng: 121.5319 };
+    const coords = CITY_COORDS[detected] || (reqLocKw ? CITY_COORDS[reqLocKw] : null) || { lat: 25.0478, lng: 121.5319 };
     results.push({
       id: `custom_${Date.now()}`,
       name: cleanQ,

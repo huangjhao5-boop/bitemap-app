@@ -7,20 +7,37 @@ export interface OcrParseResult {
   candidateWords: string[];
 }
 
+let workerInstance: any = null;
 let workerPromise: Promise<any> | null = null;
 
 async function getOcrWorker() {
+  if (workerInstance) {
+    return workerInstance;
+  }
   if (!workerPromise) {
     workerPromise = (async () => {
       try {
-        const worker = await createWorker('chi_tra+eng');
+        const worker = await createWorker('chi_tra+jpn+eng');
+        workerInstance = worker;
         return worker;
       } catch (err) {
-        console.warn('Failed to load chi_tra+eng worker, falling back to eng', err);
-        const worker = await createWorker('eng');
-        return worker;
+        try {
+          console.warn('Failed to load chi_tra+jpn+eng worker, falling back to chi_tra+eng', err);
+          const worker = await createWorker('chi_tra+eng');
+          workerInstance = worker;
+          return worker;
+        } catch {
+          console.warn('Failed to load chi_tra+eng worker, falling back to eng');
+          const worker = await createWorker('eng');
+          workerInstance = worker;
+          return worker;
+        }
       }
-    })();
+    })().catch((err) => {
+      workerPromise = null;
+      workerInstance = null;
+      throw err;
+    });
   }
   return workerPromise;
 }
@@ -92,9 +109,9 @@ export async function parseScreenshotWithOcr(imageSource: string): Promise<OcrPa
   try {
     const processedImage = await preprocessImageForOcr(imageSource);
     
-    // 🛡️ 8 秒超時熔斷保護，防止慢速網路或載入權限異常導致 UI 永久卡在「辨識中...」
+    // 🛡️ 12 秒熔斷保護：若網速較慢下載語言包時超時，自動降級並清除 worker 避免卡住 UI
     const timeoutPromise = new Promise<{ data: { text: string } }>((_, reject) => {
-      setTimeout(() => reject(new Error('OCR Timeout')), 8000);
+      setTimeout(() => reject(new Error('OCR Timeout')), 12000);
     });
 
     const worker = await getOcrWorker();
@@ -107,10 +124,10 @@ export async function parseScreenshotWithOcr(imageSource: string): Promise<OcrPa
     // 使用離線 NLP 引擎提取結構化店家資訊
     const extractedInfo = extractRestaurantInfoFromText(rawText);
 
-    // 提煉出短字候選詞彙（供使用者點擊快填）
+    // 提煉出短字候選詞彙（支援中日英文字，供使用者點擊快填）
     const lines: string[] = rawText
       .split(/[\n,，。!！?？\s]+/)
-      .map((w: string) => w.trim().replace(/^[^\w\u4e00-\u9fa5]+|[^\w\u4e00-\u9fa5]+$/g, ''))
+      .map((w: string) => w.trim().replace(/^[^\w\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF]+|[^\w\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF]+$/g, ''))
       .filter((w: string) => w.length >= 2 && w.length <= 25 && !w.startsWith('http') && !/^\d+$/.test(w));
 
     const candidateWords: string[] = Array.from(new Set(lines)).slice(0, 20);
@@ -121,7 +138,18 @@ export async function parseScreenshotWithOcr(imageSource: string): Promise<OcrPa
       candidateWords,
     };
   } catch (err) {
-    console.error('OCR recognition error', err);
+    console.warn('OCR processing notice (graceful fallback):', err);
+    // 重置 worker 狀態，確保下次操作可重新初始化
+    workerPromise = null;
+    if (workerInstance && typeof workerInstance.terminate === 'function') {
+      try {
+        workerInstance.terminate();
+      } catch (_) {
+        // ignore
+      }
+    }
+    workerInstance = null;
+
     return {
       extractedInfo: { mustEatDishes: [], avoidDishes: [] },
       rawText: '',

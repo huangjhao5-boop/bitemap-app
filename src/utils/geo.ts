@@ -129,6 +129,11 @@ export const JAPAN_ALL_PREFECTURES = [
   '福岡縣 (博多)', '佐賀縣', '長崎縣', '熊本縣', '大分縣', '宮崎縣', '鹿兒島縣', '沖繩縣 (那霸)'
 ];
 
+// 🇨🇳 中國大陸重點美食城市
+export const CHINA_CITIES = [
+  '上海市', '北京市', '廣州市', '深圳市', '成都市', '杭州市', '武漢市', '重慶市', '南京市', '廈門市', '青島市', '西安市', '蘇州市', '天津市', '長沙市'
+];
+
 // 🇰🇷 韓國重點美食城市
 export const KOREA_CITIES = [
   '首爾特別市', '釜山廣域市', '仁川廣域市', '大邱廣域市', '大田廣域市', '光州廣域市', '濟州島'
@@ -149,6 +154,10 @@ export const COUNTRIES_AND_REGIONS: Record<string, { label: string; cities: stri
   'JP': {
     label: '🇯🇵 日本 (47 都道府縣正式規格)',
     cities: JAPAN_ALL_PREFECTURES,
+  },
+  'CN': {
+    label: '🇨🇳 中國大陸 (主要美食都會)',
+    cities: CHINA_CITIES,
   },
   'KR': {
     label: '🇰🇷 韓國 (主要都會)',
@@ -316,6 +325,20 @@ export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   '名古屋': { lat: 35.1815, lng: 136.9066 },
   '三重縣': { lat: 34.7303, lng: 136.5086 },
   '三重縣 (日本)': { lat: 34.7303, lng: 136.5086 },
+  '三重縣 (鈴鹿市)': { lat: 34.8824, lng: 136.5847 },
+  '鈴鹿': { lat: 34.8824, lng: 136.5847 },
+  '鈴鹿市': { lat: 34.8824, lng: 136.5847 },
+  '三重縣 (四日市市)': { lat: 34.9660, lng: 136.6247 },
+  '四日市': { lat: 34.9660, lng: 136.6247 },
+  '四日市市': { lat: 34.9660, lng: 136.6247 },
+  '三重縣 (伊勢市)': { lat: 34.4855, lng: 136.7089 },
+  '伊勢': { lat: 34.4855, lng: 136.7089 },
+  '伊勢市': { lat: 34.4855, lng: 136.7089 },
+  '三重縣 (松阪市)': { lat: 34.5784, lng: 136.5358 },
+  '松阪': { lat: 34.5784, lng: 136.5358 },
+  '松阪市': { lat: 34.5784, lng: 136.5358 },
+  '三重縣 (津市)': { lat: 34.7303, lng: 136.5086 },
+  '津市': { lat: 34.7303, lng: 136.5086 },
 
   '滋賀縣': { lat: 35.0045, lng: 135.8686 },
   '京都府': { lat: 35.0116, lng: 135.7681 },
@@ -331,16 +354,36 @@ export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   '和歌山縣': { lat: 34.2260, lng: 135.1675 },
 
   '鳥取縣': { lat: 35.5011, lng: 134.2351 },
+  '鳥取': { lat: 35.5011, lng: 134.2351 },
+  '鳥取市': { lat: 35.5011, lng: 134.2351 },
   '島根縣': { lat: 35.4723, lng: 133.0505 },
+  '島根': { lat: 35.4723, lng: 133.0505 },
+  '松江': { lat: 35.4723, lng: 133.0505 },
   '岡山縣': { lat: 34.6618, lng: 133.9344 },
+  '岡山': { lat: 34.6618, lng: 133.9344 },
+  '岡山市': { lat: 34.6618, lng: 133.9344 },
+  '倉敷': { lat: 34.5847, lng: 133.7712 },
+  '倉敷市': { lat: 34.5847, lng: 133.7712 },
   '廣島縣': { lat: 34.3853, lng: 132.4553 },
+  '廣島': { lat: 34.3853, lng: 132.4553 },
+  '廣島市': { lat: 34.3853, lng: 132.4553 },
   '山口縣': { lat: 34.1861, lng: 131.4705 },
+  '山口': { lat: 34.1861, lng: 131.4705 },
   '德島縣': { lat: 34.0703, lng: 134.5548 },
+  '德島': { lat: 34.0703, lng: 134.5548 },
   '香川縣': { lat: 34.3401, lng: 134.0433 },
   '香川縣 (高松)': { lat: 34.3401, lng: 134.0433 },
+  '香川縣 (高松市)': { lat: 34.3401, lng: 134.0433 },
+  '香川': { lat: 34.3401, lng: 134.0433 },
+  '高松': { lat: 34.3401, lng: 134.0433 },
+  '高松市': { lat: 34.3401, lng: 134.0433 },
   '愛媛縣': { lat: 33.8417, lng: 132.7657 },
   '愛媛縣 (松山)': { lat: 33.8417, lng: 132.7657 },
+  '愛媛': { lat: 33.8417, lng: 132.7657 },
+  '松山市': { lat: 33.8417, lng: 132.7657 },
   '高知縣': { lat: 33.5597, lng: 133.5311 },
+  '高知': { lat: 33.5597, lng: 133.5311 },
+  '高知市': { lat: 33.5597, lng: 133.5311 },
 
   '福岡縣': { lat: 33.5904, lng: 130.4017 },
   '福岡縣 (博多)': { lat: 33.5904, lng: 130.4017 },
@@ -368,6 +411,38 @@ export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   '大田廣域市': { lat: 36.3504, lng: 127.3845 },
   '光州廣域市': { lat: 35.1595, lng: 126.8526 },
   '濟州島': { lat: 33.4996, lng: 126.5312 },
+
+  // 🇨🇳 中國大陸重點都會
+  '上海市': { lat: 31.2304, lng: 121.4737 },
+  '上海': { lat: 31.2304, lng: 121.4737 },
+  '北京市': { lat: 39.9042, lng: 116.4074 },
+  '北京': { lat: 39.9042, lng: 116.4074 },
+  '廣州市': { lat: 23.1291, lng: 113.2644 },
+  '廣州': { lat: 23.1291, lng: 113.2644 },
+  '深圳市': { lat: 22.5431, lng: 114.0579 },
+  '深圳': { lat: 22.5431, lng: 114.0579 },
+  '成都市': { lat: 30.5728, lng: 104.0668 },
+  '成都': { lat: 30.5728, lng: 104.0668 },
+  '杭州市': { lat: 30.2741, lng: 120.1551 },
+  '杭州': { lat: 30.2741, lng: 120.1551 },
+  '武漢市': { lat: 30.5928, lng: 114.3055 },
+  '武漢': { lat: 30.5928, lng: 114.3055 },
+  '重慶市': { lat: 29.5630, lng: 106.5516 },
+  '重慶': { lat: 29.5630, lng: 106.5516 },
+  '南京市': { lat: 32.0603, lng: 118.7969 },
+  '南京': { lat: 32.0603, lng: 118.7969 },
+  '廈門市': { lat: 24.4798, lng: 118.0894 },
+  '廈門': { lat: 24.4798, lng: 118.0894 },
+  '青島市': { lat: 36.0671, lng: 120.3826 },
+  '青島': { lat: 36.0671, lng: 120.3826 },
+  '西安市': { lat: 34.3416, lng: 108.9398 },
+  '西安': { lat: 34.3416, lng: 108.9398 },
+  '蘇州市': { lat: 31.2989, lng: 120.5853 },
+  '蘇州': { lat: 31.2989, lng: 120.5853 },
+  '天津市': { lat: 39.3434, lng: 117.3616 },
+  '天津': { lat: 39.3434, lng: 117.3616 },
+  '長沙市': { lat: 28.2282, lng: 112.9388 },
+  '長沙': { lat: 28.2282, lng: 112.9388 },
 
   // 🌏 國際都會
   '香港': { lat: 22.3193, lng: 114.1694 },
@@ -401,159 +476,80 @@ export function getCountryCodeByCity(city: string): string {
   return 'TW';
 }
 
-// 🧭 Smart City & District Detection
+// 🧭 Smart Universal City & District Detection (Dynamic Regex for Japan, Taiwan & Global)
 export function detectCity(addrText: string, fallback: string = '台北市'): string {
   if (!addrText || !addrText.trim()) return fallback;
   const text = addrText.replace(/臺/g, '台');
 
-  // 1. 🇯🇵 Japan Mie Prefecture Specific Detection (鈴鹿, 四日市, 伊勢, 松阪, 津市, 三重ラーメン...)
-  if (
-    text.includes('鈴鹿') ||
-    text.includes('四日市') ||
-    text.includes('伊勢') ||
-    text.includes('松阪') ||
-    text.includes('津市') ||
-    text.includes('三重ラーメン') ||
-    text.includes('三重縣') ||
-    text.includes('三重県') ||
-    text.includes('Mie')
-  ) {
-    return '三重縣';
+  // 1. 🇹🇼 Special Disambiguation for Taiwan landmarks & Sanchong District vs Japan Mie Prefecture / Chugoku
+  if (text.includes('中國醫') || text.includes('中國醫藥大學')) {
+    return '台中市 - 北區';
   }
-
-  // 2. 🇹🇼 Taiwan specific district matching (e.g. 三重, 板橋, 大安, 西屯...)
-  if (text.includes('三重區') || text.includes('新北三重') || text.includes('三重捷運') || text.includes('三重國小') || (text.includes('三重') && (text.includes('新北') || text.includes('台灣') || text.includes('台灣') || text.includes('今大')))) {
+  if (text.includes('中國文化大學') || text.includes('文化大學')) {
+    return '台北市 - 士林區';
+  }
+  if (text.includes('中國科技大學')) {
+    return '台北市 - 文山區';
+  }
+  if (text.includes('中國信託') || text.includes('中信金融園區')) {
+    return '台北市 - 南港區';
+  }
+  if (
+    text.includes('三重區') ||
+    text.includes('新北三重') ||
+    text.includes('三重捷運') ||
+    text.includes('三重國小') ||
+    (text.includes('三重') && (text.includes('新北') || text.includes('今大') || text.includes('大仁街') || text.includes('自強路') || text.includes('店小二') || text.includes('唯豐') || text.includes('五燈獎')))
+  ) {
     return '新北市 - 三重區';
   }
-  if (text.includes('三重')) return '新北市 - 三重區';
-  if (text.includes('板橋')) return '新北市 - 板橋區';
-  if (text.includes('中和')) return '新北市 - 中和區';
-  if (text.includes('永和')) return '新北市 - 永和區';
-  if (text.includes('新莊')) return '新北市 - 新莊區';
-  if (text.includes('新店')) return '新北市 - 新店區';
-  if (text.includes('蘆洲')) return '新北市 - 蘆洲區';
-  if (text.includes('汐止')) return '新北市 - 汐止區';
-  if (text.includes('土城')) return '新北市 - 土城區';
-  if (text.includes('淡水')) return '新北市 - 淡水區';
-  if (text.includes('林口')) return '新北市 - 林口區';
-  if (text.includes('大安')) return '台北市 - 大安區';
-  if (text.includes('信義')) return '台北市 - 信義區';
-  if (text.includes('中山')) return '台北市 - 中山區';
-  if (text.includes('中正')) return '台北市 - 中正區';
-  if (text.includes('松山')) return '台北市 - 松山區';
-  if (text.includes('大同')) return '台北市 - 大同區';
-  if (text.includes('萬華')) return '台北市 - 萬華區';
-  if (text.includes('士林')) return '台北市 - 士林區';
-  if (text.includes('北投')) return '台北市 - 北投區';
-  if (text.includes('內湖')) return '台北市 - 內湖區';
-  if (text.includes('南港')) return '台北市 - 南港區';
-  if (text.includes('文山')) return '台北市 - 文山區';
-  if (text.includes('西屯')) return '台中市 - 西屯區';
-  if (text.includes('左營')) return '高雄市 - 左營區';
-  if (text.includes('中壢')) return '桃園市 - 中壢區';
-  if (text.includes('竹北')) return '新竹縣 - 竹北市';
 
-  // 3. 🇯🇵 Japan 47 Prefectures Detection
-  if (text.includes('愛知') || text.includes('名古屋') || text.includes('Aichi') || text.includes('Nagoya')) return '愛知縣 (名古屋)';
-  if (
-    text.includes('東京') ||
-    text.includes('Tokyo') ||
-    text.includes('八王子') ||
-    text.includes('初沢町') ||
-    text.includes('新宿') ||
-    text.includes('澀谷') ||
-    text.includes('渋谷') ||
-    text.includes('銀座') ||
-    text.includes('秋葉原') ||
-    text.includes('上野') ||
-    text.includes('池袋') ||
-    text.includes('浅草') ||
-    text.includes('六本木') ||
-    text.includes('品川') ||
-    text.includes('中野') ||
-    text.includes('杉並') ||
-    text.includes('世田谷') ||
-    text.includes('吉祥寺') ||
-    text.includes('立川') ||
-    text.includes('町田') ||
-    text.includes('築地')
-  ) return '東京都';
-  if (text.includes('大阪') || text.includes('Osaka') || text.includes('難波') || text.includes('梅田')) return '大阪府';
-  if (text.includes('京都') || text.includes('Kyoto')) return '京都府';
-  if (text.includes('福岡') || text.includes('博多') || text.includes('Fukuoka')) return '福岡縣 (博多)';
-  if (text.includes('北海道') || text.includes('札幌') || text.includes('Hokkaido')) return '北海道';
-  if (text.includes('沖繩') || text.includes('那霸') || text.includes('Okinawa')) return '沖繩縣 (那霸)';
-  if (text.includes('神奈川') || text.includes('橫濱') || text.includes('Yokohama')) return '神奈川縣 (橫濱)';
-  if (text.includes('兵庫') || text.includes('神戶') || text.includes('Kobe')) return '兵庫縣 (神戶)';
-  if (text.includes('廣島') || text.includes('Hiroshima')) return '廣島縣';
-  if (text.includes('宮城') || text.includes('仙台') || text.includes('Sendai')) return '宮城縣 (仙台)';
-  if (text.includes('靜岡') || text.includes('Shizuoka')) return '靜岡縣';
-  if (text.includes('奈良') || text.includes('Nara')) return '奈良縣';
-  if (text.includes('長野') || text.includes('Nagano')) return '長野縣';
-  if (text.includes('石川') || text.includes('金澤') || text.includes('Kanazawa')) return '石川縣 (金澤)';
-  if (text.includes('埼玉') || text.includes('Saitama')) return '埼玉縣';
-  if (text.includes('千葉') || text.includes('Chiba')) return '千葉縣';
-  if (text.includes('熊本') || text.includes('Kumamoto')) return '熊本縣';
-  if (text.includes('鹿兒島') || text.includes('Kagoshima')) return '鹿兒島縣';
-  if (text.includes('岐阜') || text.includes('Gifu')) return '岐阜縣';
-  if (text.includes('滋賀') || text.includes('Shiga')) return '滋賀縣';
-  if (text.includes('和歌山') || text.includes('Wakayama')) return '和歌山縣';
-  if (text.includes('岡山') || text.includes('Okayama')) return '岡山縣';
-  if (text.includes('香川') || text.includes('高松') || text.includes('Takamatsu')) return '香川縣 (高松)';
-  if (text.includes('愛媛') || text.includes('松山')) return '愛媛縣 (松山)';
-  if (text.includes('長崎') || text.includes('Nagasaki')) return '長崎縣';
-  if (text.includes('大分') || text.includes('Oita')) return '大分縣';
-  if (text.includes('宮崎') || text.includes('Miyazaki')) return '宮崎縣';
-  if (text.includes('青森') || text.includes('Aomori')) return '青森縣';
-  if (text.includes('岩手') || text.includes('Iwate')) return '岩手縣';
-  if (text.includes('秋田') || text.includes('Akita')) return '秋田縣';
-  if (text.includes('山形') || text.includes('Yamagata')) return '山形縣';
-  if (text.includes('福島') || text.includes('Fukushima')) return '福島縣';
-  if (text.includes('茨城') || text.includes('Ibaraki')) return '茨城縣';
-  if (text.includes('栃木') || text.includes('Tochigi')) return '栃木縣';
-  if (text.includes('群馬') || text.includes('Gunma')) return '群馬縣';
-  if (text.includes('新潟') || text.includes('Niigata')) return '新潟縣';
-  if (text.includes('富山') || text.includes('Toyama')) return '富山縣';
-  if (text.includes('福井') || text.includes('Fukui')) return '福井縣';
-  if (text.includes('山梨') || text.includes('Yamanashi')) return '山梨縣';
-  if (text.includes('鳥取') || text.includes('Tottori')) return '鳥取縣';
-  if (text.includes('島根') || text.includes('Shimane')) return '島根縣';
-  if (text.includes('山口') || text.includes('Yamaguchi')) return '山口縣';
-  if (text.includes('德島') || text.includes('Tokushima')) return '德島縣';
-  if (text.includes('高知') || text.includes('Kochi')) return '高知縣';
-  if (text.includes('佐賀') || text.includes('Saga')) return '佐賀縣';
+  // 2. 🇯🇵 Japanese Address & Region Universal Parser (都道府県 + 市区町村)
+  // Match Japanese Prefecture (e.g., 香川県, 岡山県, 三重県, 東京都, 大阪府, 北海道...)
+  const jpPrefMatch = text.match(/([一-龠ぁ-ゔァ-ヴ]+?(?:都|府|県))/);
+  // Match Japanese Municipality (e.g., 高松市, 岡山市, 倉敷市, 鈴鹿市, 金沢市, 函館市, 新宿区...)
+  const jpMuniMatch = text.match(/([一-龠ぁ-ゔァ-ヴ]+?(?:市|区|町|村))/);
 
-  // 3. 🇹🇼 Taiwan Cities & Counties
-  if (text.includes('台北') || text.includes('Taipei')) return '台北市';
-  if (text.includes('新北') || text.includes('New Taipei')) return '新北市';
-  if (text.includes('台中') || text.includes('Taichung')) return '台中市';
-  if (text.includes('台南') || text.includes('Tainan')) return '台南市';
-  if (text.includes('高雄') || text.includes('Kaohsiung')) return '高雄市';
-  if (text.includes('新竹市')) return '新竹市';
-  if (text.includes('新竹縣') || text.includes('新竹')) return '新竹縣';
-  if (text.includes('桃園') || text.includes('Taoyuan')) return '桃園市';
-  if (text.includes('基隆') || text.includes('Keelung')) return '基隆市';
-  if (text.includes('宜蘭') || text.includes('Yilan')) return '宜蘭縣';
-  if (text.includes('彰化') || text.includes('Changhua')) return '彰化縣';
-  if (text.includes('苗栗') || text.includes('Miaoli')) return '苗栗縣';
-  if (text.includes('南投') || text.includes('Nantou')) return '南投縣';
-  if (text.includes('雲林') || text.includes('Yunlin')) return '雲林縣';
-  if (text.includes('嘉義市')) return '嘉義市';
-  if (text.includes('嘉義縣') || text.includes('嘉義')) return '嘉義縣';
-  if (text.includes('屏東') || text.includes('Pingtung')) return '屏東縣';
-  if (text.includes('花蓮') || text.includes('Hualien')) return '花蓮縣';
-  if (text.includes('台東') || text.includes('Taitung')) return '台東縣';
-  if (text.includes('澎湖') || text.includes('Penghu')) return '澎湖縣';
-  if (text.includes('金門') || text.includes('Kinmen')) return '金門縣';
-  if (text.includes('連江') || text.includes('馬祖')) return '連江縣 (馬祖)';
+  if (jpPrefMatch || jpMuniMatch) {
+    const pref = jpPrefMatch ? jpPrefMatch[1].replace(/県$/, '縣') : '';
+    const muni = jpMuniMatch ? jpMuniMatch[1] : '';
 
-  // 4. 🇰🇷 韓國 & 🌏 全球
+    if (pref && muni && !pref.includes(muni)) {
+      return `${pref} (${muni})`;
+    }
+    if (pref) return pref;
+    if (muni) return muni;
+  }
+
+  // 3. Check known city/prefecture lookup keys (e.g. "高松", "岡山", "金澤", "鈴鹿", "博多", "難波")
+  for (const key of Object.keys(CITY_COORDS)) {
+    if (key.length >= 2 && text.includes(key)) {
+      return key;
+    }
+  }
+
+  // 4. 🇹🇼 Taiwan Address & District Universal Parser (縣市 + 鄉鎮市區)
+  const twCountyMatch = text.match(/([一-龠]+?(?:縣|市))/);
+  const twDistrictMatch = text.match(/([一-龠]+?(?:區|鄉|鎮))/);
+
+  if (twCountyMatch || twDistrictMatch) {
+    const county = twCountyMatch ? twCountyMatch[1] : '';
+    const district = twDistrictMatch ? twDistrictMatch[1] : '';
+
+    if (county && district) {
+      return `${county} - ${district}`;
+    }
+    if (county) return county;
+    if (district) return district;
+  }
+
+  // 5. 🇰🇷 Korea & 🌏 Global Cities
   if (text.includes('首爾') || text.includes('Seoul')) return '首爾特別市';
   if (text.includes('釜山') || text.includes('Busan')) return '釜山廣域市';
   if (text.includes('香港') || text.includes('Hong Kong')) return '香港';
   if (text.includes('澳門') || text.includes('Macau')) return '澳門';
   if (text.includes('曼谷') || text.includes('Bangkok')) return '曼谷';
-  // 日本國家回退（避免被誤判為台北市）
+
   if (text.includes('日本') || text.includes('Japan') || text.includes('JP') || /[ぁ-んァ-ヶ]/.test(text)) {
     return '東京都';
   }
@@ -575,7 +571,7 @@ export function findNearestCity(lat: number, lng: number): { cityName: string; c
   }
 
   const countryCode = getCountryCodeByCity(nearestCity);
-  const countryFlag = countryCode === 'JP' ? '🇯🇵 ' : countryCode === 'KR' ? '🇰🇷 ' : countryCode === 'TW' ? '🇹🇼 ' : '🌏 ';
+  const countryFlag = countryCode === 'JP' ? '🇯🇵 ' : countryCode === 'CN' ? '🇨🇳 ' : countryCode === 'KR' ? '🇰🇷 ' : countryCode === 'TW' ? '🇹🇼 ' : '🌏 ';
 
   return {
     cityName: `${countryFlag}${nearestCity}`,
