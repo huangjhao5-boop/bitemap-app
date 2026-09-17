@@ -90,6 +90,14 @@ export interface GoogleUser {
   photoURL?: string | null;
 }
 
+// 🧹 清理物件內所有 undefined 屬性，防止 Firestore setDoc() 拋出 Unsupported field value: undefined 崩潰
+export function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === undefined || obj === null) return obj;
+  return JSON.parse(
+    JSON.stringify(obj, (_key, value) => (value === undefined ? null : value))
+  );
+}
+
 export async function signInWithGoogle(): Promise<{
   success: boolean;
   user?: GoogleUser;
@@ -118,7 +126,6 @@ export async function signInWithGoogle(): Promise<{
         message: `🎉 成功登入 Google 帳號：${u.displayName || u.email}！`,
       };
     } catch (popupErr: any) {
-      console.warn('Popup attempt failed, trying redirect fallback...', popupErr);
       if (popupErr.code === 'auth/popup-closed-by-user') {
         return { success: false, message: '已關閉 Google 登入視窗。' };
       }
@@ -136,7 +143,6 @@ export async function signInWithGoogle(): Promise<{
       throw popupErr;
     }
   } catch (err: any) {
-    console.error('Google Sign-In Error:', err);
     if (err.code === 'auth/configuration-not-found' || err.code === 'auth/operation-not-allowed') {
       return { 
         success: false, 
@@ -144,11 +150,13 @@ export async function signInWithGoogle(): Promise<{
       };
     }
     if (err.code === 'auth/unauthorized-domain') {
+      console.warn('Domain not authorized in Firebase Console:', typeof window !== 'undefined' ? window.location.hostname : 'current domain');
       return {
         success: false,
-        message: '此網域尚未加入 Firebase 已授權網域，請至 Firebase 控制台 ➔ Authentication ➔ 設定 ➔ 新增已授權網域！',
+        message: `目前網域未在 Firebase 授權清單中。請改用「吃貨 ID + 4 碼 PIN 密碼」註冊/登入，無須授權網域即可跨裝置備份！`,
       };
     }
+    console.error('Google Sign-In Error:', err);
     return {
       success: false,
       message: `Google 登入失敗：${err.message || '請確認網路連線'}`,
@@ -270,14 +278,16 @@ export async function publishPublicRestaurantToCloud(
       return;
     }
 
-    await fb.firestoreMod.setDoc(docRef, {
+    const safeRestaurantData = sanitizeForFirestore({
       ...restaurant,
       visibility: 'public',
       authorFoodieId: authorProfile?.foodieId || 'foodie',
       authorName: authorProfile?.name || '熱心吃貨',
       authorAvatar: authorProfile?.avatar || '🥢',
       publishedAt: new Date().toISOString(),
-    }, { merge: true });
+    });
+
+    await fb.firestoreMod.setDoc(docRef, safeRestaurantData, { merge: true });
   } catch (err) {
     console.error('Failed to publish public restaurant', err);
   }
@@ -451,28 +461,33 @@ export async function saveFoodieAccountToCloud(
     const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_accounts', cleanId);
     const hashedPin = await hashPinCode(String(account.pinCode || '8888').trim());
 
-    await fb.firestoreMod.setDoc(docRef, {
+    const safeAccountPayload = sanitizeForFirestore({
       foodieId: cleanId,
       pinCode: hashedPin,
-      profile: account.profile,
+      profile: account.profile || {},
       restaurants: account.restaurants || [],
       friends: account.friends || [],
       meetups: account.meetups || [],
       updatedAt: new Date().toISOString(),
+    });
+
+    await fb.firestoreMod.setDoc(docRef, {
+      ...safeAccountPayload,
       serverTimestamp: fb.firestoreMod.serverTimestamp(),
     }, { merge: true });
 
     // 公開吃貨名冊非同步同步
     const pubRef = fb.firestoreMod.doc(fb.db, 'bitemap_public_profiles', cleanId);
-    fb.firestoreMod.setDoc(pubRef, {
+    const safePublicProfile = sanitizeForFirestore({
       foodieId: cleanId,
-      name: account.profile.name || cleanId,
-      avatar: account.profile.avatar || '🥢',
-      favoriteTags: account.profile.favoriteTags || [],
-      dislikedTags: account.profile.dislikedTags || [],
-      bio: account.profile.bio || '',
+      name: account.profile?.name || cleanId,
+      avatar: account.profile?.avatar || '🥢',
+      favoriteTags: account.profile?.favoriteTags || [],
+      dislikedTags: account.profile?.dislikedTags || [],
+      bio: account.profile?.bio || '',
       updatedAt: new Date().toISOString(),
-    }, { merge: true }).catch(() => {});
+    });
+    fb.firestoreMod.setDoc(pubRef, safePublicProfile, { merge: true }).catch(() => {});
 
     // 公開餐廳非同步背景推送，不阻塞使用者介面
     if (Array.isArray(account.restaurants)) {
@@ -580,12 +595,16 @@ export async function sendCloudFriendRequest(
 
     const docRef = fb.firestoreMod.doc(fb.db, 'bitemap_friend_requests', req.id);
 
-    await fb.firestoreMod.setDoc(docRef, {
+    const safeReq = sanitizeForFirestore({
       ...req,
       targetFoodieId: cleanTarget,
       senderFoodieId: cleanSender,
       status: 'pending',
       updatedAt: new Date().toISOString(),
+    });
+
+    await fb.firestoreMod.setDoc(docRef, {
+      ...safeReq,
       serverTimestamp: fb.firestoreMod.serverTimestamp(),
     });
 
