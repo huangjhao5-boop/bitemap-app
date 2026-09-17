@@ -174,7 +174,7 @@ export const ReelsFeedModal: React.FC<ReelsFeedModalProps> = ({
       <div className="relative w-full sm:max-w-md h-full sm:h-[92vh] sm:max-h-[820px] bg-slate-950 sm:rounded-[36px] overflow-hidden shadow-2xl border-0 sm:border border-slate-800 flex flex-col justify-between text-white">
         
         {/* Top Floating Control Bar */}
-        <div className="absolute top-0 inset-x-0 z-30 p-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between pointer-events-auto">
+        <div className="absolute top-0 inset-x-0 z-30 p-4 pt-safe-top sm:pt-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="px-2.5 py-1 rounded-full bg-rose-500 text-[11px] font-black text-white flex items-center gap-1 shadow-md">
               <Play className="w-3 h-3 fill-current" />

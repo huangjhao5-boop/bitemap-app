@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { UserProfile, Restaurant, Friend, DiningMeetup } from '../../types';
 import type { Language } from '../../utils/i18n';
 import { 
@@ -7,6 +7,7 @@ import {
   fetchUserDataFromCloud,
   saveFoodieAccountToCloud,
   fetchFoodieAccountFromCloud,
+  loadFirebaseModules,
 } from '../../utils/firebase';
 import { 
   authenticateAndLoginAccount, 
@@ -60,9 +61,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // ⚡ 預先背景載入 Firebase 模組，消滅點擊登入時的動態加載延遲
+  useEffect(() => {
+    if (isOpen) {
+      loadFirebaseModules().catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-    const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const id = loginId.trim().toLowerCase().replace(/[@#\s]/g, '');
     const pin = loginPin.trim();
@@ -72,37 +80,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // ✅ 沒輸入密碼時立即擋下提示，絕不進入「驗證中...」或發起雲端查詢
+    // ✅ 沒輸入密碼時矢量擋下，不發起雲端查詢
     if (!pin) {
       setStatusMessage({ type: 'error', text: '請輸入 4 碼安全 PIN 密碼才能登入！' });
       return;
     }
 
-    setStatusMessage({ type: 'success', text: '🔍 正在驗證吃貨帳號與安全 PIN...' });
-
-    // 1. Check local registry first
+    // ⚡ 1. 0.05 秒秒速登入：優先比對本機已存在之吃貨帳號紀錄 (無需等待網路！)
     const res = authenticateAndLoginAccount(id, pin);
     if (res.success && res.account) {
-      setStatusMessage({ type: 'success', text: res.message });
-      // Sync latest to cloud in background
+      setStatusMessage({ type: 'success', text: `⚡ 0秒速登成功！歡迎回來【${res.account.profile?.name || id}】` });
+      // 背景非同步同步至雲端
       saveFoodieAccountToCloud(res.account).catch(() => {});
       setTimeout(() => {
         onLoginSuccess(res.account!);
         onClose();
-      }, 500);
+      }, 150);
       return;
     }
 
-    // 若本機已確認有此帳號但 PIN 碼錯誤，直接顯示錯誤訊息，不進入雲端查詢
+    // 若本機已有此帳號但 PIN 碼錯誤，立即提示密碼錯誤，拒絕無謂的雲端連線
     if (res.accountFoundLocally && !res.success) {
       setStatusMessage({ type: 'error', text: res.message });
       return;
     }
 
-    // 2. If not found locally, check Cloud Firestore (Cross-Device Support!)
+    // ⚡ 2. 本機查無時，啟動 1.8 秒極速雲端查詢 (帶超時熔斷保護，防範漫長等待)
+    setStatusMessage({ type: 'success', text: '🌐 正在進行跨裝置雲端帳號驗證 (極速連線中...)' });
+
     try {
-      const cloudRes = await fetchFoodieAccountFromCloud(id);
-      if (cloudRes.success && cloudRes.account) {
+      const timeoutPromise = new Promise<{ success: false; message: string }>((resolve) => {
+        setTimeout(() => resolve({ success: false, message: '☁️ 雲端連線逾時，切換為離線驗證' }), 1800);
+      });
+
+      const cloudRes = await Promise.race([
+        fetchFoodieAccountFromCloud(id),
+        timeoutPromise
+      ]);
+
+      if (cloudRes.success && 'account' in cloudRes && cloudRes.account) {
         const cloudAcc = cloudRes.account;
         const storedPinOrHash = String(cloudAcc.pinCode || '8888').trim();
         const isPinValid = await verifyPinCode(pin, storedPinOrHash);
@@ -121,7 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setTimeout(() => {
           onLoginSuccess(cloudAcc);
           onClose();
-        }, 500);
+        }, 200);
         return;
       }
     } catch (cloudErr) {
@@ -266,7 +282,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const savedAccounts = Object.values(loadAccountRegistry());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn pt-safe-top">
       <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden my-auto border border-slate-200">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">

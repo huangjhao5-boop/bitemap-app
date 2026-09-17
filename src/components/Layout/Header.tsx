@@ -81,8 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   
   return (
-    <header className="sticky top-0 z-40 cute-glass border-b border-rose-100/80 shadow-xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
+    <header className="sticky top-0 z-40 cute-glass border-b border-rose-100/80 shadow-xs pt-safe-top">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 min-h-[3.5rem] py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Cute Brand Logo & IG Gradient Name */}
         <div className="flex items-center gap-2.5 shrink-0 cursor-pointer group">

@@ -381,8 +381,28 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     e.target.value = '';
   };
 
-  const handleSmartAutoFill = async () => {
-    const rawInput = smartInputText.trim();
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setSmartAutoFillNotice('請直接在框內長按或按 Ctrl+V 貼上您複製的短影音貼文與網址！');
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        setSmartInputText(text.trim());
+        setTimeout(() => {
+          handleSmartAutoFill(text.trim());
+        }, 50);
+      } else {
+        setSmartAutoFillNotice('剪貼簿中未偵測到文字，請先在 IG/TikTok 複製短影音貼文內容與網址！');
+      }
+    } catch {
+      setSmartAutoFillNotice('無法直接讀取剪貼簿，請在文字輸入框長按貼上 (Ctrl+V) 即可自動解析！');
+    }
+  };
+
+  const handleSmartAutoFill = async (inputOverride?: string) => {
+    const rawInput = (inputOverride !== undefined ? inputOverride : smartInputText).trim();
     if (!rawInput) return;
 
     setIsSmartAutoFilling(true);
@@ -652,11 +672,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn pt-safe-top">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[92dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 pt-safe-top sm:pt-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xl">{isReadOnlyMode ? '🥢' : '✨'}</span>
             <h2 className="text-lg font-bold text-white">
@@ -1018,17 +1038,22 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                       <Wand2 className="w-4 h-4 text-amber-600" />
-                      <span>{lang === 'zh-TW' ? '🪄 智能一鍵自動填入（貼上短影音網址或社群貼文）' : '🪄 AI 自動入力（動画URLやSNS投稿を貼り付け）'}</span>
+                      <span>{lang === 'zh-TW' ? '🪄 免 API 零門檻短影音與貼文智慧入庫' : '🪄 免費短影音・SNS 智慧解析'}</span>
                     </span>
-                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
-                      {lang === 'zh-TW' ? '省時極速' : '時短'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={handlePasteFromClipboard}
+                      className="text-[11px] font-black text-amber-900 bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 rounded-xl shadow-2xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 border border-amber-300/60"
+                      title="讀取您在 IG / TikTok 複製的貼文與網址"
+                    >
+                      <span>📋 一鍵讀取剪貼簿並帶入</span>
+                    </button>
                   </div>
 
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder={lang === 'zh-TW' ? '貼上短影音網址或社群貼文（可連同貼文描述一起貼入，自動辨識店名與地址）' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
+                      placeholder={lang === 'zh-TW' ? '貼上短影音貼文與網址（貼入包含「店名、地址、必點」之文案與連結）' : 'IG Reels / TikTok / YouTube Shorts URL を貼り付け'}
                       value={smartInputText}
                       onChange={(e) => setSmartInputText(e.target.value)}
                       onKeyDown={(e) => {
@@ -1041,24 +1066,24 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                     />
                     <button
                       type="button"
-                      onClick={handleSmartAutoFill}
+                      onClick={() => handleSmartAutoFill()}
                       disabled={isSmartAutoFilling || !smartInputText.trim()}
                       className="px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
                     >
                       {isSmartAutoFilling ? (
                         <>
                           <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>{lang === 'zh-TW' ? 'AI 解析中...' : '解析中...'}</span>
+                          <span>{lang === 'zh-TW' ? '解析中...' : '解析中...'}</span>
                         </>
                       ) : autoFillSuccess ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
-                          <span>{lang === 'zh-TW' ? '已自動解析！' : '解析完了！'}</span>
+                          <span>{lang === 'zh-TW' ? '解析成功！' : '解析完了！'}</span>
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-3.5 h-3.5" />
-                          <span>{lang === 'zh-TW' ? '一鍵自動填入' : '自動解析'}</span>
+                          <span>{lang === 'zh-TW' ? '自動帶入' : '自動解析'}</span>
                         </>
                       )}
                     </button>

@@ -8,10 +8,13 @@
 - **Role 4 (CEO 總指揮官)**: 聚焦商業目標、使用者留存與實際業務價值（短影音美食地圖、探店入庫、點餐避雷）。
 
 ## 核心技術規範與跨裝置手感規範 (Device & UX Standards)
-1. **iOS / Safari 適配**：
-   - 避免輸入框點擊自動縮放（小於 768px 的輸入控制項 font-size 須為 16px）。
-   - 地圖與全螢幕容器支援 `100dvh` 動態視窗高度。
-   - 浮動操作元素與底部卡片必須考慮安全區域 `env(safe-area-inset-bottom)` 與 `.pb-safe`。
+1. **iOS / Safari / PWA 獨立 App 適配**：
+   - **動態島與頂部安全區 (Dynamic Island / Notch)**：頂部 Sticky Header 及所有彈出 Modal (抽屜) 強制加上 `.pt-safe-top` (`padding-top: max(0.5rem, env(safe-area-inset-top))` )，絕不讓 close `X` 按鈕或頂部列被動態島或狀態欄遮擋。
+   - ** status-bar 設定**：PWA `apple-mobile-web-app-status-bar-style` 一律設為 `default`（禁用 `black-translucent` 避免 Safari WebKit Compositing 機制導致頂部區域霧化遮罩與觸控捕獲失靈）。
+   - **玻璃毛玻璃硬體加速**：`glass-nav` 與 `cute-glass` 必須加上 `transform: translateZ(0)`，解決 iOS 網頁切換為 PWA 獨立 App 時的渲染層倒置問題。
+   - **防被動縮放**：手機尺寸 (<768px) 下，所有 input、select、textarea 最小字級強制保持 16px。
+   - **全螢幕動態高度**：地圖與全螢幕容器支援 `100dvh` 動態視窗高度。
+   - **底部安全區**：浮動操作元素與底部卡片必須考慮安全區域 `env(safe-area-inset-bottom)` 與 `.pb-safe`。
 2. **iPad 與平板雙欄互斥規範**：
    - 直向 (<1024px) 採用全寬地圖 + 抽屜面板。
    - 橫向 (≥1024px) 自動切換左側列表 + 右側地圖雙欄工作台。兩者條件互斥，絕不重複渲染重疊。

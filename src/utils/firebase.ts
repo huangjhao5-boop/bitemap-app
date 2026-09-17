@@ -43,7 +43,7 @@ export function saveFirebaseConfig(config: FirebaseConfigType): void {
 
 let firebaseModules: any = null;
 
-async function loadFirebaseModules() {
+export async function loadFirebaseModules() {
   if (firebaseModules) return firebaseModules;
 
   try {

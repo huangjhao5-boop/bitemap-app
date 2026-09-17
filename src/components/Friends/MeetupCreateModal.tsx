@@ -77,7 +77,7 @@ export const MeetupCreateModal: React.FC<MeetupCreateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto animate-fadeIn pt-safe-top">
       <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden my-auto border border-slate-200">
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">

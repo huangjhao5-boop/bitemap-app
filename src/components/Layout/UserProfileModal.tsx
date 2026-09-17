@@ -165,10 +165,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn pt-safe-top">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-xl w-full h-[92dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 pt-safe-top sm:pt-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-900 to-indigo-950 text-white shrink-0">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-rose-400" />
             <h2 className="text-base font-bold text-white">

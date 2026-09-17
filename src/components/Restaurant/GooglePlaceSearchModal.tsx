@@ -131,11 +131,11 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[94dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs overflow-hidden animate-fadeIn pt-safe-top">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full h-[92dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 pt-safe-top sm:pt-3.5 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-950 text-white shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">🔍</span>
             <div>
