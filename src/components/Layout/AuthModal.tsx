@@ -80,16 +80,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // ✅ 沒輸入密碼時矢量擋下，不發起雲端查詢
     if (!pin) {
-      setStatusMessage({ type: 'error', text: '請輸入 4 碼安全 PIN 密碼才能登入！' });
+      setStatusMessage({ type: 'error', text: '請輸入您的 4 碼安全 PIN 密碼！' });
       return;
     }
 
     // ⚡ 1. 0.05 秒秒速登入：優先比對本機已存在之吃貨帳號紀錄 (無需等待網路！)
     const res = authenticateAndLoginAccount(id, pin);
     if (res.success && res.account) {
-      setStatusMessage({ type: 'success', text: `⚡ 0秒速登成功！歡迎回來【${res.account.profile?.name || id}】` });
+      setStatusMessage({ type: 'success', text: `⚡ 驗證成功！歡迎回來【${res.account.profile?.name || id}】` });
       // 背景非同步同步至雲端
       saveFoodieAccountToCloud(res.account).catch(() => {});
       setTimeout(() => {
@@ -147,7 +146,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // 3. Neither local nor cloud found
     setStatusMessage({ 
       type: 'error', 
-      text: `查無吃貨 ID【${id}】！若這是新帳號，請切換至上方「註冊新 ID」即可跨裝置使用！` 
+      text: `查無吃貨 ID【${id}】！若這是您的全新帳號，請點擊上方「註冊新 ID」設定專屬 PIN 密碼保護！` 
     });
   };
 
@@ -175,7 +174,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       name: name || id,
     };
 
+    const newAccount = {
+      foodieId: id,
+      pinCode: pin,
+      profile: newProfile,
+      restaurants,
+      friends,
+      meetups,
+    };
+
     registerOrUpdateAccount(newProfile, restaurants, friends, meetups);
+    saveFoodieAccountToCloud(newAccount).catch(() => {});
 
     setStatusMessage({
       type: 'success',
@@ -183,14 +192,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     });
 
     setTimeout(() => {
-      onLoginSuccess({
-        foodieId: id,
-        pinCode: pin,
-        profile: newProfile,
-        restaurants,
-        friends,
-        meetups,
-      });
+      onLoginSuccess(newAccount);
       onClose();
     }, 700);
   };
@@ -447,7 +449,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="password"
                     maxLength={10}
-                    placeholder="•••• (若未設定可留空)"
+                    placeholder="請輸入 4 碼 PIN 密碼"
                     value={loginPin}
                     onChange={(e) => setLoginPin(e.target.value)}
                     className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-amber-500 tracking-widest font-mono"

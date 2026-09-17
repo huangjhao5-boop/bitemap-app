@@ -6,6 +6,7 @@ import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText, fetchVideoMetadata } from '../../utils/videoParser';
 import { searchGooglePlacesOnline, resolveGooglePlaceUrl, type PlaceSearchResult } from '../../utils/placeSearch';
+import { parseScreenshotWithOcr } from '../../utils/ocrParser';
 import { 
   X, 
   Plus, 
@@ -23,6 +24,7 @@ import {
   Lock,
   Camera,
   Video,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface RestaurantModalProps {
@@ -100,6 +102,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [smartInputText, setSmartInputText] = useState('');
   const [isSmartAutoFilling, setIsSmartAutoFilling] = useState(false);
   const [smartAutoFillNotice, setSmartAutoFillNotice] = useState<string | null>(null);
+  const [isOcrAnalyzing, setIsOcrAnalyzing] = useState(false);
+  const [ocrCandidateWords, setOcrCandidateWords] = useState<string[]>([]);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const [menuImages, setMenuImages] = useState<string[]>([]);
@@ -379,6 +384,80 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const processScreenshotFile = async (file: File) => {
+    setIsOcrAnalyzing(true);
+    setSmartAutoFillNotice(null);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) {
+        setIsOcrAnalyzing(false);
+        return;
+      }
+
+      // 1. 自動設為探店精選封面照片
+      setCoverImage(dataUrl);
+
+      // 2. 啟動離線 OCR 圖片字元辨識
+      try {
+        const result = await parseScreenshotWithOcr(dataUrl);
+        setOcrCandidateWords(result.candidateWords);
+
+        let found = false;
+        if (result.extractedInfo.name) {
+          setName(result.extractedInfo.name);
+          found = true;
+        }
+        if (result.extractedInfo.category) {
+          setCategory(result.extractedInfo.category);
+          found = true;
+        }
+        if (result.extractedInfo.city) {
+          handleCityChange(result.extractedInfo.city);
+          found = true;
+        }
+        if (result.extractedInfo.address) {
+          setAddress(result.extractedInfo.address);
+          found = true;
+        }
+        if (result.extractedInfo.mustEatDishes.length > 0) {
+          setMustEatDishes((prev) => Array.from(new Set([...prev, ...result.extractedInfo.mustEatDishes])));
+          found = true;
+        }
+
+        if (found) {
+          setSmartAutoFillNotice(`🎉 成功從短影音截圖辨識出店名【${result.extractedInfo.name || '美食探店'}】與細節！已同步設為封面！`);
+        } else if (result.candidateWords.length > 0) {
+          setSmartAutoFillNotice(`📷 短影音截圖已設為封面！下方列出辨識到的文字標籤，點擊文字即可直接帶入店名或地址！`);
+        } else {
+          setSmartAutoFillNotice('📷 短影音截圖已成功設為封面照片！您亦可於上方 Google 搜尋店家名稱。');
+        }
+      } catch (err) {
+        console.warn('Screenshot OCR error', err);
+        setSmartAutoFillNotice('📷 短影音截圖已成功設定為封面照片！');
+      } finally {
+        setIsOcrAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleScreenshotDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      processScreenshotFile(file);
+    }
+  };
+
+  const handleScreenshotSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processScreenshotFile(file);
+    }
   };
 
   const handlePasteFromClipboard = async () => {
@@ -1087,6 +1166,73 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                         </>
                       )}
                     </button>
+                  </div>
+
+                  {/* 📸 截圖無法複製文案？拖入/選擇短影音截圖 0-API 自動 OCR 辨識 */}
+                  <div className="pt-1 border-t border-amber-200/60 flex flex-col gap-2">
+                    <input
+                      type="file"
+                      ref={screenshotInputRef}
+                      onChange={handleScreenshotSelect}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleScreenshotDrop}
+                      onClick={() => screenshotInputRef.current?.click()}
+                      className="border-2 border-dashed border-amber-300 hover:border-amber-500 bg-white/80 hover:bg-amber-50/50 rounded-xl p-2.5 text-center cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold text-amber-900 group shadow-2xs"
+                    >
+                      {isOcrAnalyzing ? (
+                        <>
+                          <RotateCw className="w-4 h-4 text-amber-600 animate-spin" />
+                          <span>🔍 正在本機離線辨識截圖文字與店家資訊...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+                          <span>無法複製文字？拖入或點擊上傳【短影音/菜單截圖】（自動 OCR 帶入店名）</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* 💡 辨識出的文字標籤 (點擊可快速帶入店名或地址) */}
+                    {ocrCandidateWords.length > 0 && (
+                      <div className="bg-white/90 border border-amber-200 rounded-xl p-2.5 space-y-1.5">
+                        <span className="text-[11px] font-black text-amber-900 flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          <span>點擊下方從截圖辨識出的關鍵字，快速帶入欄位：</span>
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                          {ocrCandidateWords.map((word, idx) => (
+                            <div key={idx} className="flex gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setName(word);
+                                  setSmartAutoFillNotice(`已將【${word}】帶入店名！`);
+                                }}
+                                className="text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-950 px-2 py-0.5 rounded-l-md transition-colors cursor-pointer"
+                                title="點擊設為店名"
+                              >
+                                📌 {word}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAddress(word);
+                                  setSmartAutoFillNotice(`已將【${word}】帶入地址！`);
+                                }}
+                                className="text-[10px] font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-950 px-1.5 py-0.5 rounded-r-md transition-colors cursor-pointer border-l border-amber-200"
+                                title="點擊設為地址"
+                              >
+                                🏠 地址
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {smartAutoFillNotice && (
