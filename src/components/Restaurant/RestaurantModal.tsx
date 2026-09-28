@@ -1577,6 +1577,35 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 />
               </div>
 
+              {editingRestaurant && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      地圖緯度
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={lat}
+                      onChange={(e) => setLat(Number(e.target.value))}
+                      className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      地圖經度
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={lng}
+                      onChange={(e) => setLng(Number(e.target.value))}
+                      className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   價位級距 *
