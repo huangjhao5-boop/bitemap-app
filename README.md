@@ -1,100 +1,110 @@
-# 🥢 BiteMap — 短影音美食地圖 & 吃貨朋友圈即時同步系統
+# 🥢 BiteMap — 短影音美食地圖 & 吃貨朋友圈
 
-> **專為吃貨打造的全方位美食地圖系統**：結合 **Google Maps 導航**、**0.1秒 WebSocket 雙向好友美食地圖即時同步**、**三段式公開範圍設定（全公開 / 好友 / 私密）**、**好友公開檔案 vs 私房觀察雙軌隔離**、**各平台短影音探店來源（IG Reels / TikTok / YouTube Shorts）**、**誠實避雷履歷（必吃招牌 vs 特定雷菜）**、**美食盲盒抽籤**、**聚餐分帳轉盤**、**IG 限動小卡下載** 與 **中日雙語（🇹🇼 / 🇯🇵）**！
+> 把在社群上看到的、朋友推薦的、自己吃過的店，收進同一張地圖。  
+> 支援好友之間分享口袋名單、必吃／避雷標記、聚餐工具，介面提供 🇹🇼 繁體中文 / 🇯🇵 日本語。
 
----
+👉 **線上版：[https://huangjhao5-boop.github.io/bitemap-app/](https://huangjhao5-boop.github.io/bitemap-app/)**  
+📂 **原始碼：[https://github.com/huangjhao5-boop/bitemap-app](https://github.com/huangjhao5-boop/bitemap-app)**
 
-## 🚀 立即線上體驗 (Live App)
-
-👉 **點擊一鍵快速進入：[https://huangjhao5-boop.github.io/bitemap-app/](https://huangjhao5-boop.github.io/bitemap-app/)**  
-📂 **GitHub 原始碼庫：[https://github.com/huangjhao5-boop/bitemap-app](https://github.com/huangjhao5-boop/bitemap-app)**
-
----
-
-## 🌟 核心特色功能全覽
-
-### 1. 🗺️ 雙向即時雲端美食地圖同步（0.1 秒 WebSocket 串流）
-* **好友口袋名單即時載入**：互加好友後，系統自動從雲端載入對方標記為「全公開」或「好友限定」的私房好店，在地圖與清單即時呈現。
-* **來源範圍一鍵切換**：
-  * **🌟 全部地圖**：同時瀏覽自己建立 + 好友分享的美食。
-  * **👑 我的口袋**：專注檢視自己個人的收藏清單。
-  * **👥 好友私藏**：一鍵過濾出好友們分享的私房口袋好店，並支援按特定好友篩選！
-* **專屬推薦徽章**：朋友分享的店家卡片與地圖氣泡清楚標註 `👥 來自好友【XXX】的私房口袋名單` 與精美頭像。
-
-### 2. 🌐 美食店家三段式公開發布範圍設定
-在新增或編輯任何一間餐廳時，置頂提供三段式範圍設定：
-* **【🌐 全公開】**（翠綠色）：同步推送到社群大廳與所有吃貨好友。
-* **【👥 好友限定】**（紫色）：僅自己與互加好友的吃貨夥伴在地圖上可見。
-* **【🔒 私密】**（深灰黑）：僅供個人私密備忘，好友不會看見。
-
-### 3. 👥 吃貨朋友「雙軌資料隔離」架構
-* **☁️ 對方公開自訂（雲端動態同步）**：展示好友自行設定的公開暱稱、頭像、愛吃與忌口標籤（如：不吃牛、怕辣）。對方更新時自動即時同步。
-* **📝 我對好友的私房觀察（個人本機隱私保護）**：專屬自己的備註欄位（自訂備註綽號、私房觀察喜好與忌口、私密筆記），**永不被雲端覆蓋，也不會外流給對方**！
-
-### 4. 🤝 0 秒吃貨 ID 互相綁定與邀請自動消除
-* 輸入對方的吃貨專屬 ID（如 `cindy_foodie`）即可發送邀請。
-* 雙方同意成為好友後，**待審核邀請與頂部橫幅 100% 自動消除結案**，雲端自動批次清理，絕不重複跳出！
-
-### 5. 📱 沉浸式短影音流（依 GPS 當前位置由近到遠排序）
-* 依據目前真實 GPS 或所在城市（台北/東京/大阪等），自動使用 Haversine 演算法**由最近到最遠**排序所有短影音美食！
-* 直向全螢幕滑動探店，一鍵開啟 Instagram Reels、TikTok、YouTube Shorts 播放。
-
-### 6. 🪄 智能短影音 AI 一鍵自動解析填入
-* 貼上 IG Reels / TikTok / YouTube 網址或社群貼文文案，系統自動抽取店名、分類、城市、地址、必吃菜色與短影音來源，大幅節省建檔時間。
-
-### 7. 💥 雙層次「誠實避雷履歷」
-* **店家層級整體定位**：🔥 超推必吃 / 🔄 常去愛店 / 📌 待吃口袋名單 / 😐 普通吃過即可 / ☠️ 整間店列入黑名單（永久封殺）。
-* **餐點層級微觀評價**：🌟 此店必點招牌 vs ❌ 此店特定雷菜（千萬別點這道）。
-
-### 8. 🎁 美食盲盒抽籤機（同行好友忌口守護盾）
-* 聚餐不知吃什麼？勾選今天同行聚餐的朋友，系統自動整合全員忌口（不吃香菜、怕辣、生食NG、乳糖不耐），智慧避雷並抽出命定美食！
-
-### 9. 🎲 聚餐分帳與隨機買單轉盤
-* 輸入總金額與服務費比例，自動計算每人應付金額。
-* 轉盤隨機抽出幸運朋友「全額請客」或「請喝飲料」！
-
-### 10. 📸 IG 限動美食小卡高畫質匯出
-* 一鍵生成 2x 視網膜畫質的 Instagram Story 分享小卡圖片，支援一鍵直傳 IG 限動與 LINE 分享。
-
-### 11. 🇹🇼 繁體中文 / 🇯🇵 日本語 即時雙語切換
-* 全站介面與菜色標籤完整支援繁體中文與日文，出國旅遊探店無縫銜接。
+> ⚠️ 本專案是個人開發的純前端 PWA（部署於 GitHub Pages，沒有自建後端），資料庫使用 Firebase Firestore。請先閱讀下方〈已知限制〉與〈資料與隱私〉。
 
 ---
 
-## 🛠️ 技術架構 (Tech Stack)
+## ✨ 功能總覽
+
+### 🗺️ 地圖與清單
+- Leaflet + OpenStreetMap 地圖，標記自己與好友的店家；支援「全部 / 我的口袋 / 好友私藏」切換與依好友篩選。
+- 依 GPS（或所選城市）計算距離，可依距離排序；地圖與清單可依分類、城市、評價標籤篩選。
+- 一鍵開啟 Google Maps 查詢／導航連結（僅是開啟連結，未使用 Google Maps API）。
+
+### ➕ 新增店家（本專案的核心流程）
+新增店家提供四種輸入方式，全部使用**免費公開服務**，沒有 Google Places API：
+
+| 輸入方式 | 實際做法 | 限制 |
+|---|---|---|
+| 搜尋店名 / 地址 | OpenStreetMap 的 Photon、Nominatim，並以目前位置為偏好；有 GPS 時另用 Overpass 搜尋附近店名；日本地址可用國土地理院（GSI）轉座標 | 資料庫沒收錄的小店會查不到 |
+| 貼上 Google Maps 連結 | 從網址解析店名與座標；短網址透過公用 CORS proxy 嘗試展開 | proxy 不穩定，短網址可能失敗 |
+| 貼上貼文文字 | 以規則（正規表達式）擷取店名、地址、必吃／避雷品項 | **不是 AI**，格式不明顯時會抓不準 |
+| 上傳截圖 | 瀏覽器內建 Tesseract.js OCR（中／日／英），優先從截圖抽出地址並轉座標，再以店名於該地址附近找店 | 首次需下載語言包；模糊或極小字截圖辨識率有限 |
+
+找不到店時，系統會明確提示，並保留「以地址定位」或手動補資料的路徑，不再自動填入假座標。
+
+### 🎬 短影音來源
+- 可為店家附上 Instagram / TikTok / YouTube / Facebook / 小紅書 等連結；YouTube 可內嵌播放。
+- YouTube 與 TikTok 可透過 oEmbed 取得標題；**Facebook / Instagram 不開放讀取貼文內容，只貼連結無法取得店名**，請改貼文字或上傳截圖。
+- 「短影音流」將所有已附影片的店家依距離由近到遠排列。
+
+### 💥 必吃 / 避雷紀錄
+- 店家層級：超推必吃、常去回訪、待吃口袋名單、普通、黑名單。
+- 餐點層級：必點招牌與特定雷菜；可釘選菜單照片。
+
+### 👥 好友與聚餐
+- 以「吃貨 ID」發送與接受好友邀請。
+- 好友公開檔案（暱稱、頭像、愛吃／忌口）與你對好友的私人備註分開保存；私人備註只存在本機。
+- 聚餐工具：美食盲盒（整合同行者忌口後抽店）、聚餐分帳與隨機買單轉盤、聚餐邀約與想吃清單配對。
+
+### 📸 其他
+- 將店家匯出為 2x 解析度的 Instagram 限動小卡（PNG）。
+- 資料可匯出 / 匯入 JSON 備份；登入 Google 後可備份到雲端。
+- 可安裝為 PWA，並針對 iOS 安全區域與動態島做版面處理。
+
+---
+
+## 🔐 資料與隱私（請務必閱讀）
+
+- 資料預設存在瀏覽器 LocalStorage；登入後會同步至 Firebase Firestore。
+- 登入方式：Google 登入（雲端備份），以及「吃貨 ID + 4 碼 PIN」的輕量帳號。PIN 以 SHA-256 加固定 salt 雜湊後再儲存，**屬便利性機制，強度有限，請勿與其他服務共用密碼**。
+- 「全公開」店家會寫入公開集合供社群瀏覽。
+- **「好友限定」與「私密」目前是由前端過濾**：好友的清單以整份文件讀取後，在讀取端排除私密項目。因此實際能不能被他人讀到，取決於 Firestore Security Rules 的設定；**請不要把真正敏感的內容放進「私密」欄位**，直到規則與資料結構改為伺服器端強制隔離。
+- 專案內含 Firebase Web 設定作為預設值（Web 金鑰本身可公開），請確認自己的 Firestore Security Rules 已妥善設定。
+
+---
+
+## 🛠️ 技術架構
 
 | 領域 | 使用技術 |
-|------|---------|
-| **前端框架** | React 19 + TypeScript + Vite |
-| **樣式設計** | Tailwind CSS v4 + Lucide React Icons + Canvas Confetti |
-| **地圖引擎** | Leaflet + React-Leaflet + OpenStreetMap + Google Maps 導航整合 |
-| **即時雲端資料庫** | Firebase Firestore（`onSnapshot` 雙向即時 WebSocket 串流） |
-| **圖片導出** | html-to-image（高畫質 PNG 渲染） |
-| **資料持久化** | LocalStorage + Cloud Firestore + JSON 匯出/匯入 |
+|---|---|
+| 前端 | React 19 + TypeScript + Vite |
+| 樣式 | Tailwind CSS v4、Lucide React、canvas-confetti |
+| 地圖 | Leaflet + React-Leaflet + OpenStreetMap 圖磚 |
+| 店家搜尋 | Photon、Nominatim、Overpass（OSM）、國土地理院 GSI 地址搜尋 |
+| 截圖辨識 | Tesseract.js（瀏覽器端、離線辨識，語言包首次載入需下載） |
+| 雲端 | Firebase Auth + Firestore（`onSnapshot` 即時監聽；Firebase SDK 由 CDN 動態載入） |
+| 圖片輸出 | html-to-image |
+| 持久化 | LocalStorage + Firestore + JSON 匯出入 |
+| 部署 | GitHub Actions → GitHub Pages |
 
 ---
 
-## 💻 本地啟動指南 (Quick Start)
+## 💻 本地啟動
+
+需求：Node.js 20+
 
 ```bash
-# 1. 複製專案
 git clone https://github.com/huangjhao5-boop/bitemap-app.git
-
-# 2. 進入專案目錄
 cd bitemap-app
-
-# 3. 安裝相依套件
-npm install
-
-# 4. 啟動本地開發伺服器
-npm run dev
-
-# 5. 打包生產環境產物
-npm run build
+npm install --legacy-peer-deps
+npm run dev        # http://localhost:3000
+npm run build      # 型別檢查 + 打包
+npm run lint       # oxlint
 ```
+
+自有 Firebase 專案：複製 `.env.example` 為 `.env`，填入 `VITE_FIREBASE_*` 各欄位；未設定時會使用內建的預設值。
+
+推送到 `main` 分支會由 `.github/workflows/deploy.yml` 自動部署到 GitHub Pages。
 
 ---
 
-## 📄 授權條款 (License)
+## 🚧 已知限制
 
-本專案採用 [MIT License](LICENSE) 開源授權。歡迎自由 Fork、學習與改進！
+- 沒有後端：無法讀取 Facebook / Instagram / TikTok 貼文內容，也沒有使用 Google Places，搜尋涵蓋度受限於 OpenStreetMap。
+- 上述文字與截圖解析皆為規則式與 OCR，**結果需要人工確認**，請對照原貼文核對店名與地址。
+- 評分欄位（Google 評分）為手動填寫，非自動抓取。
+- 公用 CORS proxy 與免費 API 有速率限制，離峰以外時段可能不穩。
+- 「好友限定 / 私密」隔離的限制見〈資料與隱私〉。
+
+---
+
+## 📄 授權
+
+MIT License
