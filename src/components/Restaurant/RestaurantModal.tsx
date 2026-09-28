@@ -5,7 +5,7 @@ import { COUNTRIES_AND_REGIONS, CITY_COORDS, detectCity } from '../../utils/geo'
 import type { Language } from '../../utils/i18n';
 import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText, fetchVideoMetadata } from '../../utils/videoParser';
-import { searchGooglePlacesOnline, resolveGooglePlaceUrl, type PlaceSearchResult } from '../../utils/placeSearch';
+import { searchGooglePlacesOnline, resolveGooglePlaceUrl, geocodeAddress, type PlaceSearchResult } from '../../utils/placeSearch';
 import { parseScreenshotWithOcr } from '../../utils/ocrParser';
 import { 
   X, 
@@ -38,6 +38,8 @@ interface RestaurantModalProps {
   friends: Friend[];
   lang: Language;
   onDeleteRestaurant?: (id: string) => void;
+  /** 使用者目前位置：用於搜尋結果偏好（找附近的店）與新增店家的預設座標 */
+  userLocation?: { lat: number; lng: number };
 }
 
 function renderSafeAvatar(avatar: string | undefined, defaultEmoji: string = '🥢', sizeClass: string = 'w-full h-full') {
@@ -60,6 +62,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   friends,
   lang,
   onDeleteRestaurant,
+  userLocation,
 }) => {
   const t = translations[lang];
 
@@ -77,7 +80,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
     if (!placeSearchQuery.trim()) return;
     setIsSearchingPlaces(true);
     try {
-      const items = await searchGooglePlacesOnline(placeSearchQuery.trim());
+      const items = await searchGooglePlacesOnline(placeSearchQuery.trim(), true, userLocation);
       setPlaceSearchResults(items);
     } catch (e) {
       console.error(e);
@@ -221,8 +224,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       setCategory(lang === 'zh-TW' ? '日式拉麵' : 'ラーメン');
       setCity(lang === 'zh-TW' ? '台北市' : '東京');
       setAddress('');
-      setLat(25.0478);
-      setLng(121.5319);
+      setLat(userLocation?.lat ?? 25.0478);
+      setLng(userLocation?.lng ?? 121.5319);
       setGoogleMapsUrl('');
       setGoogleRating(4.5);
       setPriceRange('$');
@@ -411,7 +414,20 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           setMustEatDishes((prev) => Array.from(new Set([...prev, ...result.extractedInfo.mustEatDishes])));
         }
 
-        // 3. 🔥 關鍵核心：自動結合 Google 地圖與 Places 智慧搜尋！
+        // 3. 先失敗就明講原因，不要假裝成功
+        if (result.failureReason) {
+          const reasonMsg: Record<string, string> = {
+            init: '⚠️ OCR 語言包下載失敗（網路不穩或被擋）。請確認網路後重試，或直接在上方搜尋框輸入店名。',
+            timeout: '⚠️ 辨識逾時。截圖較大或手機效能不足，請裁切成只含店名與地址的區塊再試一次。',
+            empty: '⚠️ 截圖中沒有辨識到文字。請確認截圖清晰，或裁切成只含店名與地址的區塊再試一次。',
+            error: '⚠️ 辨識過程發生錯誤，請重試，或直接在上方搜尋框輸入店名。',
+          };
+          setSmartAutoFillNotice(reasonMsg[result.failureReason] || reasonMsg.error);
+          return;
+        }
+
+        // 4. 🔥 地址優先策略：截圖裡有地址就先用地址定位（地址比店名好查得多），
+        //    再用「店名 + 該地址附近」找店，命中率遠高於單靠店名。
         const detectedRegion = detectCity(result.rawText, result.extractedInfo.city || '');
 
         // 動態過濾純地區/行政區候選詞，避免將「高松」、「岡山」、「鈴鹿」、「四日市」、「三重縣」等純地區詞當成店家名稱
@@ -433,19 +449,25 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           extractedName = nonCityCandidates.length > 0 ? nonCityCandidates[0] : (result.candidateWords.length > 0 ? result.candidateWords[0] : '');
         }
 
-        const searchQuery = [extractedName, detectedRegion].filter(Boolean).join(' ').trim();
+        const addressText = result.addressCandidates[0] || '';
+        const geo = addressText ? await geocodeAddress(addressText, userLocation) : null;
+        const searchBias = geo ? { lat: geo.lat, lng: geo.lng } : userLocation;
+
+        const searchQuery = [extractedName, addressText ? '' : detectedRegion].filter(Boolean).join(' ').trim();
 
         let googleMatchFound = false;
         if (searchQuery.length >= 2) {
           try {
             setPlaceSearchQuery(searchQuery);
-            const googleResults = await searchGooglePlacesOnline(searchQuery, false);
+            // includeFallback=false：查不到就是查不到，不塞假的候選卡
+            const googleResults = await searchGooglePlacesOnline(searchQuery, false, searchBias);
             if (googleResults.length > 0) {
               const topMatch = googleResults[0];
               setName(topMatch.name);
               setCategory(topMatch.category);
               setCity(topMatch.city);
-              setAddress(topMatch.address);
+              // 截圖上的地址是使用者看得到的第一手資料，優先於地圖資料庫拼出來的地址
+              setAddress(addressText || topMatch.address);
               setLat(topMatch.lat);
               setLng(topMatch.lng);
               setGoogleMapsUrl(topMatch.googleMapsUrl);
@@ -454,12 +476,28 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
               googleMatchFound = true;
               setSmartAutoFillNotice(
-                `🎉 圖片辨識成功！已結合 Google 地圖自動對接官方店家「【${topMatch.name}】（${topMatch.address}）」！並自動同步經緯度、分類與門牌！`
+                `🎉 已找到「${topMatch.name}」並帶入座標。請對照截圖確認店名與地址是否正確，不對的話可從下方候選清單改選。`
               );
             }
           } catch (gErr) {
             console.warn('Google places auto lookup error', gErr);
           }
+        }
+
+        // 搜不到店家，但截圖有地址 → 至少把「地址 + 精準座標」帶進去，店名交給使用者確認
+        if (!googleMatchFound && geo) {
+          if (extractedName) setName(extractedName);
+          setAddress(addressText);
+          setLat(geo.lat);
+          setLng(geo.lng);
+          if (geo.city) handleCityChange(geo.city);
+          setGoogleMapsUrl(
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${extractedName} ${addressText}`.trim())}`
+          );
+          googleMatchFound = true;
+          setSmartAutoFillNotice(
+            `📍 已用截圖上的地址定位（${addressText}）。地圖資料庫沒有收錄這家店，店名請對照截圖確認：${extractedName ? `「${extractedName}」` : '（未能辨識）'}，可點下方關鍵字標籤修正。`
+          );
         }
 
         if (!googleMatchFound) {
@@ -638,7 +676,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       let hasConfidentOnlineMatch = false;
       if (extracted.name) {
         try {
-          const placeResults = await searchGooglePlacesOnline(extracted.name, false);
+          const placeResults = await searchGooglePlacesOnline(extracted.name, false, userLocation);
 
           const isConfidentMatch = (qName?: string, rName?: string) => {
             if (!qName || !rName) return false;
@@ -669,6 +707,20 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             }
           } else {
             setPlaceSearchQuery(extracted.name);
+            // 貼文有寫地址但店名查不到 → 用地址定位（免費 GSI / Nominatim），至少座標是對的
+            if (extracted.address) {
+              const geo = await geocodeAddress(extracted.address, userLocation);
+              if (geo) {
+                hasConfidentOnlineMatch = true;
+                setAddress(extracted.address);
+                setLat(geo.lat);
+                setLng(geo.lng);
+                if (geo.city) handleCityChange(geo.city);
+                setGoogleMapsUrl(
+                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${extracted.name} ${extracted.address}`)}`
+                );
+              }
+            }
           }
         } catch (e) {
           console.warn('Auto place search error', e);
@@ -694,7 +746,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       } else if (isVideo) {
         setSmartAutoFillNotice(
           lang === 'zh-TW'
-            ? '🎬 已成功加入短影音！⚠️ 因 Instagram / TikTok 官方隱私防爬蟲限制，若「只貼上影片連結」無法直接讀取貼文內文。建議您：在上方搜尋欄輸入店名，或在貼上時「連同貼文介紹文字一起複製貼入」，系統即可自動解析店名、地址與必吃品項！'
+            ? '🎬 影片連結已加入。⚠️ Facebook / Instagram / TikTok 不開放讀取貼文內容，只貼連結抓不到店名。請改用下面任一方式：\n① 把貼文文字（店名、地址）一起複製貼上\n② 上傳貼文截圖（系統會讀截圖上的地址來定位）\n③ 在上方搜尋框直接輸入店名或地址'
             : '🎬 動画を追加しました！Instagram/TikTokの仕様上、URLのみではテキスト情報を自動取得できません。上の検索バーで店名を検索するか、投稿文と一緒に貼り付けてください。'
         );
       } else {

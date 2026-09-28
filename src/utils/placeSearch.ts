@@ -13,7 +13,166 @@ export interface PlaceSearchResult {
   googleSearchUrl: string;
   priceRange: '$' | '$$' | '$$$' | '$$$$';
   rawType?: string;
-  source?: 'photon' | 'nominatim' | 'google_share' | 'custom';
+  source?: 'photon' | 'nominatim' | 'google_share' | 'custom' | 'gsi' | 'overpass';
+  /** true = 座標只是概略位置（例如城市中心或使用者所在地），並非店家實際位置 */
+  approx?: boolean;
+}
+
+export interface GeoBias {
+  lat: number;
+  lng: number;
+}
+
+const JP_CHARS = /[\u3040-\u30ff]|[都道府県市区町村]/;
+
+/**
+ * 地址 → 座標（全部免費、免金鑰）
+ * - 日本地址：優先使用國土地理院 GSI 地址搜尋（門牌級精度，日本境內比 OSM 準確）
+ * - 其他地區 / GSI 查無：Nominatim
+ */
+export async function geocodeAddress(rawAddress: string, bias?: GeoBias): Promise<PlaceSearchResult | null> {
+  const address = rawAddress
+    .replace(/〒?\s?\d{3}-?\d{4}\s*/g, '')
+    .replace(/臺/g, '台')
+    .trim();
+  if (address.length < 4) return null;
+
+  const isJp = JP_CHARS.test(address) && !/[縣區鄉鎮]/.test(address);
+
+  if (isJp) {
+    try {
+      const res = await fetch(
+        `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`,
+        { signal: AbortSignal.timeout(6000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const f = Array.isArray(data) ? data[0] : null;
+        const c = f?.geometry?.coordinates;
+        if (Array.isArray(c) && c.length >= 2) {
+          const title: string = f.properties?.title || address;
+          const city = detectCity(title, '');
+          return {
+            id: `gsi_${Date.now()}`,
+            name: '',
+            category: '精選美食',
+            city: city || '',
+            address: title,
+            lat: c[1],
+            lng: c[0],
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(title)}`,
+            googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(title)}`,
+            priceRange: '$',
+            source: 'gsi',
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('GSI geocode failed', e);
+    }
+  }
+
+  try {
+    let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(address)}`;
+    if (bias) {
+      url += `&viewbox=${bias.lng - 1.5},${bias.lat + 1.5},${bias.lng + 1.5},${bias.lat - 1.5}`;
+    }
+    const res = await fetch(url, {
+      headers: { 'Accept-Language': 'zh-TW,zh;q=0.9,ja;q=0.8,en;q=0.7' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const item = Array.isArray(data) ? data[0] : null;
+      if (item) {
+        const lat = parseFloat(item.lat);
+        const lng = parseFloat(item.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return {
+            id: `geo_${Date.now()}`,
+            name: '',
+            category: '精選美食',
+            city: detectCity(address, ''),
+            address,
+            lat,
+            lng,
+            googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+            googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(address)}`,
+            priceRange: '$',
+            source: 'nominatim',
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Nominatim geocode failed', e);
+  }
+  return null;
+}
+
+/**
+ * Overpass（OSM 進階查詢，免費）：在指定座標周邊用「店名關鍵字」找店。
+ * 對「店名很短 / 只有部分店名」的小店，比 Photon / Nominatim 的全球模糊搜尋命中率高。
+ */
+async function overpassNearbySearch(name: string, bias: GeoBias, radiusM = 25000): Promise<PlaceSearchResult[]> {
+  const term = name.trim();
+  if (term.length < 2) return [];
+  const esc = term.replace(/[.*+?^${}()|[\]\\"]/g, '\\$&');
+  const around = `(around:${radiusM},${bias.lat},${bias.lng})`;
+  const q =
+    `[out:json][timeout:8];(` +
+    `nwr["name"~"${esc}",i]["amenity"~"restaurant|cafe|fast_food|bar|pub|ice_cream|food_court|biergarten"]${around};` +
+    `nwr["name"~"${esc}",i]["shop"~"bakery|confectionery|pastry|tea|coffee|deli|seafood|butcher"]${around};` +
+    `);out center 12;`;
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(q),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const els: any[] = Array.isArray(data?.elements) ? data.elements : [];
+    const list: PlaceSearchResult[] = [];
+    els.forEach((el, idx) => {
+      const tags = el.tags || {};
+      const lat = el.lat ?? el.center?.lat;
+      const lng = el.lon ?? el.center?.lon;
+      if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      const rawName: string = tags['name:zh'] || tags.name || tags['name:ja'] || term;
+      const addrParts = [
+        tags['addr:province'] || tags['addr:state'] || tags['addr:prefecture'],
+        tags['addr:city'],
+        tags['addr:district'] || tags['addr:suburb'] || tags['addr:quarter'],
+        tags['addr:street'],
+        tags['addr:housenumber'],
+      ].filter(Boolean);
+      const fullText = addrParts.join(' ') + ' ' + rawName;
+      const city = detectCity(fullText, '') || '';
+      const address = addrParts.join('') || `${city} (地圖資料未含門牌，請自行補充)`;
+      const category = guessCategory(rawName, tags.cuisine || tags.amenity || tags.shop || '');
+      list.push({
+        id: `ovp_${Date.now()}_${idx}`,
+        name: rawName,
+        category,
+        city: city || '',
+        address,
+        lat,
+        lng,
+        googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${rawName} @${lat},${lng}`)}`,
+        googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(`${rawName} ${city} 美食 評價`)}`,
+        priceRange: '$',
+        rawType: tags.amenity || tags.shop,
+        source: 'overpass',
+      });
+    });
+    return list;
+  } catch (e) {
+    console.warn('Overpass search failed', e);
+    return [];
+  }
 }
 
 // 🍜 Guess category from name and amenity
@@ -514,7 +673,11 @@ export async function resolveGooglePlaceUrl(urlStr: string): Promise<PlaceSearch
 }
 
 // 🔍 Search Places Online via Multi-Engine (Curated + Photon Fuzzy + Nominatim POI + Link Resolver)
-export async function searchGooglePlacesOnline(query: string, includeFallback = true): Promise<PlaceSearchResult[]> {
+export async function searchGooglePlacesOnline(
+  query: string,
+  includeFallback = true,
+  bias?: GeoBias
+): Promise<PlaceSearchResult[]> {
   const cleanQ = query.trim();
   if (!cleanQ || cleanQ.length < 1) return [];
 
@@ -629,9 +792,10 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
   const targetCity = detectCity(cleanQ, queryHasJapan ? '東京都' : '台北市');
 
   // 3. Photon Engine Search
-  const photonPromise = (async (): Promise<PlaceSearchResult[]> => {
+  const photonSearch = async (searchText: string): Promise<PlaceSearchResult[]> => {
     try {
-      const url = `https://photon.komoot.io/api/?lang=default&limit=15&q=${encodeURIComponent(cleanQ)}`;
+      const biasParam = bias ? `&lat=${bias.lat}&lon=${bias.lng}` : '';
+      const url = `https://photon.komoot.io/api/?lang=default&limit=15${biasParam}&q=${encodeURIComponent(searchText)}`;
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
@@ -713,12 +877,13 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
       console.warn('Photon search error', e);
       return [];
     }
-  })();
+  };
 
   // 4. Nominatim Engine Search
-  const nominatimPromise = (async (): Promise<PlaceSearchResult[]> => {
+  const nominatimSearch = async (searchText: string): Promise<PlaceSearchResult[]> => {
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10&q=${encodeURIComponent(cleanQ)}`;
+      const vb = bias ? `&viewbox=${bias.lng - 1.5},${bias.lat + 1.5},${bias.lng + 1.5},${bias.lat - 1.5}` : '';
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=10${vb}&q=${encodeURIComponent(searchText)}`;
       const res = await fetch(url, {
         headers: { 'Accept-Language': 'zh-TW,zh;q=0.9,ja;q=0.8,en;q=0.7' },
       });
@@ -800,12 +965,35 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
       console.warn('Nominatim search error', e);
       return [];
     }
-  })();
+  };
 
-  const [photonRes, nominatimRes] = await Promise.all([photonPromise, nominatimPromise]);
+  // 「去掉地區詞後的純店名」：多詞查詢（例如「愛知 炒飯 信」）常讓 OSM 全文搜尋失準，
+  // 第一輪無結果時，改用純店名 + 使用者所在地偏好再試一次。
+  const nameOnly = cleanQ
+    .split(/\s+/)
+    .filter((tok) => tok && !(detectCity(tok, '') && tok.length <= 6) && !/[都道府県縣市區区町村鄉鎮]$/.test(tok))
+    .join(' ')
+    .trim();
 
-  // Merge and deduplicate
-  [...photonRes, ...nominatimRes].forEach((item) => {
+  const looksLikeJpAddress = /[都道府県].*[市区町村]|[市区町村].*[0-9０-９]/.test(cleanQ) && /[0-9０-９]/.test(cleanQ);
+  const addressPromise: Promise<PlaceSearchResult[]> = looksLikeJpAddress
+    ? geocodeAddress(cleanQ, bias).then((g) =>
+        g ? [{ ...g, name: cleanQ, address: g.address || cleanQ }] : []
+      )
+    : Promise.resolve([]);
+
+  const overpassPromise: Promise<PlaceSearchResult[]> = bias
+    ? overpassNearbySearch(nameOnly || cleanQ, bias)
+    : Promise.resolve([]);
+
+  let [photonRes, nominatimRes] = await Promise.all([photonSearch(cleanQ), nominatimSearch(cleanQ)]);
+  if (photonRes.length + nominatimRes.length === 0 && nameOnly && nameOnly !== cleanQ) {
+    [photonRes, nominatimRes] = await Promise.all([photonSearch(nameOnly), nominatimSearch(nameOnly)]);
+  }
+  const [overpassRes, addressRes] = await Promise.all([overpassPromise, addressPromise]);
+
+  // Merge and deduplicate（Overpass 是「店名 + 附近」命中，排在最前面）
+  [...overpassRes, ...addressRes, ...photonRes, ...nominatimRes].forEach((item) => {
     const key = (item.name + '_' + item.city).toLowerCase().replace(/\s/g, '');
     if (!seenKeys.has(key)) {
       seenKeys.add(key);
@@ -885,23 +1073,28 @@ export async function searchGooglePlacesOnline(query: string, includeFallback = 
     return scoreB - scoreA;
   });
 
-  // Fallback: If no results after filtering, construct a clean candidate card in the target region
-  if (results.length === 0 && cleanQ.length > 0) {
+  // Fallback：完全查無資料時，才建立「待補資料」候選卡（呼叫端可用 includeFallback=false 關閉）
+  if (includeFallback && results.length === 0 && cleanQ.length > 0) {
     const detected = targetCity;
     const category = guessCategory(cleanQ);
-    const coords = CITY_COORDS[detected] || (reqLocKw ? CITY_COORDS[reqLocKw] : null) || { lat: 25.0478, lng: 121.5319 };
+    // 座標優先序：使用者所在地 > 城市中心 > 台北（最後手段）。一律標記為 approx，UI 應提示使用者確認。
+    const coords =
+      bias ||
+      CITY_COORDS[detected] ||
+      (reqLocKw ? CITY_COORDS[reqLocKw] : null) || { lat: 25.0478, lng: 121.5319 };
     results.push({
       id: `custom_${Date.now()}`,
       name: cleanQ,
       category,
       city: detected,
-      address: `${detected} (精選店家 · 可自行編輯完整地址)`,
+      address: `${detected} (地圖資料庫查無此店，請補上地址並確認位置)`,
       lat: coords.lat,
       lng: coords.lng,
       googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanQ + ' ' + detected)}`,
       googleSearchUrl: `https://www.google.com/search?q=${encodeURIComponent(cleanQ + ' ' + detected + ' 美食 評價')}`,
       priceRange: '$',
       source: 'custom',
+      approx: true,
     });
   }
 

@@ -66,7 +66,7 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
     setHasSearched(true);
 
     try {
-      const items = await searchGooglePlacesOnline(rawQ);
+      const items = await searchGooglePlacesOnline(rawQ, true, { lat: userLocation.lat, lng: userLocation.lng });
       setResults(items);
     } catch (e) {
       console.error('Search failed', e);
@@ -108,7 +108,6 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
       lat: place.lat,
       lng: place.lng,
       googleMapsUrl: place.googleMapsUrl,
-      googleRating: 4.6,
       priceRange: place.priceRange,
       ratingTag: tag,
       visibility: 'public',
@@ -146,7 +145,7 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-indigo-200">
-                搜尋任何店名、小吃、地標，自動抓取精確座標與地址並即時收錄！
+                搜尋店名、地址或貼上 Google Maps 連結，自動帶入座標與地址（優先搜尋你附近）
               </p>
             </div>
           </div>
@@ -200,7 +199,7 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
           {/* Tips Banner */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-800 text-[11px] font-medium">
             <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span>💡 秘訣：在 Google Maps App 找到任何新店，點「分享」複製連結貼到這裡，任何新店都能 100% 抓入！</span>
+            <span>💡 找不到時：在 Google Maps App 找到店 → 分享 → 複製連結貼到這裡；或直接貼上店家地址。</span>
           </div>
 
           {/* Quick Presets */}
@@ -315,6 +314,11 @@ export const GooglePlaceSearchModal: React.FC<GooglePlaceSearchModalProps> = ({
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           <span className="truncate">{place.address}</span>
                         </p>
+                        {place.approx && (
+                          <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                            ⚠️ 位置僅為概略（地圖資料庫查無此店）。收錄後請到編輯頁補上地址，並在地圖上確認位置。
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">

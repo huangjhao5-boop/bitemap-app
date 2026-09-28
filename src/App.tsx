@@ -1379,6 +1379,7 @@ export function App() {
         currentUserName={userProfile.name}
         currentUserAvatar={userProfile.avatar}
         onDeleteRestaurant={handleDeleteRestaurant}
+        userLocation={{ lat: userLocation.lat, lng: userLocation.lng }}
       />
 
       <ShareCardModal
