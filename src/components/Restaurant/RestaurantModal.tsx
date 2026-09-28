@@ -453,7 +453,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         const geo = addressText ? await geocodeAddress(addressText, userLocation) : null;
         const searchBias = geo ? { lat: geo.lat, lng: geo.lng } : userLocation;
 
-        const searchQuery = [extractedName, addressText ? '' : detectedRegion].filter(Boolean).join(' ').trim();
+        // Include the screenshot address so similar store names in other districts do not win the search.
+        const searchQuery = [extractedName, addressText || detectedRegion].filter(Boolean).join(' ').trim();
 
         let googleMatchFound = false;
         if (searchQuery.length >= 2) {
@@ -465,11 +466,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
               const topMatch = googleResults[0];
               setName(topMatch.name);
               setCategory(topMatch.category);
-              setCity(topMatch.city);
-              // 截圖上的地址是使用者看得到的第一手資料，優先於地圖資料庫拼出來的地址
+              setCity(geo?.city || topMatch.city);
+              // Keep coordinates geocoded from the screenshot address when available.
               setAddress(addressText || topMatch.address);
-              setLat(topMatch.lat);
-              setLng(topMatch.lng);
+              setLat(geo?.lat ?? topMatch.lat);
+              setLng(geo?.lng ?? topMatch.lng);
               setGoogleMapsUrl(topMatch.googleMapsUrl);
               setPriceRange(topMatch.priceRange);
               setPlaceSearchResults(googleResults);
