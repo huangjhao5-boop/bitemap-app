@@ -526,7 +526,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           setAddress(addressText);
           setLat(geo.lat);
           setLng(geo.lng);
-          if (geo.city) handleCityChange(geo.city);
+          if (geo.city) setCity(geo.city);
           setGoogleMapsUrl(
             `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${extractedName} ${addressText}`.trim())}`
           );
@@ -754,7 +754,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                 setAddress(extracted.address);
                 setLat(geo.lat);
                 setLng(geo.lng);
-                if (geo.city) handleCityChange(geo.city);
+                if (geo.city) setCity(geo.city);
                 setGoogleMapsUrl(
                   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${extracted.name} ${extracted.address}`)}`
                 );
