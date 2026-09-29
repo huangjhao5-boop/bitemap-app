@@ -420,9 +420,41 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           setGeminiStatus(detail);
         });
         setScreenshotPhase('places');
+        const aiIsConfident = Boolean(aiResult && !aiResult.needsReview && aiResult.confidence >= 0.85);
+        const normalizeEvidence = (value: string) => value
+          .normalize('NFKC')
+          .replace(/台/g, '臺')
+          .replace(/[\s\p{P}\p{S}]/gu, '')
+          .toLocaleLowerCase();
+        const normalizedOcrText = normalizeEvidence(result.rawText);
+        const ocrName = result.extractedInfo.name || '';
+        const namesAgree = !ocrName || !aiResult?.name ||
+          normalizeEvidence(ocrName) === normalizeEvidence(aiResult.name) ||
+          normalizeEvidence(ocrName).includes(normalizeEvidence(aiResult.name)) ||
+          normalizeEvidence(aiResult.name).includes(normalizeEvidence(ocrName));
+        const canUseAiName = aiIsConfident && namesAgree;
+        const ocrDetectedRegion = detectCity(result.rawText, result.extractedInfo.city || '');
+        const canUseAiCity = Boolean(
+          aiIsConfident && aiResult?.city &&
+          normalizeEvidence(ocrDetectedRegion || '') === normalizeEvidence(aiResult.city)
+        );
+        // Never geocode an AI-invented address: exact address text must also be present in OCR.
+        const canUseAiAddress = Boolean(
+          aiIsConfident && aiResult?.address &&
+          normalizedOcrText.includes(normalizeEvidence(aiResult.address))
+        );
+        const aiNeedsReview = Boolean(
+          aiResult && (
+            aiResult.needsReview ||
+            aiResult.confidence < 0.85 ||
+            !namesAgree ||
+            (aiResult.city && !canUseAiCity) ||
+            (aiResult.address && !canUseAiAddress)
+          )
+        );
         const aiReviewNotice = aiResult
-          ? (aiResult.needsReview
-            ? '⚠️ AI 對店名或地點有疑慮，請對照截圖確認後再儲存。'
+          ? (aiNeedsReview
+            ? '⚠️ AI 辨識有不確定或與截圖文字不一致的欄位；未採用未核實的地址，請選擇地圖候選或手動確認。'
             : `🤖 ${geminiProgressMessage || (aiResult.mode === 'flash-fallback' ? 'Gemini 3.8 Flash' : 'Gemini 3.1 Flash-Lite')} 已核對截圖，請確認辨識內容。`)
           : `⚠️ ${geminiProgressMessage || 'Gemini 未回覆'}；目前保留 OCR 結果，請人工核對。`;
 
@@ -431,23 +463,23 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             ...result,
             extractedInfo: {
               ...result.extractedInfo,
-              name: aiResult.name || result.extractedInfo.name,
-              category: aiResult.category || result.extractedInfo.category,
-              city: aiResult.city || result.extractedInfo.city,
-              address: aiResult.address || result.extractedInfo.address,
+              name: canUseAiName && aiResult.name ? aiResult.name : result.extractedInfo.name,
+              category: aiIsConfident && aiResult.category ? aiResult.category : result.extractedInfo.category,
+              city: canUseAiCity && aiResult.city ? aiResult.city : result.extractedInfo.city,
+              address: canUseAiAddress && aiResult.address ? aiResult.address : result.extractedInfo.address,
               mustEatDishes: Array.from(new Set([
                 ...result.extractedInfo.mustEatDishes,
-                ...(aiResult.mustEatDishes || []),
+                ...(aiIsConfident ? aiResult.mustEatDishes || [] : []),
               ])),
             },
             addressCandidates: Array.from(new Set([
-              ...(aiResult.address ? [aiResult.address] : []),
+              ...(canUseAiAddress && aiResult.address ? [aiResult.address] : []),
               ...result.addressCandidates,
             ])),
             candidateWords: Array.from(new Set([
               ...(aiResult.name ? [aiResult.name] : []),
-              ...(aiResult.address ? [aiResult.address] : []),
-              ...(aiResult.city ? [aiResult.city] : []),
+              ...(canUseAiAddress && aiResult.address ? [aiResult.address] : []),
+              ...(canUseAiCity && aiResult.city ? [aiResult.city] : []),
               ...result.candidateWords,
             ])).slice(0, 20),
             failureReason: undefined,
@@ -473,7 +505,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
         // 4. 🔥 地址優先策略：截圖裡有地址就先用地址定位（地址比店名好查得多），
         //    再用「店名 + 該地址附近」找店，命中率遠高於單靠店名。
-        const detectedRegion = aiResult?.city || detectCity(result.rawText, result.extractedInfo.city || '');
+        const detectedRegion = ocrDetectedRegion || (canUseAiCity ? aiResult?.city || '' : '');
 
         // 動態過濾純地區/行政區候選詞，避免將「高松」、「岡山」、「鈴鹿」、「四日市」、「三重縣」等純地區詞當成店家名稱
         const nonCityCandidates = result.candidateWords.filter((w) => {
@@ -494,36 +526,55 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           extractedName = nonCityCandidates[0] || '';
         }
 
-        const addressText = aiResult?.address || result.addressCandidates[0] || result.extractedInfo.address || '';
+        const addressText = result.addressCandidates[0] || result.extractedInfo.address ||
+          (canUseAiAddress ? aiResult?.address || '' : '');
         const geo = addressText ? await geocodeAddress(addressText, userLocation) : null;
-        const searchBias = geo ? { lat: geo.lat, lng: geo.lng } : userLocation;
+        // Without an address in the screenshot, don't bias results toward the user's current location.
+        const searchBias = geo ? { lat: geo.lat, lng: geo.lng } : undefined;
 
-        // Include the screenshot address so similar store names in other districts do not win the search.
+        // Search is a cross-check only. A map result is auto-selected only when the screenshot
+        // contains an address, it geocodes, and its name agrees with the recognized shop name.
         const searchQuery = [extractedName, addressText || detectedRegion].filter(Boolean).join(' ').trim();
 
         let googleMatchFound = false;
+        let mapCandidatesFound = 0;
         if (searchQuery.length >= 2) {
           try {
             setPlaceSearchQuery(searchQuery);
             // includeFallback=false：查不到就是查不到，不塞假的候選卡
             const googleResults = await searchGooglePlacesOnline(searchQuery, false, searchBias);
             if (googleResults.length > 0) {
-              const topMatch = googleResults[0];
-              setName(topMatch.name);
-              setCategory(topMatch.category);
-              setCity(geo?.city || topMatch.city);
-              // Keep coordinates geocoded from the screenshot address when available.
-              setAddress(addressText || topMatch.address);
-              setLat(geo?.lat ?? topMatch.lat);
-              setLng(geo?.lng ?? topMatch.lng);
-              setGoogleMapsUrl(topMatch.googleMapsUrl);
-              setPriceRange(topMatch.priceRange);
               setPlaceSearchResults(googleResults);
-
-              googleMatchFound = true;
-              setSmartAutoFillNotice(
-                `🎉 公開地圖資料找到「${topMatch.name}」並帶入座標。已建立 Google Maps 查詢連結，請點擊核對店名和地址。`
+              mapCandidatesFound = googleResults.length;
+              const topMatch = googleResults[0];
+              const normalizedShopName = normalizeEvidence(extractedName);
+              const normalizedMapName = normalizeEvidence(topMatch.name);
+              const mapNameAgrees = Boolean(
+                normalizedShopName && normalizedMapName &&
+                (normalizedMapName === normalizedShopName ||
+                  normalizedMapName.includes(normalizedShopName) ||
+                  normalizedShopName.includes(normalizedMapName))
               );
+
+              if (addressText && geo && mapNameAgrees) {
+                setName(topMatch.name);
+                setCategory(topMatch.category);
+                setCity(geo.city || topMatch.city);
+                setAddress(addressText);
+                setLat(geo.lat);
+                setLng(geo.lng);
+                setGoogleMapsUrl(topMatch.googleMapsUrl);
+                setPriceRange(topMatch.priceRange);
+
+                googleMatchFound = true;
+                setSmartAutoFillNotice(
+                  `🎉 截圖地址已定位，且地圖店名符合「${extractedName}」。請仍核對地址後再儲存。`
+                );
+              } else {
+                setGoogleMapsUrl(
+                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`
+                );
+              }
             }
           } catch (gErr) {
             console.warn('Google places auto lookup error', gErr);
@@ -565,7 +616,11 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             found = true;
           }
 
-          if (found) {
+          if (mapCandidatesFound > 0) {
+            setSmartAutoFillNotice(
+              `公開地圖找到 ${mapCandidatesFound} 筆候選，但尚未能確認哪一筆與截圖完全相符；尚未自動選店。請點選符合「${extractedName || '截圖店名'}」的候選並核對地址。`
+            );
+          } else if (found) {
             setSmartAutoFillNotice(`🎉 已從截圖辨識出「【${result.extractedInfo.name || '店家細節'}】」！您可以點擊下方欄位按鈕進行微調。`);
           } else if (result.candidateWords.length > 0) {
             setSmartAutoFillNotice(`📷 截圖文字解析完成！下方列出辨識到的關鍵字標籤，點擊文字即可帶入店名、地址或搜尋 Google！`);
@@ -1414,7 +1469,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       <div className="bg-white/90 border border-amber-200 rounded-xl p-2.5 space-y-1.5">
                         <span className="text-[11px] font-black text-amber-900 flex items-center gap-1">
                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                          <span>點擊辨識出的關鍵字標籤，可帶入店名、地址或即時連線 Google 搜店：</span>
+                          <span>OCR／AI 候選關鍵字（AI 建議尚未核實），點選前請對照截圖：</span>
                         </span>
                         <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                           {ocrCandidateWords.map((word, idx) => (
