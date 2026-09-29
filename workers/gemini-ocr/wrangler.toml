@@ -1,0 +1,6 @@
+name = "bitemap-gemini-ocr"
+main = "src/index.ts"
+compatibility_date = "2026-09-29"
+
+[vars]
+APP_ORIGIN = "https://huangjhao5-boop.github.io"
