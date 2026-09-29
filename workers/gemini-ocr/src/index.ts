@@ -2,6 +2,7 @@ interface Env {
   APP_ORIGIN: string;
   GEMINI_API_KEY: string;
   FIREBASE_API_KEY: string;
+  OCR_LIMITER: { limit: (options: { key: string }) => Promise<{ success: boolean }> };
 }
 
 interface Extraction {
@@ -44,15 +45,15 @@ function parseImageDataUrl(value: unknown): { mimeType: string; data: string } |
   return { mimeType: match[1], data: match[2] };
 }
 
-async function verifyFirebaseToken(token: string, apiKey: string): Promise<boolean> {
+async function verifyFirebaseToken(token: string, apiKey: string): Promise<string | null> {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken: token }),
   });
-  if (!response.ok) return false;
+  if (!response.ok) return null;
   const payload = await response.json() as { users?: Array<{ localId?: string }> };
-  return Boolean(payload.users?.[0]?.localId);
+  return payload.users?.[0]?.localId || null;
 }
 
 function validExtraction(value: unknown): Extraction | null {
@@ -143,9 +144,10 @@ export default {
 
     const authorization = request.headers.get('Authorization') || '';
     const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
-    if (!token || !(await verifyFirebaseToken(token, env.FIREBASE_API_KEY))) {
-      return json({ error: 'Sign-in required' }, 401, origin);
-    }
+    const userId = token ? await verifyFirebaseToken(token, env.FIREBASE_API_KEY) : null;
+    if (!userId) return json({ error: 'Sign-in required' }, 401, origin);
+    const rate = await env.OCR_LIMITER.limit({ key: userId });
+    if (!rate.success) return json({ error: 'Rate limit reached; try again in a minute' }, 429, origin);
 
     let body: { imageDataUrl?: unknown; ocrText?: unknown };
     try {
