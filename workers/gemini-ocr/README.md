@@ -6,7 +6,7 @@
 
 1. 在 Google AI Studio 建立 Gemini API key。
 2. 在 Firebase Console 的 Authentication 啟用匿名登入（APP 目前會建立匿名登入）。
-3. 在這個資料夾安裝 Wrangler 並登入 Cloudflare；首次可用 `npx wrangler deploy` 部署。
+3. 在這個資料夾安裝 Wrangler 4.36 以上版本並登入 Cloudflare；Worker 會對每個 Firebase 使用者限制每分鐘 12 次辨識請求；首次可用 `npx wrangler deploy` 部署。
 4. 以 Wrangler secret 設定：
    - `GEMINI_API_KEY`：Google AI Studio 的 API key。
    - `FIREBASE_API_KEY`：Firebase 網頁應用程式設定中的 Web API key（這是前端識別值，不是 Gemini 金鑰）。
