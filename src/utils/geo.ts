@@ -521,6 +521,16 @@ export function detectCity(addrText: string, fallback: string = '台北市'): st
     if (muni) return muni;
   }
 
+  // Taiwan short city names often appear in captions without the 市 suffix (e.g. "高雄20年生意好").
+  const taiwanCityAliases: Array<[string, string]> = [
+    ['台北', '台北市'], ['臺北', '台北市'], ['新北', '新北市'], ['桃園', '桃園市'],
+    ['台中', '台中市'], ['臺中', '台中市'], ['台南', '台南市'], ['臺南', '台南市'],
+    ['高雄', '高雄市'], ['基隆', '基隆市'], ['新竹', '新竹市'], ['嘉義', '嘉義市'],
+  ];
+  for (const [alias, city] of taiwanCityAliases) {
+    if (text.includes(alias)) return city;
+  }
+
   // 3. Check known city/prefecture lookup keys (e.g. "高松", "岡山", "金澤", "鈴鹿", "博多", "難波")
   for (const key of Object.keys(CITY_COORDS)) {
     if (key.length >= 2 && text.includes(key)) {

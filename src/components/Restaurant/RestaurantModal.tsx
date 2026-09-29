@@ -427,7 +427,14 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           .replace(/[\s\p{P}\p{S}]/gu, '')
           .toLocaleLowerCase();
         const normalizedOcrText = normalizeEvidence(result.rawText);
-        const ocrName = result.extractedInfo.name || '';
+        const rawOcrName = result.extractedInfo.name || '';
+        // Short OCR fragments and common video-caption phrases are not reliable shop names.
+        const isLikelyShopName = (value: string) => {
+          const compact = normalizeEvidence(value);
+          return compact.length >= 2 && compact.length <= 24 &&
+            !/(?:探店|好康|一日遊|景點|美食|生意好到|留言|粉絲|分享|推薦|誇張)/i.test(value);
+        };
+        const ocrName = isLikelyShopName(rawOcrName) ? rawOcrName : '';
         const namesAgree = !ocrName || !aiResult?.name ||
           normalizeEvidence(ocrName) === normalizeEvidence(aiResult.name) ||
           normalizeEvidence(ocrName).includes(normalizeEvidence(aiResult.name)) ||
@@ -507,26 +514,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         //    再用「店名 + 該地址附近」找店，命中率遠高於單靠店名。
         const detectedRegion = ocrDetectedRegion || (canUseAiCity ? aiResult?.city || '' : '');
 
-        // 動態過濾純地區/行政區候選詞，避免將「高松」、「岡山」、「鈴鹿」、「四日市」、「三重縣」等純地區詞當成店家名稱
-        const nonCityCandidates = result.candidateWords.filter((w) => {
-          if (/^(?:日本|台灣|韓國|中國|香港|澳門|都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(w)) return false;
-          if (/(?:都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(w) && w.length <= 4) return false;
-          const detectedW = detectCity(w, '');
-          if (detectedW && detectedW.includes(w) && w.length <= 4) return false;
-          return true;
-        });
-
         let extractedName = result.extractedInfo.name || '';
         const isExtractedNameCity = extractedName && (
           /(?:都|府|県|縣|市|區|区|町|村|鄉|鎮)$/.test(extractedName) ||
           (detectCity(extractedName, '') && detectCity(extractedName, '').includes(extractedName))
         );
 
-        if (!extractedName || isExtractedNameCity) {
-          extractedName = nonCityCandidates[0] || '';
+        if (isExtractedNameCity || !isLikelyShopName(extractedName)) {
+          extractedName = '';
         }
 
-        const addressText = result.addressCandidates[0] || result.extractedInfo.address ||
+        // Use only strict address candidates from OCR or a verified AI address; do not geocode loose OCR fragments.
+        const addressText = result.addressCandidates[0] ||
           (canUseAiAddress ? aiResult?.address || '' : '');
         const geo = addressText ? await geocodeAddress(addressText, userLocation) : null;
         // Without an address in the screenshot, don't bias results toward the user's current location.
@@ -534,11 +533,13 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
         // Search is a cross-check only. A map result is auto-selected only when the screenshot
         // contains an address, it geocodes, and its name agrees with the recognized shop name.
-        const searchQuery = [extractedName, addressText || detectedRegion].filter(Boolean).join(' ').trim();
+        const searchQuery = extractedName
+          ? [extractedName, addressText || detectedRegion].filter(Boolean).join(' ').trim()
+          : addressText;
 
         let googleMatchFound = false;
         let mapCandidatesFound = 0;
-        if (searchQuery.length >= 2) {
+        if ((extractedName || addressText) && searchQuery.length >= 2) {
           try {
             setPlaceSearchQuery(searchQuery);
             // includeFallback=false：查不到就是查不到，不塞假的候選卡
@@ -599,8 +600,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
         if (!googleMatchFound) {
           let found = false;
-          if (result.extractedInfo.name) {
-            setName(result.extractedInfo.name);
+          if (extractedName) {
+            setName(extractedName);
             found = true;
           }
           if (result.extractedInfo.category) {
@@ -611,8 +612,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
             handleCityChange(detectedRegion);
             found = true;
           }
-          if (result.extractedInfo.address) {
-            setAddress(result.extractedInfo.address);
+          if (addressText) {
+            setAddress(addressText);
             found = true;
           }
 

@@ -108,7 +108,11 @@ JSON 格式：{"name":"","category":"","city":"","address":"","mustEatDishes":[]
       }),
     }
   );
-  if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
+  if (!response.ok) {
+    // Log only the provider status and model name; never include keys, request data, or image contents.
+    console.warn('Gemini upstream request failed', { model, status: response.status });
+    throw new Error(`Gemini request failed: ${response.status}`);
+  }
   const payload = await response.json() as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
@@ -162,36 +166,53 @@ export default {
     if (!image) return json({ error: 'Image format or size is not supported' }, 400, origin);
     const ocrText = typeof body.ocrText === 'string' ? body.ocrText.slice(0, 12000) : '';
 
+    let first: Extraction;
     try {
-      const first = await extract(env, PRIMARY_MODEL, image, ocrText);
-      let chosen = first;
-      let mode: 'flash-lite' | 'flash-fallback' = 'flash-lite';
-
-      if (isUncertain(first, ocrText)) {
-        try {
-          const second = await extract(env, FALLBACK_MODEL, image, ocrText);
-          mode = 'flash-fallback';
-          if (completeness(second) > completeness(first) ||
-              (completeness(second) === completeness(first) && second.confidence > first.confidence)) {
-            chosen = second;
-          }
-          const conflicts = Boolean(first.name && second.name && first.name !== second.name) ||
-            Boolean(first.city && second.city && first.city !== second.city) ||
-            Boolean(first.address && second.address && first.address !== second.address);
-          chosen.needsReview = chosen.needsReview || first.needsReview || second.needsReview || conflicts;
-          if (conflicts) chosen.reason = '兩個模型辨識地點或店名不同，請核對截圖。';
-        } catch {
-          // A temporary fallback-model/quota issue must not discard a usable primary result.
-          chosen.needsReview = true;
-          chosen.reason = '進階複核暫時無法使用，請對照截圖確認。';
-        }
-      }
-
-      return json({ ...chosen, mode }, 200, origin);
+      first = await extract(env, PRIMARY_MODEL, image, ocrText);
     } catch (error) {
-      // Keep user data and provider error details out of logs and responses.
-      console.error('Gemini OCR request failed');
-      return json({ error: 'AI recognition is temporarily unavailable' }, 502, origin);
+      const status = error instanceof Error
+        ? error.message.match(/Gemini request failed: (\d{3})/)?.[1] || 'unknown'
+        : 'unknown';
+      console.warn('Primary Gemini model failed; trying fallback', { model: PRIMARY_MODEL, status });
+      try {
+        const fallback = await extract(env, FALLBACK_MODEL, image, ocrText);
+        return json({ ...fallback, mode: 'flash-fallback' }, 200, origin);
+      } catch (fallbackError) {
+        const fallbackStatus = fallbackError instanceof Error
+          ? fallbackError.message.match(/Gemini request failed: (\d{3})/)?.[1] || 'unknown'
+          : 'unknown';
+        console.error('Both Gemini models failed', { primaryStatus: status, fallbackModel: FALLBACK_MODEL, fallbackStatus });
+        return json({ error: 'AI recognition is temporarily unavailable' }, 503, origin);
+      }
     }
+
+    let chosen = first;
+    let mode: 'flash-lite' | 'flash-fallback' = 'flash-lite';
+
+    if (isUncertain(first, ocrText)) {
+      try {
+        const second = await extract(env, FALLBACK_MODEL, image, ocrText);
+        mode = 'flash-fallback';
+        if (completeness(second) > completeness(first) ||
+            (completeness(second) === completeness(first) && second.confidence > first.confidence)) {
+          chosen = second;
+        }
+        const conflicts = Boolean(first.name && second.name && first.name !== second.name) ||
+          Boolean(first.city && second.city && first.city !== second.city) ||
+          Boolean(first.address && second.address && first.address !== second.address);
+        chosen.needsReview = chosen.needsReview || first.needsReview || second.needsReview || conflicts;
+        if (conflicts) chosen.reason = '兩個模型辨識地點或店名不同，請核對截圖。';
+      } catch (error) {
+        // A temporary fallback-model/quota issue must not discard a usable primary result.
+        const status = error instanceof Error
+          ? error.message.match(/Gemini request failed: (\d{3})/)?.[1] || 'unknown'
+          : 'unknown';
+        console.warn('Fallback Gemini model failed', { model: FALLBACK_MODEL, status });
+        chosen.needsReview = true;
+        chosen.reason = '進階複核暫時無法使用，請對照截圖確認。';
+      }
+    }
+
+    return json({ ...chosen, mode }, 200, origin);
   },
 };
