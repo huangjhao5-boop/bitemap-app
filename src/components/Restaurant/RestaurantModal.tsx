@@ -618,7 +618,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
           if (mapCandidatesFound > 0) {
             setSmartAutoFillNotice(
-              `公開地圖找到 ${mapCandidatesFound} 筆候選，但截圖沒有可核實的完整地址；尚未自動選店。請點選符合「${extractedName || '截圖店名'}」的候選並核對地址。`
+              `公開地圖找到 ${mapCandidatesFound} 筆候選，但尚未能確認哪一筆與截圖完全相符；尚未自動選店。請點選符合「${extractedName || '截圖店名'}」的候選並核對地址。`
             );
           } else if (found) {
             setSmartAutoFillNotice(`🎉 已從截圖辨識出「【${result.extractedInfo.name || '店家細節'}】」！您可以點擊下方欄位按鈕進行微調。`);
