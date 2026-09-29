@@ -4,3 +4,11 @@ compatibility_date = "2026-09-29"
 
 [vars]
 APP_ORIGIN = "https://huangjhao5-boop.github.io"
+
+[[ratelimits]]
+name = "OCR_LIMITER"
+namespace_id = "68422391"
+
+[ratelimits.simple]
+limit = 12
+period = 60
