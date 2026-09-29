@@ -32,8 +32,9 @@ async function getOcrWorker() {
   if (workerInstance) return workerInstance;
   if (!workerPromise) {
     workerPromise = (async () => {
-      // 語言包依序降級：繁中+日+英 → 繁中+英 → 英
-      const langSets = ['chi_tra+jpn+eng', 'chi_tra+eng', 'eng'];
+      // 先用繁中辨識，避免中日文模型混用時把中文地名誤判成日文。
+      // 繁中語言包不可用時再降級；英文僅作最後備援。
+      const langSets = ['chi_tra+eng', 'jpn+eng', 'eng'];
       let lastErr: unknown;
       for (const langs of langSets) {
         try {

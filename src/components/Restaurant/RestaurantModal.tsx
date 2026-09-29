@@ -446,7 +446,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
         );
 
         if (!extractedName || isExtractedNameCity) {
-          extractedName = nonCityCandidates.length > 0 ? nonCityCandidates[0] : (result.candidateWords.length > 0 ? result.candidateWords[0] : '');
+          extractedName = nonCityCandidates[0] || '';
         }
 
         const addressText = result.addressCandidates[0] || '';
