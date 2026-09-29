@@ -7,6 +7,7 @@ import { translations } from '../../utils/i18n';
 import { parseVideoUrl, extractRestaurantInfoFromText, fetchVideoMetadata } from '../../utils/videoParser';
 import { searchGooglePlacesOnline, resolveGooglePlaceUrl, geocodeAddress, type PlaceSearchResult } from '../../utils/placeSearch';
 import { parseScreenshotWithOcr } from '../../utils/ocrParser';
+import { parseScreenshotWithGemini } from '../../utils/geminiScreenshotParser';
 import { 
   X, 
   Plus, 
@@ -407,7 +408,41 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
       // 2. 啟動圖片 OCR 辨識與 NLP 文字分析
       try {
-        const result = await parseScreenshotWithOcr(dataUrl);
+        let result = await parseScreenshotWithOcr(dataUrl);
+        const aiResult = await parseScreenshotWithGemini(dataUrl, result.rawText);
+        const aiReviewNotice = aiResult
+          ? (aiResult.needsReview
+            ? '⚠️ AI 對店名或地點有疑慮，請對照截圖確認後再儲存。'
+            : `🤖 已用 Gemini ${aiResult.mode === 'flash-fallback' ? '3.8 Flash 複核' : '3.1 Flash-Lite'} 協助辨識，請核對店名和地址。`)
+          : '';
+
+        if (aiResult) {
+          result = {
+            ...result,
+            extractedInfo: {
+              ...result.extractedInfo,
+              name: aiResult.name || result.extractedInfo.name,
+              category: aiResult.category || result.extractedInfo.category,
+              city: aiResult.city || result.extractedInfo.city,
+              address: aiResult.address || result.extractedInfo.address,
+              mustEatDishes: Array.from(new Set([
+                ...result.extractedInfo.mustEatDishes,
+                ...(aiResult.mustEatDishes || []),
+              ])),
+            },
+            addressCandidates: Array.from(new Set([
+              ...(aiResult.address ? [aiResult.address] : []),
+              ...result.addressCandidates,
+            ])),
+            candidateWords: Array.from(new Set([
+              ...(aiResult.name ? [aiResult.name] : []),
+              ...(aiResult.address ? [aiResult.address] : []),
+              ...(aiResult.city ? [aiResult.city] : []),
+              ...result.candidateWords,
+            ])).slice(0, 20),
+            failureReason: undefined,
+          };
+        }
         setOcrCandidateWords(result.candidateWords);
 
         if (result.extractedInfo.mustEatDishes.length > 0) {
@@ -428,7 +463,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
         // 4. 🔥 地址優先策略：截圖裡有地址就先用地址定位（地址比店名好查得多），
         //    再用「店名 + 該地址附近」找店，命中率遠高於單靠店名。
-        const detectedRegion = detectCity(result.rawText, result.extractedInfo.city || '');
+        const detectedRegion = aiResult?.city || detectCity(result.rawText, result.extractedInfo.city || '');
 
         // 動態過濾純地區/行政區候選詞，避免將「高松」、「岡山」、「鈴鹿」、「四日市」、「三重縣」等純地區詞當成店家名稱
         const nonCityCandidates = result.candidateWords.filter((w) => {
@@ -449,7 +484,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           extractedName = nonCityCandidates[0] || '';
         }
 
-        const addressText = result.addressCandidates[0] || '';
+        const addressText = aiResult?.address || result.addressCandidates[0] || result.extractedInfo.address || '';
         const geo = addressText ? await geocodeAddress(addressText, userLocation) : null;
         const searchBias = geo ? { lat: geo.lat, lng: geo.lng } : userLocation;
 
@@ -527,6 +562,9 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
           } else {
             setSmartAutoFillNotice('📷 截圖上傳成功！建議在上方 Google 搜尋框輸入店名帶入官方地址與座標。');
           }
+        }
+        if (aiReviewNotice) {
+          setSmartAutoFillNotice((current) => current ? `${current} ${aiReviewNotice}` : aiReviewNotice);
         }
       } catch (err) {
         console.warn('Screenshot OCR error', err);
