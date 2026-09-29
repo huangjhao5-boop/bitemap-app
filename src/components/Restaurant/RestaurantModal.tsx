@@ -107,6 +107,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const [isSmartAutoFilling, setIsSmartAutoFilling] = useState(false);
   const [smartAutoFillNotice, setSmartAutoFillNotice] = useState<string | null>(null);
   const [isOcrAnalyzing, setIsOcrAnalyzing] = useState(false);
+  const [screenshotPhase, setScreenshotPhase] = useState<'ocr' | 'gemini' | 'places'>('ocr');
+  const [geminiStatus, setGeminiStatus] = useState('');
   const [ocrCandidateWords, setOcrCandidateWords] = useState<string[]>([]);
   const [uploadedScreenshotUrl, setUploadedScreenshotUrl] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
@@ -394,6 +396,8 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
   const processScreenshotFile = async (file: File) => {
     setIsOcrAnalyzing(true);
     setSmartAutoFillNotice(null);
+    setScreenshotPhase('ocr');
+    setGeminiStatus('');
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -409,12 +413,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
       // 2. 啟動圖片 OCR 辨識與 NLP 文字分析
       try {
         let result = await parseScreenshotWithOcr(dataUrl);
-        const aiResult = await parseScreenshotWithGemini(dataUrl, result.rawText);
+        setScreenshotPhase('gemini');
+        let geminiProgressMessage = '';
+        const aiResult = await parseScreenshotWithGemini(dataUrl, result.rawText, (_status, detail) => {
+          geminiProgressMessage = detail;
+          setGeminiStatus(detail);
+        });
+        setScreenshotPhase('places');
         const aiReviewNotice = aiResult
           ? (aiResult.needsReview
             ? '⚠️ AI 對店名或地點有疑慮，請對照截圖確認後再儲存。'
-            : `🤖 已用 Gemini ${aiResult.mode === 'flash-fallback' ? '3.8 Flash 複核' : '3.1 Flash-Lite'} 協助辨識，請核對店名和地址。`)
-          : '';
+            : `🤖 ${geminiProgressMessage || (aiResult.mode === 'flash-fallback' ? 'Gemini 3.8 Flash' : 'Gemini 3.1 Flash-Lite')} 已核對截圖，請確認辨識內容。`)
+          : `⚠️ ${geminiProgressMessage || 'Gemini 未回覆'}；目前保留 OCR 結果，請人工核對。`;
 
         if (aiResult) {
           result = {
@@ -512,7 +522,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
               googleMatchFound = true;
               setSmartAutoFillNotice(
-                `🎉 已找到「${topMatch.name}」並帶入座標。請對照截圖確認店名與地址是否正確，不對的話可從下方候選清單改選。`
+                `🎉 公開地圖資料找到「${topMatch.name}」並帶入座標。已建立 Google Maps 查詢連結，請點擊核對店名和地址。`
               );
             }
           } catch (gErr) {
@@ -1332,12 +1342,18 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       {isOcrAnalyzing ? (
                         <>
                           <RotateCw className="w-4 h-4 text-amber-600 animate-spin" />
-                          <span>🔍 正在辨識文字並對接 Google 地圖搜尋中...</span>
+                          <span aria-live="polite">
+                            {screenshotPhase === 'ocr'
+                              ? '① 正在讀取截圖文字（OCR）…'
+                              : screenshotPhase === 'gemini'
+                                ? `② Gemini 正在核對辨識結果… ${geminiStatus}`
+                                : '③ 正在比對公開地圖資料並建立 Google Maps 連結…'}
+                          </span>
                         </>
                       ) : (
                         <>
                           <Camera className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
-                          <span>無法複製文字？拖入或點擊上傳【短影音/菜單/地圖截圖】（自動 OCR 結合 Google 搜尋）</span>
+                          <span>上傳截圖：OCR 讀字 → Gemini 核對 → 公開地圖比對並建立 Google Maps 連結</span>
                         </>
                       )}
                     </div>
@@ -1448,6 +1464,16 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
                       <div className="flex items-start gap-2">
                         <span className="text-base shrink-0">💡</span>
                         <p className="leading-relaxed font-medium">{smartAutoFillNotice}</p>
+                        {googleMapsUrl && (
+                          <a
+                            href={googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center rounded-lg bg-white px-2.5 py-1.5 font-bold text-indigo-700 underline"
+                          >
+                            📍 在 Google Maps 核對店名與地址
+                          </a>
+                        )}
                       </div>
                       <button
                         type="button"
