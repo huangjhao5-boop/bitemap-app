@@ -815,7 +815,7 @@ export const RestaurantModal: React.FC<RestaurantModalProps> = ({
 
     const cleanMyId = (currentFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     const myContribution = editingRestaurant?.contributions?.find((c) => c.isMine);
-    const authorId = (editingRestaurant?.authorFoodieId || '').toLowerCase().trim().replace(/[@#\\s]/g, '');
+    const authorId = (editingRestaurant?.authorFoodieId || '').toLowerCase().trim().replace(/[@#\s]/g, '');
     const isEditingMine = !isReadOnlyMode && (
       Boolean(myContribution) ||
       (editingRestaurant && authorId === cleanMyId)
