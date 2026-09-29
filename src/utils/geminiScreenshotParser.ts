@@ -45,7 +45,12 @@ export async function parseScreenshotWithGemini(
 
   try {
     const fb = await loadFirebaseModules();
-    const user = fb?.auth?.currentUser;
+    if (!fb) return null;
+    let user = fb.auth.currentUser;
+    if (!user && fb.authMod.signInAnonymously) {
+      const credential = await fb.authMod.signInAnonymously(fb.auth);
+      user = credential.user;
+    }
     if (!user) return null;
 
     const token = await user.getIdToken();
