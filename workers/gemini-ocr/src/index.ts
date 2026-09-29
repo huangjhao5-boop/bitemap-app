@@ -168,17 +168,23 @@ export default {
       let mode: 'flash-lite' | 'flash-fallback' = 'flash-lite';
 
       if (isUncertain(first, ocrText)) {
-        const second = await extract(env, FALLBACK_MODEL, image, ocrText);
-        mode = 'flash-fallback';
-        if (completeness(second) > completeness(first) ||
-            (completeness(second) === completeness(first) && second.confidence > first.confidence)) {
-          chosen = second;
+        try {
+          const second = await extract(env, FALLBACK_MODEL, image, ocrText);
+          mode = 'flash-fallback';
+          if (completeness(second) > completeness(first) ||
+              (completeness(second) === completeness(first) && second.confidence > first.confidence)) {
+            chosen = second;
+          }
+          const conflicts = Boolean(first.name && second.name && first.name !== second.name) ||
+            Boolean(first.city && second.city && first.city !== second.city) ||
+            Boolean(first.address && second.address && first.address !== second.address);
+          chosen.needsReview = chosen.needsReview || first.needsReview || second.needsReview || conflicts;
+          if (conflicts) chosen.reason = '兩個模型辨識地點或店名不同，請核對截圖。';
+        } catch {
+          // A temporary fallback-model/quota issue must not discard a usable primary result.
+          chosen.needsReview = true;
+          chosen.reason = '進階複核暫時無法使用，請對照截圖確認。';
         }
-        const conflicts = Boolean(first.name && second.name && first.name !== second.name) ||
-          Boolean(first.city && second.city && first.city !== second.city) ||
-          Boolean(first.address && second.address && first.address !== second.address);
-        chosen.needsReview = chosen.needsReview || first.needsReview || second.needsReview || conflicts;
-        if (conflicts) chosen.reason = '兩個模型辨識地點或店名不同，請核對截圖。';
       }
 
       return json({ ...chosen, mode }, 200, origin);
